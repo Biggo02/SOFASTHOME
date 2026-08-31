@@ -1,1 +1,45 @@
-{% extends 'base.html' %}{% block title %}Ajouter un bien — FASTHOME{% endblock %}{% block content %}<section class='form-page'><div class='page-head'><small>MES PUBLICATIONS · NOUVEAU BIEN</small><h1>Ajouter un bien</h1><p>Complétez les informations puis enregistrez un brouillon ou soumettez à vérification.</p></div><div class='steps'><b>1 Informations</b><span>2 Caractéristiques</span><span>3 Localisation</span><span>4 Photos</span><span>5 Financier</span><span>6 Résumé</span></div><form method='post' class='panel form-card'>{% csrf_token %}{{ form.non_field_errors }}{% for field in form %}<div class='field'><label>{{ field.label }}</label>{{ field }}{% if field.errors %}<small class='field-error'>{{ field.errors|striptags }}</small>{% endif %}</div>{% endfor %}<div class='form-actions'><a class='btn btn-light' href='{% url "publications" %}'>Annuler</a><button class='btn btn-light' name='save'>Enregistrer brouillon</button><button class='btn btn-primary' name='submit'>Soumettre à vérification</button></div></form></section>{% endblock %}
+{% extends 'base.html' %}
+{% block title %}Publier un bien — FASTHOME{% endblock %}
+{% block content %}
+<section class='form-page publication-page'>
+<div class='page-head'><small>FASTHOME · PUBLICATION VÉRIFIÉE</small><h1>Décrire votre bien avec précision</h1><p>La fiche se construit automatiquement selon les informations que vous renseignez. Plus vous êtes précis, meilleure sera la présentation du logement.</p></div>
+<div class='notice'><b>🔐 Publication réservée aux identités vérifiées</b><span>Votre recto, verso et selfie doivent avoir été approuvés par FASTHOME avant toute soumission.</span></div>
+<form method='post' class='panel form-card' id='propertyForm'>
+{% csrf_token %}{{ form.non_field_errors }}
+<div class='pub-section'><div class='pub-title'><span>01</span><div><h2>Identité du bien</h2><p>Les informations qui permettent de comprendre immédiatement le logement.</p></div></div><div class='form-grid'>
+{% for name in 'title,property_type,description,province,city,commune,neighborhood'|cut:','|make_list %}{% endfor %}
+{% for field in form %}{% if field.name == 'title' or field.name == 'property_type' or field.name == 'description' or field.name == 'province' or field.name == 'city' or field.name == 'commune' or field.name == 'neighborhood' %}<div class='field {% if field.name == "description" %}full{% endif %}'><label>{{ field.label }}</label>{{ field }}{% if field.errors %}<small class='field-error'>{{ field.errors|striptags }}</small>{% endif %}</div>{% endif %}{% endfor %}
+</div></div>
+<div class='pub-section'><div class='pub-title'><span>02</span><div><h2>Composition</h2><p>Indiquez exactement le nombre de pièces. Les sections détaillées apparaîtront automatiquement.</p></div></div><div class='form-grid'>
+{% for field in form %}{% if field.name in 'bedrooms, salons, kitchens, bathrooms, toilets, floors, floor_number, parking, parking_spaces, security' %}<div class='field' data-field='{{ field.name }}'><label>{{ field.label }}</label>{{ field }}{% if field.errors %}<small class='field-error'>{{ field.errors|striptags }}</small>{% endif %}</div>{% endif %}{% endfor %}
+</div></div>
+<div class='pub-section conditional' id='furnishedSection'><div class='pub-title'><span>03</span><div><h2>🛋 Bien meublé</h2><p>Cette partie apparaît dès que vous choisissez « Meublé ».</p></div></div><div class='form-grid'>
+{% for field in form %}{% if field.name in 'furnished,furnished_type,furnished_bedrooms,furnished_salons,furnished_kitchens,furnished_bathrooms,furniture_details' %}<div class='field {% if field.name == "furniture_details" %}full{% endif %}'><label>{{ field.label }}</label>{{ field }}{% if field.errors %}<small class='field-error'>{{ field.errors|striptags }}</small>{% endif %}</div>{% endif %}{% endfor %}</div><div class='dynamic-hint'>💡 Les quantités de meubles permettent d'afficher automatiquement les pièces réellement meublées.</div></div>
+<div class='pub-section'><div class='pub-title'><span>04</span><div><h2>🚿 Douches, salles de bain et toilettes</h2><p>Décrivez chaque équipement sanitaire pour une fiche réellement informative.</p></div></div><div class='form-grid'>
+{% for field in form %}{% if field.name in 'shower_count,shower_location,shower_privacy,shower_tank_type,bathroom_details,toilet_details' %}<div class='field {% if field.name == "bathroom_details" or field.name == "toilet_details" %}full{% endif %}'><label>{{ field.label }}</label>{{ field }}{% if field.errors %}<small class='field-error'>{{ field.errors|striptags }}</small>{% endif %}</div>{% endif %}{% endfor %}</div><div id='sanitaryPreview' class='dynamic-preview'></div></div>
+<div class='pub-section'><div class='pub-title'><span>05</span><div><h2>💧 Eau et ⚡ électricité</h2><p>La disponibilité réelle et la provenance sont obligatoires lorsqu'un service est déclaré disponible.</p></div></div><div class='form-grid'>
+{% for field in form %}{% if field.name in 'water,water_days_per_week,water_source,water_details,electricity,electricity_days_per_week,electricity_source,electricity_details' %}<div class='field {% if field.name == "water_details" or field.name == "electricity_details" %}full{% endif %}' data-utility='{{ field.name }}'><label>{{ field.label }}</label>{{ field }}{% if field.errors %}<small class='field-error'>{{ field.errors|striptags }}</small>{% endif %}</div>{% endif %}{% endfor %}</div><div class='utility-preview' id='utilityPreview'></div></div>
+<div class='pub-section'><div class='pub-title'><span>06</span><div><h2>🏠 Finitions et état</h2><p>Ces informations complètent la fiche technique.</p></div></div><div class='form-grid'>
+{% for field in form %}{% if field.name in 'floor_type,ceiling_type,condition,available_now,availability_date' %}<div class='field'><label>{{ field.label }}</label>{{ field }}{% if field.errors %}<small class='field-error'>{{ field.errors|striptags }}</small>{% endif %}</div>{% endif %}{% endfor %}</div></div>
+<div class='pub-section'><div class='pub-title'><span>07</span><div><h2>📍 Localisation privée</h2><p>L'adresse complète sert à FASTHOME mais ne sera jamais affichée publiquement.</p></div></div><div class='form-grid'>
+{% for field in form %}{% if field.name in 'full_address,latitude,longitude' %}<div class='field'><label>{{ field.label }}</label>{{ field }}{% if field.errors %}<small class='field-error'>{{ field.errors|striptags }}</small>{% endif %}</div>{% endif %}{% endfor %}</div></div>
+<div class='pub-section'><div class='pub-title'><span>08</span><div><h2>💰 Conditions financières</h2><p>Ces données sont privées et servent au calcul interne FASTHOME.</p></div></div><div class='form-grid'>
+{% for field in form %}{% if field.name in 'rent,deposit' %}<div class='field'><label>{{ field.label }}</label>{{ field }}{% if field.errors %}<small class='field-error'>{{ field.errors|striptags }}</small>{% endif %}</div>{% endif %}{% endfor %}</div></div>
+<div class='pub-section'><div class='pub-title'><span>09</span><div><h2>📸 Photos du bien</h2><p>Après l'enregistrement du bien, ajoutez jusqu'à 10 photos : façade, salon, chambres, cuisine, sanitaires et extérieur.</p></div></div><div class='photo-rules'><span>✓ 10 photos maximum</span><span>✓ Photo principale</span><span>✓ Compression automatique</span><span>✓ Réorganisation possible</span></div></div>
+<div class='form-actions'><a class='btn btn-light' href='{% url "publications" %}'>Annuler</a><button class='btn btn-light' name='save'>Enregistrer brouillon</button><button class='btn btn-primary' name='submit'>Soumettre à vérification</button></div>
+</form></section>
+<script>
+(function(){
+ const form=document.getElementById('propertyForm');
+ const q=n=>form.querySelector('[name="'+n+'"]');
+ const show=(id,on)=>{const e=document.getElementById(id);if(e)e.classList.toggle('visible',on)};
+ function refresh(){
+  const furnished=q('furnished'); show('furnishedSection',furnished && furnished.checked);
+  const b=parseInt(q('bedrooms')?.value||0), s=parseInt(q('salons')?.value||0), k=parseInt(q('kitchens')?.value||0), ba=parseInt(q('bathrooms')?.value||0), t=parseInt(q('toilets')?.value||0), sh=parseInt(q('shower_count')?.value||0);
+  const p=document.getElementById('sanitaryPreview'); if(p)p.innerHTML=[b?`🛏 ${b} chambre${b>1?'s':''}`:'',s?`🛋 ${s} salon${s>1?'s':''}`:'',k?`🍳 ${k} cuisine${k>1?'s':''}`:'',ba?`🛁 ${ba} salle${ba>1?'s':''} de bain`:'',t?`🚽 ${t} toilette${t>1?'s':''}`:'',sh?`🚿 ${sh} douche${sh>1?'s':''}`:''].filter(Boolean).map(x=>'<span>'+x+'</span>').join('');
+  const u=document.getElementById('utilityPreview'); if(u)u.innerHTML=[q('water')?.checked?`💧 Eau : ${q('water_days_per_week')?.value||0}/7 jours — ${q('water_source')?.selectedOptions[0]?.text||'provenance à préciser'}`:'💧 Eau non déclarée',q('electricity')?.checked?`⚡ Courant : ${q('electricity_days_per_week')?.value||0}/7 jours — ${q('electricity_source')?.selectedOptions[0]?.text||'provenance à préciser'}`:'⚡ Courant non déclaré'].map(x=>'<span>'+x+'</span>').join('');
+ }
+ form.querySelectorAll('input,select,textarea').forEach(e=>e.addEventListener('input',refresh)); form.querySelectorAll('input[type=checkbox]').forEach(e=>e.addEventListener('change',refresh)); refresh();
+})();
+</script>
+{% endblock %}
