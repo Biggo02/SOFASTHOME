@@ -1,0 +1,35 @@
+from django.db import migrations, models
+
+class Migration(migrations.Migration):
+    dependencies=[('core','0003_production_media_documents_audit')]
+    operations=[
+        migrations.AddField('property','full_address',models.CharField(blank=True,max_length=255)),
+        migrations.AddField('property','kitchens',models.PositiveIntegerField(default=1)),
+        migrations.AddField('property','toilets',models.PositiveIntegerField(default=1)),
+        migrations.AddField('property','floors',models.PositiveIntegerField(default=1)),
+        migrations.AddField('property','floor_number',models.PositiveIntegerField(default=0)),
+        migrations.AddField('property','parking_spaces',models.PositiveIntegerField(default=0)),
+        migrations.AddField('property','furniture_details',models.TextField(blank=True)),
+        migrations.AddField('property','furnished_bedrooms',models.PositiveIntegerField(default=0)),
+        migrations.AddField('property','furnished_salons',models.PositiveIntegerField(default=0)),
+        migrations.AddField('property','furnished_kitchens',models.PositiveIntegerField(default=0)),
+        migrations.AddField('property','furnished_bathrooms',models.PositiveIntegerField(default=0)),
+        migrations.AddField('property','shower_count',models.PositiveIntegerField(default=0)),
+        migrations.AddField('property','shower_location',models.CharField(blank=True,max_length=20)),
+        migrations.AddField('property','shower_privacy',models.CharField(blank=True,max_length=20)),
+        migrations.AddField('property','shower_tank_type',models.CharField(blank=True,max_length=80)),
+        migrations.AddField('property','bathroom_details',models.TextField(blank=True)),
+        migrations.AddField('property','toilet_details',models.TextField(blank=True)),
+        migrations.AddField('property','water_days_per_week',models.PositiveIntegerField(default=7)),
+        migrations.AddField('property','water_source',models.CharField(blank=True,max_length=30)),
+        migrations.AddField('property','water_details',models.TextField(blank=True)),
+        migrations.AddField('property','electricity_days_per_week',models.PositiveIntegerField(default=7)),
+        migrations.AddField('property','electricity_source',models.CharField(blank=True,max_length=30)),
+        migrations.AddField('property','electricity_details',models.TextField(blank=True)),
+        migrations.AddField('property','floor_type',models.CharField(blank=True,max_length=30)),
+        migrations.AddField('property','ceiling_type',models.CharField(blank=True,max_length=30)),
+        migrations.AddField('property','condition',models.CharField(blank=True,max_length=120)),
+        migrations.AddField('property','furnished_type',models.CharField(blank=True,max_length=100)),
+        migrations.AddField('property','availability_date',models.DateField(blank=True,null=True)),
+        migrations.AddField('property','available_now',models.BooleanField(default=True)),
+    ]
