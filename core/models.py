@@ -24,6 +24,8 @@ class Property(models.Model):
     rent=models.DecimalField(max_digits=10,decimal_places=2,default=0)
     deposit=models.DecimalField(max_digits=10,decimal_places=2,default=0)
     margin=models.DecimalField(max_digits=10,decimal_places=2,default=0)
+    latitude=models.DecimalField(max_digits=9,decimal_places=6,null=True,blank=True)
+    longitude=models.DecimalField(max_digits=9,decimal_places=6,null=True,blank=True)
     rejection_reason=models.TextField(blank=True)
     status=models.CharField(max_length=20,choices=STATUSES,default='draft')
     views=models.PositiveIntegerField(default=0)
@@ -37,6 +39,15 @@ class Property(models.Model):
     def match_score(self):
         score=70; score+=10 if self.security else 0; score+=10 if self.water else 0; score+=5 if self.electricity else 0
         return min(score,100)
+
+class PropertyImage(models.Model):
+    property=models.ForeignKey(Property,on_delete=models.CASCADE,related_name='images')
+    image=models.ImageField(upload_to='properties/%Y/%m/')
+    caption=models.CharField(max_length=160,blank=True)
+    is_cover=models.BooleanField(default=False)
+    order=models.PositiveIntegerField(default=0)
+    created_at=models.DateTimeField(auto_now_add=True)
+    class Meta: ordering=['order','id']
 
 class Visit(models.Model):
     STATUS=[('pending','En attente'),('confirmed','Confirmée'),('rejected','Refusée'),('done','Effectuée'),('cancelled','Annulée')]
@@ -54,6 +65,17 @@ class Visit(models.Model):
     comment=models.TextField(blank=True)
     created_at=models.DateTimeField(auto_now_add=True)
 
+class VisitInspection(models.Model):
+    visit=models.OneToOneField(Visit,on_delete=models.CASCADE,related_name='inspection')
+    condition=models.TextField(blank=True)
+    meter_readings=models.TextField(blank=True)
+    keys_received=models.PositiveIntegerField(default=0)
+    notes=models.TextField(blank=True)
+    signed_by_tenant=models.BooleanField(default=False)
+    signed_by_agent=models.BooleanField(default=False)
+    created_at=models.DateTimeField(auto_now_add=True)
+    updated_at=models.DateTimeField(auto_now=True)
+
 class Contract(models.Model):
     reference=models.CharField(max_length=40,unique=True,blank=True)
     property=models.ForeignKey(Property,on_delete=models.PROTECT,related_name='contracts')
@@ -69,6 +91,12 @@ class Contract(models.Model):
             super().save(*args,**kwargs); self.reference=f'FAST-CTR-{self.created_at.year if self.created_at else 2026}-{self.pk:06d}'; return super().save(update_fields=['reference'])
         return super().save(*args,**kwargs)
 
+class ContractDocument(models.Model):
+    contract=models.ForeignKey(Contract,on_delete=models.CASCADE,related_name='documents')
+    document=models.FileField(upload_to='contracts/%Y/%m/')
+    label=models.CharField(max_length=160,default='Document contractuel')
+    created_at=models.DateTimeField(auto_now_add=True)
+
 class Payment(models.Model):
     STATUS=[('upcoming','À venir'),('paid','Payé'),('partial','Partiellement payé'),('late','En retard'),('cancelled','Annulé')]
     contract=models.ForeignKey(Contract,on_delete=models.CASCADE,related_name='payments')
@@ -78,6 +106,32 @@ class Payment(models.Model):
     paid_date=models.DateField(null=True,blank=True)
     reference=models.CharField(max_length=80,blank=True)
     status=models.CharField(max_length=20,choices=STATUS,default='upcoming')
+
+class PaymentProof(models.Model):
+    payment=models.ForeignKey(Payment,on_delete=models.CASCADE,related_name='proofs')
+    file=models.FileField(upload_to='payments/%Y/%m/')
+    note=models.CharField(max_length=200,blank=True)
+    uploaded_by=models.ForeignKey(User,on_delete=models.PROTECT)
+    created_at=models.DateTimeField(auto_now_add=True)
+
+class VerificationDocument(models.Model):
+    KINDS=[('id_front','Pièce identité — recto'),('id_back','Pièce identité — verso'),('selfie','Selfie de vérification'),('other','Autre')]
+    user=models.ForeignKey(User,on_delete=models.CASCADE,related_name='verification_documents')
+    kind=models.CharField(max_length=20,choices=KINDS)
+    file=models.FileField(upload_to='verification/%Y/%m/')
+    status=models.CharField(max_length=20,default='pending')
+    note=models.TextField(blank=True)
+    created_at=models.DateTimeField(auto_now_add=True)
+
+class AuditLog(models.Model):
+    actor=models.ForeignKey(User,on_delete=models.SET_NULL,null=True,blank=True,related_name='audit_logs')
+    action=models.CharField(max_length=120)
+    object_type=models.CharField(max_length=80,blank=True)
+    object_id=models.CharField(max_length=80,blank=True)
+    ip_address=models.GenericIPAddressField(null=True,blank=True)
+    details=models.JSONField(default=dict,blank=True)
+    created_at=models.DateTimeField(auto_now_add=True)
+    class Meta: ordering=['-created_at']
 
 class Notification(models.Model):
     user=models.ForeignKey(User,on_delete=models.CASCADE,related_name='notifications')
