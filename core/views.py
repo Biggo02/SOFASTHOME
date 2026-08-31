@@ -1,7 +1,9 @@
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.models import User
 from django.db.models import Q
+from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from .forms import RegisterForm, PropertyForm
@@ -29,8 +31,7 @@ def match_score(prop, request):
 
 
 def home(request):
-    properties = Property.objects.filter(status='published').order_by('-created_at')[:8]
-    return render(request, 'home.html', {'properties': properties, 'types': Property.TYPES})
+    return render(request, 'home.html', {'properties': Property.objects.filter(status='published').order_by('-created_at')[:8], 'types': Property.TYPES})
 
 
 def search(request):
@@ -38,8 +39,7 @@ def search(request):
     q = request.GET.get('q', '').strip(); ptype = request.GET.get('type', ''); bedrooms = request.GET.get('bedrooms', ''); commune = request.GET.get('commune', '').strip()
     if q:
         query = Q()
-        for term in q.replace('-', ' ').split():
-            query |= Q(title__icontains=term) | Q(city__icontains=term) | Q(commune__icontains=term) | Q(neighborhood__icontains=term)
+        for term in q.replace('-', ' ').split(): query |= Q(title__icontains=term) | Q(city__icontains=term) | Q(commune__icontains=term) | Q(neighborhood__icontains=term)
         qs = qs.filter(query)
     if ptype: qs = qs.filter(property_type=ptype)
     if bedrooms:
@@ -53,8 +53,7 @@ def search(request):
 
 
 def property_detail(request, pk):
-    prop = get_object_or_404(Property, pk=pk, status='published')
-    prop.views += 1; prop.save(update_fields=['views'])
+    prop = get_object_or_404(Property, pk=pk, status='published'); prop.views += 1; prop.save(update_fields=['views'])
     return render(request, 'property_detail.html', {'property': prop, 'score': match_score(prop, request)})
 
 
@@ -82,12 +81,10 @@ def logout_view(request): logout(request); return redirect('home')
 def _links():
     return [('⌂','Tableau de bord','dashboard'),('⌕','Rechercher','search'),('♡','Mes favoris','favorites'),('▣','Mes publications','publications'),('◷','Mes demandes de visite','visits'),('▤','Mes contrats','contracts'),('◉','Mes paiements','payments'),('◴','Mes échéances','due_dates'),('●','Messages','messages'),('♢','Notifications','notifications'),('⚙','Mon profil','profile')]
 
-
 @login_required
 def dashboard(request):
     user = request.user
     return render(request, 'dashboard.html', {'links': _links(), 'properties': Property.objects.filter(owner=user).order_by('-updated_at'), 'visits': Visit.objects.filter(requester=user).select_related('property').order_by('-created_at')[:5], 'contracts': Contract.objects.filter(user=user).select_related('property'), 'payments': Payment.objects.filter(contract__user=user).select_related('contract__property').order_by('due_date')[:5], 'notifications': Notification.objects.filter(user=user).order_by('-created_at')[:6]})
-
 
 @login_required
 def publications(request): return render(request, 'list.html', {'title':'Mes publications','items':Property.objects.filter(owner=request.user).order_by('-updated_at'),'kind':'property'})
@@ -105,9 +102,9 @@ def add_property(request):
 def request_visit(request, pk):
     prop=get_object_or_404(Property,pk=pk,status='published')
     if request.method=='POST':
-        Visit.objects.create(property=prop,requester=request.user,preferred_date=request.POST.get('preferred_date') or None,preferred_time=request.POST.get('preferred_time') or None,comment=request.POST.get('comment',''))
+        visit = Visit.objects.create(property=prop,requester=request.user,preferred_date=request.POST.get('preferred_date') or None,preferred_time=request.POST.get('preferred_time') or None,comment=request.POST.get('comment',''))
         Notification.objects.create(user=request.user,title='Demande de visite envoyée',message=f'Votre demande pour {prop.title} est en attente de validation.')
-        Notification.objects.create(user=prop.owner,title='Nouvelle demande de visite',message=f'Une demande concerne votre bien {prop.reference}.')
+        Notification.objects.create(user=prop.owner,title='Nouvelle demande de visite',message=f'La demande #{visit.pk} concerne votre bien {prop.reference}.')
         messages.success(request,'Votre demande de visite a été envoyée.'); return redirect('visits')
     return render(request,'visit_form.html',{'property':prop})
 
@@ -126,8 +123,7 @@ def notifications(request):
     return render(request,'list.html',{'title':'Notifications','items':qs,'kind':'notification'})
 
 @login_required
-def favorites(request):
-    ids=request.session.get('favorites',[]); return render(request,'list.html',{'title':'Mes favoris','items':Property.objects.filter(pk__in=ids,status='published'),'kind':'favorite'})
+def favorites(request): return render(request,'list.html',{'title':'Mes favoris','items':Property.objects.filter(pk__in=request.session.get('favorites',[]),status='published'),'kind':'favorite'})
 
 @login_required
 def toggle_favorite(request,pk):
@@ -135,10 +131,11 @@ def toggle_favorite(request,pk):
     if pk in ids: ids.remove(pk); messages.info(request,'Bien retiré des favoris.')
     else: ids.append(pk); messages.success(request,'Bien ajouté aux favoris.')
     request.session['favorites']=ids
-    return redirect(request.META.get('HTTP_REFERER','property_detail'),pk=pk)
+    ref=request.META.get('HTTP_REFERER')
+    return HttpResponseRedirect(ref) if ref else redirect('property_detail',pk=pk)
 
 @login_required
-def messages_page(request): return render(request,'placeholder.html',{'title':'Messagerie sécurisée','text':'Contactez uniquement FASTHOME. Les coordonnées privées des propriétaires restent protégées.'})
+def messages_page(request): return render(request,'placeholder.html',{'title':'Messagerie sécurisée','text':'Contactez uniquement FASTHOME. Les coordonnées privées des propriétaires restent masquées.'})
 @login_required
 def profile(request): return render(request,'profile.html')
 def about(request): return render(request,'placeholder.html',{'title':'À propos','text':'FASTHOME simplifie la recherche, la visite et la gestion locative en RDC.'})
@@ -152,7 +149,6 @@ def staff_required(user): return user.is_staff
 @user_passes_test(staff_required)
 def admin_dashboard(request):
     today=timezone.localdate()
-    from django.contrib.auth.models import User
     return render(request,'admin_dashboard.html',{'users':User.objects.count(),'properties':Property.objects.count(),'review':Property.objects.filter(status='review').count(),'published':Property.objects.filter(status='published').count(),'visits':Visit.objects.count(),'today_visits':Visit.objects.filter(preferred_date=today).count(),'contracts':Contract.objects.count(),'late':Payment.objects.filter(status='late').count(),'payments':Payment.objects.count(),'properties_review':Property.objects.filter(status='review').order_by('-created_at')[:10],'visits_pending':Visit.objects.filter(status='pending').select_related('property','requester').order_by('preferred_date')[:10]})
 
 @login_required
@@ -161,10 +157,11 @@ def review_publication(request,pk):
     prop=get_object_or_404(Property,pk=pk)
     if request.method=='POST':
         action=request.POST.get('action')
-        if action=='validate': prop.status='validated'; messages.success(request,'Publication validée : elle reste masquée jusqu’à publication.')
-        elif action=='publish': prop.status='published'; messages.success(request,'Publication mise en ligne.')
-        elif action=='reject': prop.status='rejected'; messages.warning(request,'Publication refusée.')
-        prop.save(update_fields=['status','updated_at']); Notification.objects.create(user=prop.owner,title='Statut de publication mis à jour',message=f'{prop.reference} : {prop.get_status_display()}.'); return redirect('admin_dashboard')
+        if action=='validate': prop.status='validated'; notice='Publication validée : elle reste masquée jusqu’à publication.'
+        elif action=='publish': prop.status='published'; notice='Publication mise en ligne.'
+        elif action=='reject': prop.status='rejected'; notice='Publication refusée.'
+        else: notice='Aucune action appliquée.'
+        prop.save(update_fields=['status','updated_at']); Notification.objects.create(user=prop.owner,title='Statut de publication mis à jour',message=f'{prop.reference} : {prop.get_status_display()}.'); messages.success(request,notice); return redirect('admin_dashboard')
     return render(request,'review_publication.html',{'property':prop})
 
 @login_required
