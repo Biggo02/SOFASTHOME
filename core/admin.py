@@ -8,7 +8,7 @@ class PropertyAdmin(admin.ModelAdmin):
     list_display=('reference','title','owner','city','neighborhood','status','views','updated_at'); list_filter=('status','property_type','city','furnished','security'); search_fields=('reference','title','city','commune','neighborhood','owner__username','owner__first_name','owner__last_name'); readonly_fields=('reference','views','created_at','updated_at'); list_per_page=30
 @admin.register(PropertyImage)
 class PropertyImageAdmin(admin.ModelAdmin):
-    list_display=('property','image','is_cover','order','created_at'); list_filter=('is_cover'); search_fields=('property__reference','property__title')
+    list_display=('property','image','is_cover','order','created_at'); list_filter=('is_cover',); search_fields=('property__reference','property__title')
 @admin.register(Visit)
 class VisitAdmin(admin.ModelAdmin):
     list_display=('id','property','requester','preferred_date','preferred_time','scheduled_date','status','owner_approved','agent_approved'); list_filter=('status','owner_approved','agent_approved','preferred_date'); search_fields=('property__reference','property__title','requester__username')
