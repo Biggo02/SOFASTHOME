@@ -23,19 +23,26 @@ class PropertyForm(forms.ModelForm):
             'availability_date':forms.DateInput(attrs={'type':'date'}),
             'water_days_per_week':forms.NumberInput(attrs={'min':0,'max':7}),
             'electricity_days_per_week':forms.NumberInput(attrs={'min':0,'max':7}),
+            'max_occupants':forms.NumberInput(attrs={'min':1,'max':100}),
+            'bedrooms':forms.NumberInput(attrs={'min':0}), 'salons':forms.NumberInput(attrs={'min':0}),
+            'kitchens':forms.NumberInput(attrs={'min':0}), 'bathrooms':forms.NumberInput(attrs={'min':0}),
+            'toilets':forms.NumberInput(attrs={'min':0}), 'shower_count':forms.NumberInput(attrs={'min':0}),
         }
+        labels={'max_occupants':'Nombre maximum d’habitants','bedrooms':'Chambres','salons':'Salons','kitchens':'Cuisines','bathrooms':'Salles de bain','toilets':'Toilettes'}
     def clean(self):
         data=super().clean()
-        if data.get('bedrooms',0)>0 and data.get('furnished'):
-            if data.get('furnished_bedrooms',0)>data.get('bedrooms',0): self.add_error('furnished_bedrooms','Ne peut pas dépasser le nombre de chambres.')
-        if data.get('water_days_per_week',0)>7: self.add_error('water_days_per_week','Maximum 7 jours par semaine.')
-        if data.get('electricity_days_per_week',0)>7: self.add_error('electricity_days_per_week','Maximum 7 jours par semaine.')
+        for field in ('water_days_per_week','electricity_days_per_week'):
+            if data.get(field,0)>7: self.add_error(field,'Maximum 7 jours par semaine.')
+        if data.get('max_occupants',0)<1: self.add_error('max_occupants','Le nombre maximum d’habitants doit être au moins 1.')
+        if data.get('bedrooms',0)>0 and data.get('furnished') and data.get('furnished_bedrooms',0)>data.get('bedrooms',0): self.add_error('furnished_bedrooms','Ne peut pas dépasser le nombre de chambres.')
         if data.get('water') and not data.get('water_source'): self.add_error('water_source','Précisez la provenance de l’eau.')
         if data.get('electricity') and not data.get('electricity_source'): self.add_error('electricity_source','Précisez la provenance du courant.')
         if data.get('furnished') and not data.get('furniture_details'): self.add_error('furniture_details','Décrivez les équipements et meubles fournis.')
         if data.get('shower_count',0)>0:
             if not data.get('shower_location'): self.add_error('shower_location','Précisez intérieur ou extérieur.')
             if not data.get('shower_privacy'): self.add_error('shower_privacy','Précisez privé ou public/commun.')
+            if not data.get('shower_tank_type'): self.add_error('shower_tank_type','Précisez le type de cuve/réservoir.')
+        if data.get('available_now') is False and not data.get('availability_date'): self.add_error('availability_date','Indiquez la date de disponibilité.')
         return data
 
 class LoginForm(AuthenticationForm):
