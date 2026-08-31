@@ -23,6 +23,7 @@ class Property(models.Model):
     kitchens=models.PositiveIntegerField(default=1)
     bathrooms=models.PositiveIntegerField(default=1)
     toilets=models.PositiveIntegerField(default=1)
+    max_occupants=models.PositiveIntegerField(default=1)
     floors=models.PositiveIntegerField(default=1)
     floor_number=models.PositiveIntegerField(default=0)
     parking=models.BooleanField(default=False)
@@ -35,8 +36,8 @@ class Property(models.Model):
     furnished_kitchens=models.PositiveIntegerField(default=0)
     furnished_bathrooms=models.PositiveIntegerField(default=0)
     shower_count=models.PositiveIntegerField(default=0)
-    shower_location=models.CharField(max_length=20,blank=True) # interior/exterior
-    shower_privacy=models.CharField(max_length=20,blank=True) # private/public
+    shower_location=models.CharField(max_length=20,blank=True)
+    shower_privacy=models.CharField(max_length=20,blank=True)
     shower_tank_type=models.CharField(max_length=80,blank=True)
     bathroom_details=models.TextField(blank=True)
     toilet_details=models.TextField(blank=True)
