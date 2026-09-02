@@ -117,11 +117,15 @@ def matching_score(prop, criteria):
             checks.append((label, weight, points, accepted, similarity, requested, actual))
 
     if criteria['salons'] is not None:
-        checks.append(('Salons', 10.0, 10.0, True, None, criteria['salons'], prop.salons or 0))
+        actual = int(prop.salons or 0)
+        requested = int(criteria['salons'])
+        checks.append(('Salons', 10.0, 10.0, actual >= requested, None, requested, actual))
     if criteria['bedrooms'] is not None:
         checks.append(('Chambres', 15.0, _bedroom_score(prop.bedrooms or 0, criteria['bedrooms'], 15.0), True, None, criteria['bedrooms'], prop.bedrooms or 0))
     if criteria['max_occupants'] is not None:
-        checks.append(('Occupants', 10.0, 10.0, True, None, criteria['max_occupants'], prop.max_occupants or 0))
+        actual = int(prop.max_occupants or 0)
+        requested = int(criteria['max_occupants'])
+        checks.append(('Occupants', 10.0, 10.0, actual >= requested, None, requested, actual))
     if criteria['rent'] is not None:
         checks.append(('Loyer mensuel final', 25.0, _rent_score(prop, criteria['rent'], 25.0), True, None, criteria['rent'], _final_rent(prop)))
 
@@ -160,7 +164,6 @@ def _criteria_from_request(request):
 
 
 def _hard_requirements(prop, criteria):
-    # La localisation est strictement hiérarchique et s'arrête à la commune.
     for field in ('province', 'city', 'commune'):
         requested = criteria[field]
         if requested:
@@ -188,6 +191,72 @@ def _matching_query(criteria):
     return urlencode({key: str(value) for key, value in criteria.items() if value not in ('', None)})
 
 
+def _format_fc(value):
+    try:
+        return f'{Decimal(str(value)):,.0f}'.replace(',', ' ')
+    except (TypeError, ValueError, InvalidOperation):
+        return str(value)
+
+
+def build_matching_explanation(prop, criteria):
+    """Construit un paragraphe éditorial à partir uniquement des critères réellement saisis."""
+    parts = []
+
+    if criteria['province'] and criteria['city'] and criteria['commune']:
+        parts.append(
+            f"Ce bien correspond d'abord à votre recherche sur le plan géographique : il se trouve dans la province de {prop.province}, "
+            f"à {prop.city}, précisément dans la commune de {prop.commune}, ce qui correspond à la localisation que vous avez sélectionnée."
+        )
+    elif criteria['province'] or criteria['city'] or criteria['commune']:
+        location_bits = []
+        for key, label in (('province', 'la province'), ('city', 'la ville / le territoire'), ('commune', 'la commune')):
+            if criteria[key]:
+                location_bits.append(f"{label} de {getattr(prop, key, '')}")
+        parts.append("Sur le plan géographique, ce bien respecte " + ", ".join(location_bits) + ", conformément à votre recherche.")
+
+    if criteria['salons'] is not None:
+        requested = criteria['salons']
+        actual = int(prop.salons or 0)
+        if actual == requested:
+            parts.append(f"Sa composition correspond également à votre besoin avec exactement {actual} salon{'s' if actual > 1 else ''}, comme demandé.")
+        else:
+            parts.append(f"Il dispose de {actual} salons, soit {actual - requested} de plus que le minimum de {requested} que vous avez indiqué, ce qui vous offre davantage d'espace sur ce critère.")
+
+    if criteria['bedrooms'] is not None:
+        requested = criteria['bedrooms']
+        actual = int(prop.bedrooms or 0)
+        if actual == requested:
+            parts.append(f"Le logement comprend par ailleurs exactement {actual} chambre{'s' if actual > 1 else ''}, correspondant à votre besoin.")
+        else:
+            parts.append(f"Il propose {actual} chambres, soit {actual - requested} de plus que les {requested} chambres recherchées, ce qui constitue une capacité supplémentaire sans dépasser votre besoin minimal.")
+
+    if criteria['max_occupants'] is not None:
+        requested = criteria['max_occupants']
+        actual = int(prop.max_occupants or 0)
+        if actual == requested:
+            parts.append(f"Sa capacité maximale de {actual} occupant{'s' if actual > 1 else ''} correspond également à la limite que vous avez fixée.")
+        else:
+            parts.append(f"Sa capacité maximale est de {actual} occupants, ce qui couvre votre besoin de {requested} occupant{'s' if requested > 1 else ''}.")
+
+    if criteria['rent'] is not None:
+        budget = criteria['rent']
+        final_rent = _final_rent(prop)
+        if final_rent == budget:
+            parts.append(f"Enfin, le loyer mensuel final de {_format_fc(final_rent)} FC correspond exactement à votre budget maximal de {_format_fc(budget)} FC.")
+        else:
+            difference = budget - final_rent
+            parts.append(f"Enfin, son loyer mensuel final de {_format_fc(final_rent)} FC reste inférieur à votre plafond de {_format_fc(budget)} FC, avec une marge de {_format_fc(difference)} FC par rapport au budget maximal que vous avez fixé.")
+
+    if not parts:
+        return "Ce bien a été retenu parce qu'il satisfait les critères que vous avez renseignés dans votre recherche."
+
+    if len(parts) == 1:
+        return parts[0]
+    if len(parts) == 2:
+        return f"{parts[0]} {parts[1]}"
+    return " ".join(parts[:-1]) + " " + parts[-1]
+
+
 def search(request):
     criteria = _criteria_from_request(request)
     searched = any(value not in ('', None) for value in criteria.values())
@@ -205,6 +274,7 @@ def search(request):
             prop.match_breakdown = breakdown
             prop.final_rent = _final_rent(prop)
             prop.matching_url = f"{reverse('property_detail', args=[prop.pk])}?from_matching=1&{_matching_query(criteria)}"
+            prop.matching_explanation = build_matching_explanation(prop, criteria)
             properties.append(prop)
         properties.sort(key=lambda prop: (-prop.ui_score, prop.final_rent, prop.id))
 
@@ -224,6 +294,7 @@ def property_detail(request, pk):
     match_breakdown = []
     match_criteria = None
     matching_query = ''
+    matching_explanation = ''
 
     if matching:
         criteria = _criteria_from_request(request)
@@ -232,6 +303,7 @@ def property_detail(request, pk):
             if score > 0:
                 match_criteria = criteria
                 matching_query = _matching_query(criteria)
+                matching_explanation = build_matching_explanation(prop, criteria)
             else:
                 score = None
 
@@ -242,5 +314,6 @@ def property_detail(request, pk):
         'match_breakdown': match_breakdown,
         'match_criteria': match_criteria,
         'matching_query': matching_query,
+        'matching_explanation': matching_explanation,
         'final_rent': _final_rent(prop),
     })
