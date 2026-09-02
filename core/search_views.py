@@ -88,6 +88,7 @@ def _final_rent(prop):
 
 
 def _rent_score(prop, maximum, weight):
+    """Le budget est binaire : au-dessus du maximum = incompatible."""
     if maximum is None:
         return 0.0
     try:
@@ -97,10 +98,7 @@ def _rent_score(prop, maximum, weight):
         return 0.0
     if final_rent <= 0 or maximum <= 0:
         return 0.0
-    if final_rent <= maximum:
-        return float(weight)
-    excess_ratio = (final_rent - maximum) / maximum
-    return float(weight) * max(0.0, 1.0 - float(excess_ratio))
+    return float(weight) if final_rent <= maximum else 0.0
 
 
 def matching_score(prop, criteria):
@@ -167,7 +165,7 @@ def _criteria_from_request(request):
 
 
 def _is_eligible(prop, criteria):
-    """Filtre dur sur la localisation : une localisation incompatible est rejetée."""
+    """Filtres durs : localisation compatible et budget respecté."""
     for field in ('province', 'city', 'commune'):
         requested = criteria[field]
         if requested:
@@ -175,8 +173,12 @@ def _is_eligible(prop, criteria):
             if not accepted:
                 return False
 
-    if criteria['rent'] is not None and _final_rent(prop) <= 0:
-        return False
+    # Le budget demandé est un plafond réel : un bien au-dessus est exclu.
+    if criteria['rent'] is not None:
+        final_rent = _final_rent(prop)
+        if final_rent <= 0 or final_rent > criteria['rent']:
+            return False
+
     return True
 
 
