@@ -6,7 +6,6 @@ geoBoundaries gbOpen est utilisé car sa licence est ouverte sous CC-BY 4.0.
 """
 
 import json
-import re
 from urllib.request import Request, urlopen
 
 from django.core.management.base import CommandError
@@ -18,7 +17,6 @@ from .bootstrap_fasthome_communes import STRUCTURE, clean, normalize_name
 GEBOUNDARIES_API = "https://www.geoboundaries.org/api/current/gbOpen/COD/ADM4/"
 FETCH_TIMEOUT = 180
 
-# Variantes rencontrées dans les bases cartographiques.
 NAME_ALIASES = {
     "annexe": "Annexes",
     "annexes": "Annexes",
@@ -35,13 +33,30 @@ def norm(value):
 
 
 class Command(OSMCommand):
-    help = "Importe le référentiel FASTHOME avec OSM puis un fallback geoBoundaries pour les communes manquantes."
+    help = "Importe le référentiel FASTHOME avec OSM puis geoBoundaries pour les communes manquantes."
 
     def _import_province(self, province, data):
-        imported, missing, unlisted = super()._import_province(province, data)
+        imported, missing_count, unlisted = super()._import_province(province, data)
 
-        if not missing:
-            return imported, missing, unlisted
+        expected = {
+            child
+            for children in STRUCTURE[province].values()
+            for child in children
+        }
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT name
+                FROM core_administrativearea
+                WHERE level='commune' AND province_name=%s
+                """,
+                [province],
+            )
+            existing = {row[0] for row in cursor.fetchall()}
+
+        missing_names = expected - existing
+        if not missing_names:
+            return imported, 0, unlisted
 
         self.stdout.write(self.style.NOTICE(
             "  Fallback geoBoundaries: recherche des géométries manquantes..."
@@ -52,32 +67,43 @@ class Command(OSMCommand):
             self.stdout.write(self.style.WARNING(
                 f"  geoBoundaries indisponible: {exc}"
             ))
-            return imported, missing, unlisted
+            return imported, len(missing_names), unlisted
 
-        inserted = self._import_missing_from_geoboundaries(province, missing, features, metadata)
+        inserted = self._import_missing_from_geoboundaries(
+            province, missing_names, features, metadata
+        )
         imported += inserted
-        missing -= set(self._last_external_found)
+        remaining = missing_names - self._last_external_found
 
         self.stdout.write(self.style.SUCCESS(
             f"  geoBoundaries: {inserted} géométries supplémentaires importées, "
-            f"{len(missing)} toujours manquantes"
+            f"{len(remaining)} toujours manquantes"
         ))
-        if missing:
+        if remaining:
             self.stdout.write(self.style.WARNING(
-                "  Toujours sans géométrie: " + ", ".join(sorted(missing))
+                "  Toujours sans géométrie: " + ", ".join(sorted(remaining))
             ))
-        return imported, len(missing), unlisted
+        return imported, len(remaining), unlisted
 
     def _fetch_json(self, url):
-        request = Request(url, headers={"User-Agent": "FASTHOME/1.0"})
+        request = Request(
+            url,
+            headers={
+                "User-Agent": "FASTHOME/1.0",
+                "Accept": "application/json",
+            },
+        )
         with urlopen(request, timeout=FETCH_TIMEOUT) as response:
             return json.loads(response.read().decode("utf-8"))
 
     def _fetch_geoboundaries(self):
         metadata = self._fetch_json(GEBOUNDARIES_API)
-        geojson_url = metadata.get("gjDownloadURL") or metadata.get("simplifiedGeometryGeoJSON")
+        geojson_url = metadata.get("gjDownloadURL")
+        if not geojson_url:
+            geojson_url = metadata.get("simplifiedGeometryGeoJSON")
         if not geojson_url:
             raise CommandError("geoBoundaries n'a fourni aucun lien GeoJSON.")
+
         features_data = self._fetch_json(geojson_url)
         features = features_data.get("features", [])
         if not features:
@@ -87,16 +113,22 @@ class Command(OSMCommand):
     def _feature_name(self, feature):
         props = feature.get("properties") or {}
         for key in (
-            "shapeName", "shapeName_1", "name", "NAME_4", "NAME_3",
-            "admin4Name", "ADM4_NAME", "name_fr", "NAME",
+            "shapeName", "name", "NAME_4", "NAME_3", "admin4Name",
+            "ADM4_NAME", "name_fr", "NAME",
         ):
             value = clean(props.get(key))
             if value:
                 return value
         return ""
 
-    def _import_missing_from_geoboundaries(self, province, missing, features, metadata):
-        expected = {norm(name): (name, parent) for parent, children in STRUCTURE[province].items() for name in children}
+    def _import_missing_from_geoboundaries(
+        self, province, missing_names, features, metadata
+    ):
+        expected = {
+            norm(name): (name, parent)
+            for parent, children in STRUCTURE[province].items()
+            for name in children
+        }
         matched = {}
 
         for feature in features:
@@ -105,11 +137,11 @@ class Command(OSMCommand):
             if key not in expected:
                 continue
             canonical, parent = expected[key]
+            if canonical not in missing_names:
+                continue
+
             geometry = feature.get("geometry")
             if not geometry or geometry.get("type") not in ("Polygon", "MultiPolygon"):
-                continue
-            # Ne jamais remplacer une géométrie OSM déjà importée.
-            if canonical not in missing:
                 continue
             matched[canonical] = (parent, geometry, raw_name)
 
@@ -137,7 +169,9 @@ class Command(OSMCommand):
                            ST_MakeValid(ST_SetSRID(ST_GeomFromGeoJSON(%s),4326)),3)),
                          %s,NOW())
                     ON CONFLICT (level,name,province_name,city_name)
-                    DO UPDATE SET geom=EXCLUDED.geom,source=EXCLUDED.source,updated_at=NOW()
+                    DO UPDATE SET geom=EXCLUDED.geom,
+                                  source=EXCLUDED.source,
+                                  updated_at=NOW()
                     """,
                     (
                         canonical,
