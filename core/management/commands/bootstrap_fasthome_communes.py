@@ -15,7 +15,6 @@ OVERPASS_ENDPOINTS = [
 REQUEST_TIMEOUT = 240
 RETRIES_PER_ENDPOINT = 2
 
-# Référentiel fourni pour FASTHOME: liaisons parent-enfant à respecter.
 STRUCTURE = {
     "Kinshasa": {
         "Kinshasa": [
@@ -171,7 +170,7 @@ class Command(BaseCommand):
                 self.stdout.write(f"  Relation OSM admin_level=4: {relation_id}")
                 query = self._province_children_query(relation_id)
                 data = self._fetch_with_fallback(endpoints, query, province)
-                imported, missing_count, unlisted = self._import_province(province, data)
+                imported, missing_count, unlisted = self._import_province(province, data, endpoints)
                 totals["imported"] += imported
                 totals["missing"] += missing_count
                 totals["unlisted"] += unlisted
@@ -194,6 +193,21 @@ class Command(BaseCommand):
             if normalize_name(name) in wanted
         }
 
+    def _province_geometry(self, province):
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT ST_AsGeoJSON(geom) FROM core_administrativearea WHERE level='province' AND lower(name)=lower(%s) LIMIT 1",
+                [province],
+            )
+            row = cursor.fetchone()
+        if not row or not row[0]:
+            return None
+        try:
+            from shapely.geometry import shape
+            return shape(json.loads(row[0]))
+        except Exception:
+            return None
+
     def _find_province_relation_id(self, endpoints, province):
         query = f"""
         [out:json][timeout:45];
@@ -209,9 +223,6 @@ class Command(BaseCommand):
         raise CommandError(f"Relation OSM introuvable pour {province}.")
 
     def _province_children_query(self, relation_id):
-        # On récupère toutes les relations admin_level=7 de la province et les
-        # ways membres séparément. Cela évite les réponses relationnelles sans
-        # géométrie qui produisaient auparavant 'ignorées=9'.
         return f"""
         [out:json][timeout:180];
         relation({int(relation_id)})->.province;
@@ -224,7 +235,76 @@ class Command(BaseCommand):
         out body geom;
         """
 
-    def _import_province(self, province, data):
+    def _missing_named_relations_query(self, names):
+        escaped = [re.escape(normalize_name(name)) for name in names]
+        pattern = "^(" + "|".join(escaped) + ")$"
+        return f"""
+        [out:json][timeout:120];
+        relation["boundary"="administrative"]["admin_level"="7"]["name"~{json.dumps(pattern, ensure_ascii=False)},i]->.named;
+        (
+          .named;
+          way(r.named);
+        );
+        out body geom;
+        """
+
+    def _rescue_missing_by_name(self, province, missing, endpoints):
+        if not missing:
+            return {}
+        province_geom = self._province_geometry(province)
+        if province_geom is None:
+            return {}
+
+        self.stdout.write(self.style.NOTICE(
+            "  Recherche OSM de secours par nom exact pour les communes manquantes..."
+        ))
+        try:
+            data = self._fetch_with_fallback(
+                endpoints,
+                self._missing_named_relations_query(sorted(missing)),
+                f"secours noms {province}",
+            )
+        except CommandError as exc:
+            self.stdout.write(self.style.WARNING(f"  Secours par nom indisponible: {exc}"))
+            return {}
+
+        ways = {
+            int(e["id"]): e
+            for e in data.get("elements", [])
+            if e.get("type") == "way" and e.get("id") is not None
+        }
+        expected = {normalize_name(name): name for name in missing}
+        rescued = {}
+        for relation in data.get("elements", []):
+            tags = relation.get("tags") or {}
+            raw = clean(tags.get("name"))
+            key = normalize_name(raw)
+            canonical = expected.get(key)
+            if not canonical:
+                canonical = expected.get(normalize_name(canonical_name(raw)))
+            if not canonical or canonical in rescued:
+                continue
+            geometry = build_geometry(relation, ways)
+            if not geometry:
+                continue
+            try:
+                from shapely.geometry import shape
+                candidate = shape(geometry)
+                # La géométrie doit réellement appartenir à la province ciblée.
+                if not candidate.is_valid:
+                    candidate = candidate.buffer(0)
+                if not candidate.is_empty and province_geom.intersects(candidate):
+                    rescued[canonical] = (geometry, relation.get("id"), raw)
+            except Exception:
+                continue
+
+        if rescued:
+            self.stdout.write(self.style.SUCCESS(
+                f"  Secours par nom: {len(rescued)} commune(s) supplémentaire(s) géométrisée(s)."
+            ))
+        return rescued
+
+    def _import_province(self, province, data, endpoints):
         ways = {
             int(e["id"]): e
             for e in data.get("elements", [])
@@ -255,8 +335,20 @@ class Command(BaseCommand):
             found.add(canonical)
             candidates[canonical] = (parent, geometry, relation.get("id"))
 
+        expected = {child for children in STRUCTURE[province].values() for child in children}
+        missing = expected - found
+        rescued = self._rescue_missing_by_name(province, missing, endpoints)
+        for canonical, (geometry, relation_id, raw) in rescued.items():
+            parent = next(
+                parent for parent, children in STRUCTURE[province].items()
+                if canonical in children
+            )
+            candidates[canonical] = (parent, geometry, relation_id)
+            found.add(canonical)
+
         with transaction.atomic(), connection.cursor() as cursor:
             for canonical, (parent, geometry, relation_id) in candidates.items():
+                source = f"OpenStreetMap relation {relation_id} — référentiel FASTHOME fourni"
                 cursor.execute(
                     """
                     INSERT INTO core_administrativearea
@@ -273,11 +365,10 @@ class Command(BaseCommand):
                         province,
                         parent,
                         json.dumps(geometry, separators=(",", ":")),
-                        f"OpenStreetMap relation {relation_id} — référentiel FASTHOME fourni",
+                        source,
                     ),
                 )
 
-        expected = {child for children in STRUCTURE[province].values() for child in children}
         missing = expected - found
         self.stdout.write(self.style.SUCCESS(
             f"  Relations admin7={len(relations)}, communes du référentiel trouvées={len(found)}, "
