@@ -26,12 +26,10 @@ def _to_decimal(value):
 
 
 def _text_match(actual, requested):
-    """Exact text match, case-insensitive and tolerant of surrounding spaces."""
     return bool(actual and requested and actual.strip().casefold() == requested.strip().casefold())
 
 
 def _minimum_value_score(actual, requested, weight):
-    """Score a minimum requirement progressively instead of using all-or-nothing points."""
     if requested is None:
         return 0.0
     try:
@@ -39,15 +37,12 @@ def _minimum_value_score(actual, requested, weight):
         requested = Decimal(str(requested))
     except (TypeError, ValueError, InvalidOperation):
         return 0.0
-    if requested <= 0:
-        return float(weight)
-    if actual >= requested:
+    if requested <= 0 or actual >= requested:
         return float(weight)
     return float(weight) * max(0.0, float(actual / requested))
 
 
 def _rent_score(actual, maximum, weight):
-    """Budget score: at/under budget is perfect; over budget loses points progressively."""
     if maximum is None:
         return 0.0
     try:
@@ -55,28 +50,17 @@ def _rent_score(actual, maximum, weight):
         maximum = Decimal(str(maximum))
     except (TypeError, ValueError, InvalidOperation):
         return 0.0
-    if maximum <= 0:
-        return float(weight) if actual <= 0 else 0.0
+    if actual <= 0 or maximum <= 0:
+        return 0.0
     if actual <= maximum:
         return float(weight)
-
     excess_ratio = (actual - maximum) / maximum
-    # A property 10% over budget should be noticeably less compatible,
-    # while a very expensive property should not remain highly ranked.
     return float(weight) * max(0.0, 1.0 - float(excess_ratio))
 
 
 def matching_score(prop, criteria):
-    """Return a transparent 0-100 compatibility score based only on user criteria.
-
-    Weights total 100 when all seven criteria are supplied:
-    location 40%, rooms/capacity 35%, budget 15%, province 10%.
-    Text locations are exact; numeric requirements are progressive, so a property
-    with one room less is worse than one meeting the requirement rather than simply
-    receiving the same binary result.
-    """
+    """Transparent 0-100 score using only the seven search criteria."""
     checks = []
-
     if criteria['province']:
         checks.append(('Province', 10.0, 10.0 if _text_match(prop.province, criteria['province']) else 0.0))
     if criteria['city']:
@@ -91,22 +75,13 @@ def matching_score(prop, criteria):
         checks.append(('Occupants', 10.0, _minimum_value_score(prop.max_occupants, criteria['max_occupants'], 10.0)))
     if criteria['rent'] is not None:
         checks.append(('Loyer mensuel', 15.0, _rent_score(prop.rent, criteria['rent'], 15.0)))
-
     if not checks:
         return 0, []
-
     total_weight = sum(weight for _, weight, _ in checks)
     earned = sum(points for _, _, points in checks)
-    score = round((earned / total_weight) * 100)
-    score = max(0, min(100, score))
-
+    score = max(0, min(100, round((earned / total_weight) * 100)))
     breakdown = [
-        {
-            'label': label,
-            'earned': round(points, 1),
-            'weight': round(weight, 1),
-            'ok': points >= weight,
-        }
+        {'label': label, 'earned': round(points, 1), 'weight': round(weight, 1), 'ok': points >= weight}
         for label, weight, points in checks
     ]
     return score, breakdown
@@ -124,23 +99,31 @@ def _criteria_from_request(request):
     }
 
 
+def _location_is_compatible(prop, criteria):
+    if criteria['province'] and not _text_match(prop.province, criteria['province']):
+        return False
+    if criteria['city'] and not _text_match(prop.city, criteria['city']):
+        return False
+    if criteria['commune'] and not _text_match(prop.commune, criteria['commune']):
+        return False
+    return True
+
+
 def search(request):
     criteria = _criteria_from_request(request)
     searched = any(value not in ('', None) for value in criteria.values())
     properties = []
-
     if searched:
         for prop in Property.objects.filter(status='published').prefetch_related('images'):
+            if not _location_is_compatible(prop, criteria):
+                continue
             score, breakdown = matching_score(prop, criteria)
+            if score <= 0:
+                continue
             prop.ui_score = score
             prop.match_breakdown = breakdown
             properties.append(prop)
-
-        # Do not show completely incompatible properties. Keep partial matches so
-        # the user can see the closest real alternatives when the inventory is limited.
-        properties = [prop for prop in properties if prop.ui_score > 0]
         properties.sort(key=lambda prop: (-prop.ui_score, prop.rent, prop.id))
-
     return render(request, 'search.html', {
         'properties': properties,
         'searched': searched,
@@ -156,9 +139,6 @@ def property_detail(request, pk):
     )
     prop.views += 1
     prop.save(update_fields=['views'])
-
-    # Property details stay independent from matching. A detail page never invents
-    # or displays a score; matching is shown only on the search results page.
     return render(request, 'property_detail.html', {
         'property': prop,
         'images': prop.images.all(),
