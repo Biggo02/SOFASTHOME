@@ -1,3 +1,5 @@
+import json
+
 from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
@@ -7,7 +9,7 @@ admin.site.site_header='FASTHOME — Administration'; admin.site.site_title='FAS
 
 @admin.register(Property)
 class PropertyAdmin(admin.ModelAdmin):
-    list_display=('reference','title','owner_identity','city','neighborhood','status_badge','workflow_action','views','updated_at'); list_filter=('status','property_type','city','furnished','security'); search_fields=('reference','title','city','commune','neighborhood','owner__username','owner__first_name','owner__last_name','owner__email'); readonly_fields=('reference','status_display','views','created_at','updated_at','owner_identity_detail','workflow_action_detail'); list_per_page=30
+    list_display=('reference','title','owner_identity','city','neighborhood','status_badge','workflow_action','views','updated_at'); list_filter=('status','property_type','city','furnished','security'); search_fields=('reference','title','city','commune','neighborhood','owner__username','owner__first_name','owner__last_name','owner__email'); readonly_fields=('reference','status_display','views','created_at','updated_at','owner_identity_detail','workflow_action_detail','room_details_display'); list_per_page=30
     def get_queryset(self, request): return super().get_queryset(request).exclude(status='draft')
     @admin.display(description='Propriétaire',ordering='owner__last_name')
     def owner_identity(self,obj):
@@ -16,6 +18,19 @@ class PropertyAdmin(admin.ModelAdmin):
     def owner_identity_detail(self,obj):
         u=obj.owner; name=u.get_full_name().strip() or 'Nom non renseigné'; phone=u.username or 'Non renseigné'; email=u.email or 'Non renseigné'
         return format_html('<div style="line-height:1.8"><strong>{}</strong><br>ID utilisateur : <strong>{}</strong><br>Téléphone : <strong>{}</strong><br>Email : <strong>{}</strong></div>',name,u.pk,phone,email)
+    @admin.display(description='Caractéristiques détaillées des pièces')
+    def room_details_display(self,obj):
+        details=obj.room_details or []
+        if not details: return format_html('<span style="color:#888">Aucune caractéristique détaillée enregistrée.</span>')
+        rows=[]
+        for item in details:
+            label=f"{item.get('kind','Pièce')} {item.get('index','')}"
+            values=[]
+            for key,title in [('floor','Sol'),('ceiling','Plafond'),('condition','État'),('furnished','Meublée'),('equipment','Équipements'),('details','Caractéristiques'),('photo','Photo à fournir')]:
+                value=item.get(key,'')
+                if value: values.append(f'<strong>{title} :</strong> {value}')
+            rows.append(f'<div style="padding:10px 0;border-bottom:1px solid #eee"><strong>{label}</strong><br>{"<br>".join(values) if values else "Aucun détail renseigné."}</div>')
+        return format_html(''.join(rows))
     @admin.display(description='État')
     def status_badge(self,obj): return obj.get_status_display()
     @admin.display(description='État actuel')
@@ -38,6 +53,7 @@ class PropertyAdmin(admin.ModelAdmin):
         ('Identification',{'fields':('reference','owner_identity_detail','title','property_type','description')}),
         ('Localisation',{'fields':('province','city','commune','neighborhood','full_address','latitude','longitude')}),
         ('Composition et capacité',{'fields':('bedrooms','salons','kitchens','bathrooms','toilets','max_occupants','floors','floor_number','parking','parking_spaces','security')}),
+        ('Caractéristiques détaillées des pièces',{'fields':('room_details_display',)}),
         ('Mobilier et sanitaires',{'fields':('furnished','furnished_type','furniture_details','furnished_bedrooms','furnished_salons','furnished_kitchens','furnished_bathrooms','shower_count','shower_location','shower_privacy','shower_tank_type','bathroom_details','toilet_details')}),
         ('Services',{'fields':('water','water_days_per_week','water_source','water_details','electricity','electricity_days_per_week','electricity_source','electricity_details')}),
         ('État et disponibilité',{'fields':('floor_type','ceiling_type','condition','available_now','availability_date')}),
