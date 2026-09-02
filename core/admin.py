@@ -5,7 +5,19 @@ admin.site.site_header='FASTHOME — Administration'; admin.site.site_title='FAS
 
 @admin.register(Property)
 class PropertyAdmin(admin.ModelAdmin):
-    list_display=('reference','title','owner','city','neighborhood','status','views','updated_at'); list_filter=('status','property_type','city','furnished','security'); search_fields=('reference','title','city','commune','neighborhood','owner__username','owner__first_name','owner__last_name'); readonly_fields=('reference','views','created_at','updated_at'); list_per_page=30
+    list_display=('reference','title','owner','city','neighborhood','status','views','updated_at'); list_filter=('status','property_type','city','furnished','security'); search_fields=('reference','title','city','commune','neighborhood','owner__username','owner__first_name','owner__last_name'); readonly_fields=('reference','status','views','created_at','updated_at'); list_per_page=30
+    fieldsets=(
+        ('Identification',{'fields':('reference','owner','title','property_type','description')}),
+        ('Localisation',{'fields':('province','city','commune','neighborhood','full_address','latitude','longitude')}),
+        ('Composition et capacité',{'fields':('bedrooms','salons','kitchens','bathrooms','toilets','max_occupants','floors','floor_number','parking','parking_spaces','security')}),
+        ('Mobilier et sanitaires',{'fields':('furnished','furnished_type','furniture_details','furnished_bedrooms','furnished_salons','furnished_kitchens','furnished_bathrooms','shower_count','shower_location','shower_privacy','shower_tank_type','bathroom_details','toilet_details')}),
+        ('Services',{'fields':('water','water_days_per_week','water_source','water_details','electricity','electricity_days_per_week','electricity_source','electricity_details')}),
+        ('État et disponibilité',{'fields':('floor_type','ceiling_type','condition','available_now','availability_date')}),
+        ('Finances privées',{'fields':('rent','deposit','margin')}),
+        ('Workflow FASTHOME',{'fields':('status','rejection_reason'),'description':'Le statut est contrôlé par le workflow FASTHOME. Utilisez le tableau de gestion pour Valider, Publier ou Refuser une publication.'}),
+        ('Suivi',{'fields':('views','created_at','updated_at')}),
+    )
+
 @admin.register(PropertyImage)
 class PropertyImageAdmin(admin.ModelAdmin):
     list_display=('property','image','is_cover','order','created_at'); list_filter=('is_cover',); search_fields=('property__reference','property__title')
