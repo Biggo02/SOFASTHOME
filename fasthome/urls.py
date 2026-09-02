@@ -5,6 +5,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from core import views
 from core import search_views
+from core import contract_views
 
 urlpatterns = [
     path('admin/', admin.site.urls), path('', views.home, name='home'), path('rechercher/', search_views.search, name='search'),
@@ -19,7 +20,7 @@ urlpatterns = [
     path('mes-publications/', views.publications, name='publications'), path('ajouter-un-bien/', views.add_property, name='add_property'), path('mes-visites/', views.visits, name='visits'),
     path('mes-contrats/', views.contracts, name='contracts'), path('mes-paiements/', views.payments, name='payments'), path('paiement/<int:pk>/preuve/', views.payment_proof, name='payment_proof'),
     path('mes-echeances/', views.due_dates, name='due_dates'), path('notifications/', views.notifications, name='notifications'), path('messages/', views.messages_page, name='messages'),
-    path('verification-documents/', views.verification_upload, name='verification_upload'), path('contrat/<str:reference>/pdf/', views.contract_pdf, name='contract_pdf'),
+    path('verification-documents/', views.verification_upload, name='verification_upload'), path('contrat/<str:reference>/pdf/', contract_views.contract_pdf, name='contract_pdf'),
     path('a-propos/', views.about, name='about'), path('comment-ca-marche/', views.how_it_works, name='how_it_works'), path('contact/', views.contact, name='contact'),
     path('verification-contrat/<str:reference>/', views.contract_verify, name='contract_verify'), path('gestion/', views.admin_dashboard, name='admin_dashboard'),
     path('gestion/publication/<int:pk>/', views.review_publication, name='review_publication'), path('gestion/visite/<int:pk>/', views.manage_visit, name='manage_visit'),
