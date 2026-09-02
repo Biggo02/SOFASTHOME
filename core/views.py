@@ -50,9 +50,11 @@ def register(request):
 def login_view(request):
     if request.user.is_authenticated:return redirect('dashboard')
     if request.method=='POST':
-        user=authenticate(request,username=request.POST.get('username',''),password=request.POST.get('password',''))
+        identifier=request.POST.get('username','').strip()
+        user_for_auth=User.objects.filter(Q(username__iexact=identifier)|Q(email__iexact=identifier)).first()
+        user=authenticate(request,username=user_for_auth.username if user_for_auth else identifier,password=request.POST.get('password',''))
         if user: login(request,user); audit(request,'account.login',user); return redirect('dashboard')
-        messages.error(request,'Identifiants incorrects.')
+        messages.error(request,'Email, téléphone ou mot de passe incorrect.')
     return render(request,'auth.html',{'mode':'login'})
 def logout_view(request): logout(request); return redirect('home')
 def _links(): return [('⌂','Tableau de bord','dashboard'),('⌕','Rechercher','search'),('♡','Mes favoris','favorites'),('▣','Mes publications','publications'),('◷','Mes demandes de visite','visits'),('▤','Mes contrats','contracts'),('◉','Mes paiements','payments'),('◴','Mes échéances','due_dates'),('●','Messages','messages'),('♢','Notifications','notifications'),('⚙','Mon profil','profile')]
@@ -104,8 +106,9 @@ def notifications(request):
 def favorites(request): return render(request,'list.html',{'title':'Mes favoris','items':Property.objects.filter(pk__in=request.session.get('favorites',[]),status='published'),'kind':'favorite'})
 @login_required
 def toggle_favorite(request,pk):
-    get_object_or_404(Property,pk=pk,status='published'); ids=request.session.get('favorites',[]); messages.info(request,'Bien retiré des favoris.') if pk in ids and not ids.remove(pk) else None
-    if pk not in ids: ids.append(pk); messages.success(request,'Bien ajouté aux favoris.')
+    get_object_or_404(Property,pk=pk,status='published'); ids=request.session.get('favorites',[])
+    if pk in ids: ids.remove(pk); messages.info(request,'Bien retiré des favoris.')
+    else: ids.append(pk); messages.success(request,'Bien ajouté aux favoris.')
     request.session['favorites']=ids; return HttpResponseRedirect(request.META.get('HTTP_REFERER') or redirect('property_detail',pk=pk).url)
 @login_required
 def messages_page(request): return render(request,'placeholder.html',{'title':'Messagerie sécurisée','text':'Contactez uniquement FASTHOME. Les coordonnées privées des propriétaires restent masquées.'})
@@ -137,20 +140,20 @@ def contract_pdf(request,reference):
         qr=qrcode.make(f'FASTHOME|{contract.reference}'); qpath=BytesIO(); qr.save(qpath,format='PNG'); qpath.seek(0)
         from reportlab.lib.utils import ImageReader; c.drawImage(ImageReader(qpath),w-150,100,width=90,height=90); c.drawString(w-155,85,'Vérification contrat'); c.setFont('Helvetica',9); c.drawString(50,50,'Document généré par FASTHOME. Vérification : référence du contrat.'); c.showPage(); c.save(); buffer.seek(0); return HttpResponse(buffer.getvalue(),content_type='application/pdf',headers={'Content-Disposition':f'inline; filename="{contract.reference}.pdf"'})
     except ImportError: messages.error(request,'Le module PDF n’est pas installé sur cet environnement.'); return redirect('contracts')
+
 def staff_required(user): return user.is_staff
 @login_required
 @user_passes_test(staff_required)
 def admin_dashboard(request):
     today=timezone.localdate(); return render(request,'admin_dashboard.html',{'users':User.objects.count(),'properties':Property.objects.count(),'review':Property.objects.filter(status='review').count(),'published':Property.objects.filter(status='published').count(),'visits':Visit.objects.count(),'today_visits':Visit.objects.filter(preferred_date=today).count(),'contracts':Contract.objects.count(),'late':Payment.objects.filter(status='late').count(),'payments':Payment.objects.count(),'properties_review':Property.objects.filter(status='review').order_by('-created_at')[:10],'visits_pending':Visit.objects.filter(status='pending').select_related('property','requester').order_by('preferred_date')[:10],'audit_logs':AuditLog.objects.select_related('actor')[:12]})
+
 @login_required
 @user_passes_test(staff_required)
 def review_publication(request,pk):
     prop=get_object_or_404(Property,pk=pk)
     if request.method=='POST':
-        action=request.POST.get('action'); current=prop.status
-        allowed={'review':{'publish','reject'},'published':set(),'rented':{'archive'},'archived':set(),'rejected':{'publish','reject'}}
-        if action not in allowed.get(current,set()):
-            messages.error(request,f'Action impossible pour le statut « {prop.get_status_display()} ».'); return redirect('review_publication',pk=prop.pk)
+        action=request.POST.get('action'); allowed={'review':{'publish','reject'},'published':set(),'rented':{'archive'},'archived':set(),'rejected':set()}; current=prop.status
+        if action not in allowed.get(current,set()): messages.error(request,f'Action impossible pour le statut « {prop.get_status_display()} ».'); return redirect('review_publication',pk=prop.pk)
         if action=='publish': prop.status='published'; prop.rejection_reason=''; notice='Publication mise en ligne. Le bien peut maintenant recevoir des demandes de visite.'
         elif action=='reject':
             reason=request.POST.get('rejection_reason','').strip()
@@ -164,16 +167,12 @@ def review_publication(request,pk):
 def manage_visit(request,pk):
     visit=get_object_or_404(Visit,pk=pk)
     if request.method=='POST':
-        status=request.POST.get('status',visit.status); visit.status=status; visit.agent_approved=request.POST.get('agent_approved')=='on'; visit.owner_approved=request.POST.get('owner_approved')=='on'
-        if visit.agent_approved and visit.owner_approved and status=='pending': visit.status='confirmed'
-        visit.scheduled_date=request.POST.get('scheduled_date') or visit.preferred_date; visit.scheduled_time=request.POST.get('scheduled_time') or visit.preferred_time; visit.observation=request.POST.get('observation',''); visit.save(); audit(request,'visit.updated',visit,{'status':visit.status}); Notification.objects.create(user=visit.requester,title='Mise à jour de visite',message=f'La visite de {visit.property.title} est maintenant : {visit.get_status_display()}.'); messages.success(request,'Visite mise à jour.'); return redirect('admin_dashboard')
+        visit.agent=request.user; visit.agent_approved=request.POST.get('agent_approved')=='on'; visit.owner_approved=request.POST.get('owner_approved')=='on'; visit.scheduled_date=request.POST.get('scheduled_date') or None; visit.scheduled_time=request.POST.get('scheduled_time') or None; visit.status='confirmed' if visit.agent_approved and visit.owner_approved else 'pending'; visit.save(); audit(request,'visit.updated',visit); messages.success(request,'Visite mise à jour.'); return redirect('admin_dashboard')
     return render(request,'manage_visit.html',{'visit':visit})
 @login_required
 @user_passes_test(staff_required)
-def inspection(request,pk):
-    visit=get_object_or_404(Visit,pk=pk); obj,created=VisitInspection.objects.get_or_create(visit=visit)
-    if request.method=='POST': obj.condition=request.POST.get('condition',''); obj.meter_readings=request.POST.get('meter_readings',''); obj.keys_received=int(request.POST.get('keys_received') or 0); obj.notes=request.POST.get('notes',''); obj.signed_by_tenant=request.POST.get('signed_by_tenant')=='on'; obj.signed_by_agent=request.POST.get('signed_by_agent')=='on'; obj.save(); audit(request,'visit.inspection_saved',visit); messages.success(request,'État des lieux enregistré.'); return redirect('manage_visit',pk=visit.pk)
-    return render(request,'inspection.html',{'visit':visit,'inspection':obj})
-def error_403(request,exception=None): return render(request,'403.html',status=403)
-def error_404(request,exception=None): return render(request,'404.html',status=404)
-def error_500(request): return render(request,'500.html',status=500)
+def verification_review(request,pk):
+    doc=get_object_or_404(VerificationDocument,pk=pk)
+    if request.method=='POST':
+        doc.status=request.POST.get('status','pending'); doc.note=request.POST.get('note',''); doc.save(update_fields=['status','note']); audit(request,'verification.reviewed',doc,{'status':doc.status}); Notification.objects.create(user=doc.user,title='Vérification mise à jour',message=f'Votre document {doc.get_kind_display()} est : {doc.status}.'); messages.success(request,'Document mis à jour.'); return redirect('admin_dashboard')
+    return render(request,'verification_upload.html',{'document':doc})
