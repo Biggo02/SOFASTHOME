@@ -103,12 +103,15 @@ def _criteria_from_request(request):
     }
 
 
-def _location_is_compatible(prop, criteria):
+def _is_eligible(prop, criteria):
     if criteria['province'] and not _text_match(prop.province, criteria['province']):
         return False
     if criteria['city'] and not _text_match(prop.city, criteria['city']):
         return False
     if criteria['commune'] and not _text_match(prop.commune, criteria['commune']):
+        return False
+    # A missing/zero rent is invalid data for a budget-based search, not a match.
+    if criteria['rent'] is not None and Decimal(str(prop.rent or 0)) <= 0:
         return False
     return True
 
@@ -119,7 +122,7 @@ def search(request):
     properties = []
     if searched:
         for prop in Property.objects.filter(status='published').prefetch_related('images'):
-            if not _location_is_compatible(prop, criteria):
+            if not _is_eligible(prop, criteria):
                 continue
             score, breakdown = matching_score(prop, criteria)
             if score <= 0:
