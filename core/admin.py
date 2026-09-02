@@ -9,7 +9,7 @@ admin.site.site_header='FASTHOME — Administration'; admin.site.site_title='FAS
 
 @admin.register(Property)
 class PropertyAdmin(admin.ModelAdmin):
-    list_display=('reference','title','owner_identity','city','neighborhood','status_badge','workflow_action','views','updated_at'); list_filter=('status','property_type','city','furnished','security'); search_fields=('reference','title','city','commune','neighborhood','owner__username','owner__first_name','owner__last_name','owner__email'); readonly_fields=('reference','status_display','views','created_at','updated_at','owner_identity_detail','workflow_action_detail','room_details_display'); list_per_page=30
+    list_display=('reference','title','owner_identity','city','commune','status_badge','workflow_action','views','updated_at'); list_filter=('status','property_type','city','commune','furnished','security'); search_fields=('reference','title','province','city','commune','owner__username','owner__first_name','owner__last_name','owner__email'); readonly_fields=('reference','status_display','views','created_at','updated_at','owner_identity_detail','workflow_action_detail','room_details_display'); list_per_page=30
     def get_queryset(self, request): return super().get_queryset(request).exclude(status='draft')
     @admin.display(description='Propriétaire',ordering='owner__last_name')
     def owner_identity(self,obj):
@@ -51,7 +51,7 @@ class PropertyAdmin(admin.ModelAdmin):
         return 'Aucune action de workflow disponible à cette étape.'
     fieldsets=(
         ('Identification',{'fields':('reference','owner_identity_detail','title','property_type','description')}),
-        ('Localisation',{'fields':('province','city','commune','neighborhood','full_address','latitude','longitude')}),
+        ('Localisation',{'fields':('province','city','commune','full_address')}),
         ('Composition et capacité',{'fields':('bedrooms','salons','kitchens','bathrooms','toilets','max_occupants','floors','floor_number','parking','parking_spaces','security')}),
         ('Caractéristiques détaillées des pièces',{'fields':('room_details_display',)}),
         ('Mobilier et sanitaires',{'fields':('furnished','furnished_type','furniture_details','furnished_bedrooms','furnished_salons','furnished_kitchens','furnished_bathrooms','shower_count','shower_location','shower_privacy','shower_tank_type','bathroom_details','toilet_details')}),
