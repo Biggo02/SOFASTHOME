@@ -19,4 +19,8 @@ class Migration(migrations.Migration):
             model_name='property',
             name='longitude',
         ),
+        migrations.RunSQL(
+            sql='DROP TABLE IF EXISTS core_administrativearea CASCADE;',
+            reverse_sql=migrations.RunSQL.noop,
+        ),
     ]
