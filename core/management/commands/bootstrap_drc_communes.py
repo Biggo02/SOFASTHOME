@@ -17,7 +17,6 @@ def clean(value):
 
 
 def build_geometry(relation):
-    """Reconstruit une géométrie OSM de relation en conservant les trous."""
     try:
         from shapely.geometry import LineString, MultiPolygon, Polygon
         from shapely.ops import polygonize, unary_union
@@ -82,11 +81,10 @@ def explicitly_commune(tags):
 
 
 def is_urban_inside_city(geometry, city_shapes):
-    """Fallback prudent: une unité admin7 située dans une ville admin6 peut être communale."""
     from shapely.geometry import shape
 
     point = shape(geometry).representative_point()
-    return any(city_shape.covers(point) for _, city_shape in city_shapes)
+    return any(city_shape.covers(point) for city_shape in city_shapes)
 
 
 class Command(BaseCommand):
@@ -96,16 +94,8 @@ class Command(BaseCommand):
     )
 
     def add_arguments(self, parser):
-        parser.add_argument(
-            "--overpass-url",
-            default="",
-            help="Endpoint Overpass personnalisé (facultatif).",
-        )
-        parser.add_argument(
-            "--clear",
-            action="store_true",
-            help="Efface les communes OSM existantes avant import.",
-        )
+        parser.add_argument("--overpass-url", default="", help="Endpoint Overpass personnalisé (facultatif).")
+        parser.add_argument("--clear", action="store_true", help="Efface les communes OSM existantes avant import.")
 
     def handle(self, *args, **options):
         if connection.vendor != "postgresql":
@@ -141,11 +131,12 @@ class Command(BaseCommand):
         except ImportError as exc:
             raise CommandError("Shapely est requis. Lancez: pip install -r requirements.txt") from exc
 
+        # Les noms servent à l'affichage/diagnostic; le fallback utilise uniquement les géométries.
         city_shapes = []
         for city in cities:
             geometry = build_geometry(city)
             if geometry:
-                city_shapes.append(shape(geometry))
+                city_shapes.append((clean((city.get("tags") or {}).get("name")), shape(geometry)))
 
         self.stdout.write(
             f"OSM: {len(cities)} villes admin_level=6 et {len(level7)} unités admin_level=7 reçues."
@@ -160,6 +151,8 @@ class Command(BaseCommand):
                     "WHERE level='commune' AND source LIKE 'OpenStreetMap%'"
                 )
 
+            city_geometries = [geometry for _, geometry in city_shapes]
+
             for relation in level7:
                 tags = relation.get("tags") or {}
                 name = clean(tags.get("name") or tags.get("official_name"))
@@ -169,7 +162,7 @@ class Command(BaseCommand):
                     continue
 
                 explicit = explicitly_commune(tags)
-                urban = explicit or is_urban_inside_city(geometry, city_shapes)
+                urban = explicit or is_urban_inside_city(geometry, city_geometries)
                 if not urban:
                     non_communes += 1
                     continue
@@ -195,11 +188,7 @@ class Command(BaseCommand):
                         source=EXCLUDED.source,
                         updated_at=NOW()
                     """,
-                    [
-                        name,
-                        geom_json,
-                        f"OpenStreetMap relation {relation.get('id')} — admin_level=7",
-                    ],
+                    [name, geom_json, f"OpenStreetMap relation {relation.get('id')} — admin_level=7"],
                 )
                 imported += 1
 
@@ -263,8 +252,8 @@ class Command(BaseCommand):
         self.stdout.write(self.style.WARNING(
             "QUALITÉ: admin_level=7 peut aussi représenter secteur, chefferie ou cité en RDC. "
             "Une unité est retenue si OSM la décrit explicitement comme commune/municipalité "
-            "ou si sa frontière est située dans une ville admin_level=6. Vérifiez les cas "
-            "ambigus avant de considérer la couverture comme juridiquement exhaustive."
+            "ou si sa frontière est située dans une ville admin_level=6. "
+            "Cette couche sert à la recherche géographique FASTHOME et ne constitue pas un registre juridique exhaustif."
         ))
         self.stdout.write("Source: OpenStreetMap / Overpass; attribution OSM requise.")
 
