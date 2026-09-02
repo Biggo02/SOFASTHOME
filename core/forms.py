@@ -1,7 +1,10 @@
+import json
+
 from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import AuthenticationForm
 from .models import Property
+
 
 class RegisterForm(forms.ModelForm):
     password=forms.CharField(widget=forms.PasswordInput)
@@ -13,10 +16,13 @@ class RegisterForm(forms.ModelForm):
         if data.get('password')!=data.get('password2'): raise forms.ValidationError('Les mots de passe ne correspondent pas.')
         return data
 
+
 class PropertyForm(forms.ModelForm):
+    room_details_json = forms.CharField(required=False, widget=forms.HiddenInput())
+
     class Meta:
         model=Property
-        exclude=['owner','reference','status','views','created_at','updated_at','margin']
+        exclude=['owner','reference','status','views','created_at','updated_at','margin','room_details']
         widgets={
             'description':forms.Textarea(attrs={'rows':4,'placeholder':'Décrivez le bien, son environnement et ses particularités…'}),
             'full_address':forms.TextInput(attrs={'placeholder':'Adresse exacte — non affichée publiquement'}),
@@ -31,6 +37,19 @@ class PropertyForm(forms.ModelForm):
             'deposit':forms.NumberInput(attrs={'min':0,'step':'1','placeholder':'Ex. 100000 FC'}),
         }
         labels={'max_occupants':'Nombre maximum d’habitants','bedrooms':'Chambres','salons':'Salons','kitchens':'Cuisines','bathrooms':'Salles de bain','toilets':'Toilettes','rent':'Loyer mensuel (FC)','deposit':'Garantie / dépôt (FC)'}
+
+    def clean_room_details_json(self):
+        raw = self.cleaned_data.get('room_details_json', '')
+        if not raw:
+            return []
+        try:
+            value = json.loads(raw)
+        except (TypeError, ValueError, json.JSONDecodeError):
+            raise forms.ValidationError('Les caractéristiques détaillées des pièces sont invalides.')
+        if not isinstance(value, list):
+            raise forms.ValidationError('Les caractéristiques détaillées des pièces sont invalides.')
+        return value[:100]
+
     def clean(self):
         data=super().clean()
         for field in ('water_days_per_week','electricity_days_per_week'):
@@ -48,6 +67,15 @@ class PropertyForm(forms.ModelForm):
             if not data.get('shower_tank_type'): self.add_error('shower_tank_type','Précisez le type de cuve/réservoir.')
         if data.get('available_now') is False and not data.get('availability_date'): self.add_error('availability_date','Indiquez la date de disponibilité.')
         return data
+
+    def save(self, commit=True):
+        obj = super().save(commit=False)
+        obj.room_details = self.cleaned_data.get('room_details_json', [])
+        if commit:
+            obj.save()
+            self.save_m2m()
+        return obj
+
 
 class LoginForm(AuthenticationForm):
     username=forms.CharField(label='Email ou téléphone')
