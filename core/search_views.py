@@ -174,12 +174,30 @@ def _criteria_from_request(request):
 
 
 def _is_eligible(prop, criteria):
-    """Filtres durs : localisation compatible et budget respecté."""
+    """Filtres durs : localisation, nombre minimal de pièces/occupants et budget."""
     for field in ('province', 'city', 'commune'):
         requested = criteria[field]
         if requested:
             _, accepted = _location_match(requested, getattr(prop, field, ''))
             if not accepted:
+                return False
+
+    # Les quantités demandées sont des exigences minimales.
+    # Un bien avec moins de salons, chambres ou capacité d'occupants
+    # que ce qui est demandé ne doit donc pas apparaître dans les résultats.
+    numeric_requirements = (
+        ('salons', 'salons'),
+        ('bedrooms', 'bedrooms'),
+        ('max_occupants', 'max_occupants'),
+    )
+    for criteria_field, property_field in numeric_requirements:
+        requested = criteria[criteria_field]
+        if requested is not None:
+            try:
+                actual = int(getattr(prop, property_field, 0) or 0)
+            except (TypeError, ValueError):
+                actual = 0
+            if actual < requested:
                 return False
 
     # Le budget demandé est un plafond réel : un bien au-dessus est exclu.
@@ -242,6 +260,7 @@ def property_detail(request, pk):
     score = None
     match_breakdown = []
     match_criteria = None
+    matching_query = ''
 
     if matching:
         criteria = _criteria_from_request(request)
@@ -249,6 +268,7 @@ def property_detail(request, pk):
             score, match_breakdown = matching_score(prop, criteria)
             if score > 0:
                 match_criteria = criteria
+                matching_query = _matching_query(criteria)
             else:
                 score = None
 
@@ -258,5 +278,6 @@ def property_detail(request, pk):
         'score': score,
         'match_breakdown': match_breakdown,
         'match_criteria': match_criteria,
+        'matching_query': matching_query,
         'final_rent': _final_rent(prop),
     })
