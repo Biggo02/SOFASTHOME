@@ -87,7 +87,6 @@ def _rent_score(prop, maximum, weight):
 
 
 def _bedroom_score(actual, requested, weight):
-    """Score chambres après filtre dur: un surplus d'une chambre reste excellent."""
     if requested is None:
         return 0.0
     actual = int(actual or 0)
@@ -107,12 +106,7 @@ def _bedroom_score(actual, requested, weight):
 def matching_score(prop, criteria, spatial_level='exact'):
     checks = []
     location_penalty = ADJACENT_COMMUNE_SCORE if spatial_level == 'adjacent' else 1.0
-
-    for field, label, weight in (
-        ('province', 'Province', 10.0),
-        ('city', 'Ville / territoire', 15.0),
-        ('commune', 'Commune / commune rurale', 15.0),
-    ):
+    for field, label, weight in (('province', 'Province', 10.0), ('city', 'Ville / territoire', 15.0), ('commune', 'Commune / commune rurale', 15.0)):
         requested = criteria[field]
         if requested:
             actual = getattr(prop, field, '') or ''
@@ -123,22 +117,14 @@ def matching_score(prop, criteria, spatial_level='exact'):
                 accepted = True
                 similarity = location_penalty * 100
             checks.append((label, weight, points, accepted, similarity, requested, actual))
-
     if criteria['salons'] is not None:
-        actual = prop.salons or 0
-        checks.append(('Salons', 10.0, 10.0, True, None, criteria['salons'], actual))
+        checks.append(('Salons', 10.0, 10.0, True, None, criteria['salons'], prop.salons or 0))
     if criteria['bedrooms'] is not None:
-        actual = prop.bedrooms or 0
-        points = _bedroom_score(actual, criteria['bedrooms'], 15.0)
-        checks.append(('Chambres', 15.0, points, True, None, criteria['bedrooms'], actual))
+        checks.append(('Chambres', 15.0, _bedroom_score(prop.bedrooms or 0, criteria['bedrooms'], 15.0), True, None, criteria['bedrooms'], prop.bedrooms or 0))
     if criteria['max_occupants'] is not None:
-        actual = prop.max_occupants or 0
-        checks.append(('Occupants', 10.0, 10.0, True, None, criteria['max_occupants'], actual))
+        checks.append(('Occupants', 10.0, 10.0, True, None, criteria['max_occupants'], prop.max_occupants or 0))
     if criteria['rent'] is not None:
-        actual = _final_rent(prop)
-        points = _rent_score(prop, criteria['rent'], 25.0)
-        checks.append(('Loyer mensuel final', 25.0, points, True, None, criteria['rent'], actual))
-
+        checks.append(('Loyer mensuel final', 25.0, _rent_score(prop, criteria['rent'], 25.0), True, None, criteria['rent'], _final_rent(prop)))
     if not checks:
         return 0, []
     total_weight = sum(weight for _, weight, *_ in checks)
@@ -146,14 +132,7 @@ def matching_score(prop, criteria, spatial_level='exact'):
     score = max(0, min(100, round((earned / total_weight) * 100)))
     breakdown = []
     for label, weight, points, ok, similarity, requested, actual in checks:
-        item = {
-            'label': label,
-            'earned': round(points, 1),
-            'weight': round(weight, 1),
-            'ok': ok,
-            'requested': requested,
-            'actual': actual,
-        }
+        item = {'label': label, 'earned': round(points, 1), 'weight': round(weight, 1), 'ok': ok, 'requested': requested, 'actual': actual}
         if similarity is not None:
             item['similarity'] = round(similarity, 1)
         breakdown.append(item)
@@ -179,23 +158,15 @@ def _hard_requirements(prop, criteria, allow_adjacent=False, adjacent_names=None
             _, accepted = _location_match(requested, getattr(prop, field, ''))
             if not accepted:
                 return False
-
     requested_commune = criteria['commune']
     if requested_commune:
         _, exact = _location_match(requested_commune, getattr(prop, 'commune', ''))
-        if not exact:
-            if not (allow_adjacent and _normalize_location(getattr(prop, 'commune', '')) in (adjacent_names or set())):
-                return False
-
-    for criteria_field, property_field in (
-        ('salons', 'salons'),
-        ('bedrooms', 'bedrooms'),
-        ('max_occupants', 'max_occupants'),
-    ):
+        if not exact and not (allow_adjacent and _normalize_location(getattr(prop, 'commune', '')) in (adjacent_names or set())):
+            return False
+    for criteria_field, property_field in (('salons', 'salons'), ('bedrooms', 'bedrooms'), ('max_occupants', 'max_occupants')):
         requested = criteria[criteria_field]
         if requested is not None and int(getattr(prop, property_field, 0) or 0) < requested:
             return False
-
     if criteria['rent'] is not None:
         final_rent = _final_rent(prop)
         if final_rent <= 0 or final_rent > criteria['rent']:
@@ -209,12 +180,7 @@ def _postgis_available():
     try:
         with connection.cursor() as cursor:
             cursor.execute("""
-                SELECT EXISTS (
-                    SELECT 1
-                    FROM information_schema.tables
-                    WHERE table_schema = current_schema()
-                      AND table_name = 'core_administrativearea'
-                )
+                SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema=current_schema() AND table_name='core_administrativearea')
             """)
             return bool(cursor.fetchone()[0])
     except Exception:
@@ -222,39 +188,37 @@ def _postgis_available():
 
 
 def _adjacent_communes(requested, province='', city=''):
-    """Retourne uniquement les communes réellement contiguës à la commune demandée.
-
-    Les deux côtés de la relation doivent appartenir au même parent géographique.
-    Cela évite qu'un nom de commune identique dans une autre province/ville fasse
-    entrer de faux voisins dans le moteur de matching.
-    """
+    """Résout une commune fuzzy puis retourne uniquement ses voisines réelles."""
     requested_key = _normalize_location(requested)
     if not requested_key or not _postgis_available():
         return set()
-
     try:
         with connection.cursor() as cursor:
             cursor.execute("""
+                SELECT id, name
+                FROM core_administrativearea
+                WHERE level='commune' AND geom IS NOT NULL
+                  AND (%s='' OR lower(trim(province_name))=lower(trim(%s)))
+                  AND (%s='' OR lower(trim(city_name))=lower(trim(%s)))
+            """, [province, province, city, city])
+            candidates = cursor.fetchall()
+            if not candidates:
+                return set()
+            ranked = sorted(candidates, key=lambda row: _location_similarity(requested, row[1]), reverse=True)
+            best = ranked[0]
+            if _location_similarity(requested, best[1]) < LOCATION_ACCEPT_MATCH:
+                return set()
+            cursor.execute("""
                 SELECT DISTINCT a2.name
-                FROM core_administrativearea AS a1
-                JOIN core_administrativearea AS a2
-                  ON a2.level = 'commune'
-                 AND a2.geom IS NOT NULL
-                 AND a1.geom IS NOT NULL
-                 AND ST_Touches(a1.geom, a2.geom)
-                 AND lower(trim(a2.province_name)) = lower(trim(a1.province_name))
-                 AND lower(trim(a2.city_name)) = lower(trim(a1.city_name))
-                WHERE a1.level = 'commune'
-                  AND a1.geom IS NOT NULL
-                  AND lower(trim(a1.name)) = lower(trim(%s))
-                  AND (%s = '' OR lower(trim(a1.province_name)) = lower(trim(%s)))
-                  AND (%s = '' OR lower(trim(a1.city_name)) = lower(trim(%s)))
-            """, [requested, province, province, city, city])
-            return {
-                _normalize_location(row[0])
-                for row in cursor.fetchall()
-                if row[0]
-            }
+                FROM core_administrativearea a1
+                JOIN core_administrativearea a2
+                  ON a2.level='commune' AND a2.geom IS NOT NULL
+                 AND ST_Touches(a1.geom,a2.geom)
+                 AND lower(trim(a2.province_name))=lower(trim(a1.province_name))
+                 AND lower(trim(a2.city_name))=lower(trim(a1.city_name))
+                WHERE a1.id=%s
+            """, [best[0]])
+            return {_normalize_location(row[0]) for row in cursor.fetchall() if row[0]}
     except Exception:
         return set()
 
@@ -270,7 +234,6 @@ def search(request):
     fallback_used = False
     fallback_count = 0
     exact_count = 0
-
     if searched:
         queryset = list(Property.objects.filter(status='published').prefetch_related('images'))
         exact = []
@@ -285,24 +248,14 @@ def search(request):
                     exact.append(prop)
         exact_count = len(exact)
         properties = exact[:]
-
         if len(properties) < MIN_RESULTS_BEFORE_FALLBACK and criteria['commune']:
-            adjacent_names = _adjacent_communes(
-                criteria['commune'],
-                criteria['province'],
-                criteria['city'],
-            )
+            adjacent_names = _adjacent_communes(criteria['commune'], criteria['province'], criteria['city'])
             if adjacent_names:
                 seen = {p.pk for p in properties}
                 for prop in queryset:
                     if prop.pk in seen:
                         continue
-                    if not _hard_requirements(
-                        prop,
-                        criteria,
-                        allow_adjacent=True,
-                        adjacent_names=adjacent_names,
-                    ):
+                    if not _hard_requirements(prop, criteria, allow_adjacent=True, adjacent_names=adjacent_names):
                         continue
                     if _normalize_location(getattr(prop, 'commune', '')) not in adjacent_names:
                         continue
@@ -317,22 +270,10 @@ def search(request):
                     seen.add(prop.pk)
                 fallback_count = len(properties) - exact_count
                 fallback_used = fallback_count > 0
-
         matching_query = _matching_query(criteria)
         for prop in properties:
-            prop.matching_url = (
-                f"{reverse('property_detail', args=[prop.pk])}"
-                f"?from_matching=1&spatial_level={prop.match_spatial_level}&{matching_query}"
-            )
-        properties.sort(
-            key=lambda prop: (
-                -prop.ui_score,
-                0 if prop.match_spatial_level == 'exact' else 1,
-                prop.final_rent,
-                prop.id,
-            )
-        )
-
+            prop.matching_url = f"{reverse('property_detail', args=[prop.pk])}?from_matching=1&spatial_level={prop.match_spatial_level}&{matching_query}"
+        properties.sort(key=lambda prop: (-prop.ui_score, 0 if prop.match_spatial_level == 'exact' else 1, prop.final_rent, prop.id))
     return render(request, 'search.html', {
         'properties': properties,
         'searched': searched,
@@ -354,22 +295,10 @@ def property_detail(request, pk):
     match_criteria = None
     matching_query = ''
     spatial_level = request.GET.get('spatial_level', 'exact')
-
     if matching:
         criteria = _criteria_from_request(request)
-        adjacent_names = (
-            _adjacent_communes(criteria['commune'], criteria['province'], criteria['city'])
-            if spatial_level == 'adjacent' else set()
-        )
-        if (
-            any(value not in ('', None) for value in criteria.values())
-            and _hard_requirements(
-                prop,
-                criteria,
-                allow_adjacent=spatial_level == 'adjacent',
-                adjacent_names=adjacent_names,
-            )
-        ):
+        adjacent_names = _adjacent_communes(criteria['commune'], criteria['province'], criteria['city']) if spatial_level == 'adjacent' else set()
+        if any(value not in ('', None) for value in criteria.values()) and _hard_requirements(prop, criteria, allow_adjacent=spatial_level == 'adjacent', adjacent_names=adjacent_names):
             if spatial_level != 'adjacent' or _normalize_location(getattr(prop, 'commune', '')) in adjacent_names:
                 score, match_breakdown = matching_score(prop, criteria, spatial_level)
                 if score > 0:
@@ -377,7 +306,6 @@ def property_detail(request, pk):
                     matching_query = _matching_query(criteria)
                 else:
                     score = None
-
     return render(request, 'property_detail.html', {
         'property': prop,
         'images': prop.images.all(),
