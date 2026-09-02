@@ -17,7 +17,6 @@ except ImportError:  # pragma: no cover
 LOCATION_ACCEPT_MATCH = 78.0
 MIN_RESULTS_BEFORE_FALLBACK = 5
 ADJACENT_COMMUNE_SCORE = 0.72
-GPS_FALLBACK_KM = 12
 
 
 def _clean(value):
@@ -64,19 +63,6 @@ def _to_decimal(value):
         return None
 
 
-def _minimum_value_score(actual, requested, weight):
-    if requested is None:
-        return 0.0
-    try:
-        actual = Decimal(str(actual or 0))
-        requested = Decimal(str(requested))
-    except (TypeError, ValueError, InvalidOperation):
-        return 0.0
-    if requested <= 0 or actual >= requested:
-        return float(weight)
-    return float(weight) * max(0.0, float(actual / requested))
-
-
 def _final_rent(prop):
     try:
         return Decimal(str(prop.rent or 0)) + Decimal(str(prop.margin or 0))
@@ -94,11 +80,29 @@ def _rent_score(prop, maximum, weight):
         return 0.0
     if final_rent <= 0 or maximum <= 0 or final_rent > maximum:
         return 0.0
-    ratio_budget = float(final_rent / maximum)
-    # Zone idéale: 80–100% du budget. Sous 80%, petite pénalité progressive.
-    if ratio_budget >= 0.80:
+    budget_ratio = float(final_rent / maximum)
+    if budget_ratio >= 0.80:
         return float(weight)
-    return float(weight) * (0.85 + 0.15 * (ratio_budget / 0.80))
+    # Sous 80% du budget, pénalité légère et progressive (plancher 85%).
+    return float(weight) * (0.85 + 0.15 * (budget_ratio / 0.80))
+
+
+def _bedroom_score(actual, requested, weight):
+    """Score chambres après filtre dur: +1 est le meilleur surplus, puis décroît légèrement."""
+    if requested is None:
+        return 0.0
+    actual = int(actual or 0)
+    requested = int(requested)
+    if actual < requested:
+        return 0.0
+    delta = actual - requested
+    if delta == 1:
+        return float(weight)  # T4 pour une demande de 3 chambres: bonus modéré via classement à égalité.
+    if delta == 0:
+        return float(weight) * 0.98
+    if delta == 2:
+        return float(weight) * 0.97
+    return float(weight) * 0.94
 
 
 def matching_score(prop, criteria, spatial_level='exact'):
@@ -126,7 +130,8 @@ def matching_score(prop, criteria, spatial_level='exact'):
         checks.append(('Salons', 10.0, 10.0, True, None, criteria['salons'], actual))
     if criteria['bedrooms'] is not None:
         actual = prop.bedrooms or 0
-        checks.append(('Chambres', 15.0, 15.0, True, None, criteria['bedrooms'], actual))
+        points = _bedroom_score(actual, criteria['bedrooms'], 15.0)
+        checks.append(('Chambres', 15.0, points, True, None, criteria['bedrooms'], actual))
     if criteria['max_occupants'] is not None:
         actual = prop.max_occupants or 0
         checks.append(('Occupants', 10.0, 10.0, True, None, criteria['max_occupants'], actual))
@@ -177,11 +182,13 @@ def _hard_requirements(prop, criteria, allow_adjacent=False, adjacent_names=None
             if not (allow_adjacent and _normalize_location(getattr(prop, 'commune', '')) in (adjacent_names or set())):
                 return False
 
+    # Configuration et capacité: exigences minimales.
     for criteria_field, property_field in (('salons', 'salons'), ('bedrooms', 'bedrooms'), ('max_occupants', 'max_occupants')):
         requested = criteria[criteria_field]
         if requested is not None and int(getattr(prop, property_field, 0) or 0) < requested:
             return False
 
+    # Budget: plafond strict.
     if criteria['rent'] is not None:
         final_rent = _final_rent(prop)
         if final_rent <= 0 or final_rent > criteria['rent']:
@@ -247,7 +254,7 @@ def search(request):
         exact_count = len(exact)
         properties = exact[:]
 
-        # Fallback uniquement si la zone exacte contient moins de 5 résultats.
+        # Si moins de 5 résultats dans la commune exacte, élargissement aux communes limitrophes.
         if len(properties) < MIN_RESULTS_BEFORE_FALLBACK and criteria['commune']:
             adjacent_names = _adjacent_communes(criteria['commune'], criteria['province'], criteria['city'])
             if adjacent_names:
@@ -266,7 +273,6 @@ def search(request):
                     prop.match_breakdown = breakdown
                     prop.final_rent = _final_rent(prop)
                     prop.match_spatial_level = 'adjacent'
-                    prop.match_distance_label = 'Commune limitrophe'
                     properties.append(prop)
                     seen.add(prop.pk)
                 fallback_count = len(properties) - exact_count
