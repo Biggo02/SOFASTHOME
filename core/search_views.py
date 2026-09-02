@@ -59,7 +59,11 @@ def _rent_score(actual, maximum, weight):
 
 
 def matching_score(prop, criteria):
-    """Transparent 0-100 score using only the seven search criteria."""
+    """Transparent 0-100 score using only the seven search criteria.
+
+    Weights total exactly 100 when all seven criteria are present:
+    location 40%, rooms/capacity 35%, budget 25%.
+    """
     checks = []
     if criteria['province']:
         checks.append(('Province', 10.0, 10.0 if _text_match(prop.province, criteria['province']) else 0.0))
@@ -74,7 +78,7 @@ def matching_score(prop, criteria):
     if criteria['max_occupants'] is not None:
         checks.append(('Occupants', 10.0, _minimum_value_score(prop.max_occupants, criteria['max_occupants'], 10.0)))
     if criteria['rent'] is not None:
-        checks.append(('Loyer mensuel', 15.0, _rent_score(prop.rent, criteria['rent'], 15.0)))
+        checks.append(('Loyer mensuel', 25.0, _rent_score(prop.rent, criteria['rent'], 25.0)))
     if not checks:
         return 0, []
     total_weight = sum(weight for _, weight, _ in checks)
