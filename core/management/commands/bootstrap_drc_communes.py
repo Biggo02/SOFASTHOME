@@ -1,4 +1,5 @@
 import json
+import re
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -14,6 +15,12 @@ OVERPASS_ENDPOINTS = [
 
 def clean(value):
     return " ".join(str(value or "").strip().split())
+
+
+def normalize_name(value):
+    value = clean(value).casefold()
+    value = re.sub(r"[^a-z0-9àâäçéèêëîïôöùûüÿñœæ -]", " ", value)
+    return " ".join(value.split())
 
 
 def build_geometry(relation):
@@ -68,7 +75,7 @@ def explicitly_commune(tags):
 def is_city_relation(tags):
     values = {key: clean(tags.get(key)).casefold() for key in ("place", "designation", "official_status", "government", "admin_type", "type")}
     return (
-        values.get("place") == "city"
+        values.get("place") in {"city", "town"}
         or "ville" in values.get("designation", "")
         or "ville" in values.get("official_status", "")
         or "city" in values.get("designation", "")
@@ -80,6 +87,30 @@ def is_inside_city(geometry, city_shapes):
     from shapely.geometry import shape
     point = shape(geometry).representative_point()
     return any(city_shape.covers(point) for city_shape in city_shapes)
+
+
+def matching_city_place(geometry, relation_name, city_places):
+    """Return True only when a city/town place matching the admin6 relation name is inside it.
+
+    This avoids treating a rural territory as a city merely because it contains a town.
+    """
+    from shapely.geometry import shape
+    relation_name = normalize_name(relation_name)
+    if not relation_name:
+        return False
+    relation_shape = shape(geometry)
+    for place in city_places:
+        place_name = normalize_name(place.get("tags", {}).get("name"))
+        if not place_name or place_name != relation_name:
+            continue
+        lon = place.get("lon")
+        lat = place.get("lat")
+        if lon is None or lat is None:
+            continue
+        from shapely.geometry import Point
+        if relation_shape.covers(Point(float(lon), float(lat))):
+            return True
+    return False
 
 
 class Command(BaseCommand):
@@ -104,12 +135,15 @@ class Command(BaseCommand):
         (
           relation["boundary"="administrative"]["admin_level"="6"](area.drc);
           relation["boundary"="administrative"]["admin_level"="7"](area.drc);
+          node["place"~"^(city|town)$"](area.drc);
         );
         out body geom;
         """
         endpoints = [options["overpass_url"]] if options["overpass_url"] else OVERPASS_ENDPOINTS
         data = self._fetch_with_fallback(endpoints, query)
-        relations = [e for e in data.get("elements", []) if e.get("type") == "relation"]
+        elements = data.get("elements", [])
+        relations = [e for e in elements if e.get("type") == "relation"]
+        city_places = [e for e in elements if e.get("type") == "node" and (e.get("tags") or {}).get("place") in {"city", "town"}]
         level6 = [r for r in relations if (r.get("tags") or {}).get("admin_level") == "6"]
         level7 = [r for r in relations if (r.get("tags") or {}).get("admin_level") == "7"]
         if not level7:
@@ -123,10 +157,15 @@ class Command(BaseCommand):
         for relation in level6:
             tags = relation.get("tags") or {}
             geometry = build_geometry(relation)
-            if geometry and is_city_relation(tags):
+            if not geometry:
+                continue
+            if is_city_relation(tags) or matching_city_place(geometry, tags.get("name"), city_places):
                 city_shapes.append((clean(tags.get("name")), shape(geometry)))
 
-        self.stdout.write(f"OSM: {len(level6)} relations admin_level=6, dont {len(city_shapes)} vraies villes, et {len(level7)} unités admin_level=7 reçues.")
+        self.stdout.write(
+            f"OSM: {len(level6)} relations admin_level=6, {len(city_places)} villes/localités city/town détectées, "
+            f"dont {len(city_shapes)} vraies villes, et {len(level7)} unités admin_level=7 reçues."
+        )
         imported = skipped = non_communes = 0
         explicit_count = spatial_count = 0
 
