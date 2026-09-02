@@ -21,9 +21,6 @@ class Property(models.Model):
         if not self.reference:
             super().save(*args,**kwargs); self.reference=f'FAST-BIEN-{self.pk:06d}'; return super().save(update_fields=['reference'])
         return super().save(*args,**kwargs)
-    @property
-    def match_score(self):
-        score=70; score+=10 if self.security else 0; score+=10 if self.water else 0; score+=5 if self.electricity else 0; return min(score,100)
 
 class PropertyImage(models.Model):
     property=models.ForeignKey(Property,on_delete=models.CASCADE,related_name='images'); image=models.ImageField(upload_to='properties/%Y/%m/'); caption=models.CharField(max_length=160,blank=True); is_cover=models.BooleanField(default=False); order=models.PositiveIntegerField(default=0); created_at=models.DateTimeField(auto_now_add=True)
@@ -48,7 +45,7 @@ class PaymentProof(models.Model):
     payment=models.ForeignKey(Payment,on_delete=models.CASCADE,related_name='proofs'); file=models.FileField(upload_to='payments/%Y/%m/'); note=models.CharField(max_length=200,blank=True); uploaded_by=models.ForeignKey(User,on_delete=models.PROTECT); created_at=models.DateTimeField(auto_now_add=True)
 class VerificationDocument(models.Model):
     KINDS=[('id_front','Pièce identité — recto'),('id_back','Pièce identité — verso'),('selfie','Selfie de vérification'),('other','Autre')]
-    user=models.ForeignKey(User,on_delete=models.CASCADE,related_name='verification_documents'); kind=models.CharField(max_length=20,choices=KINDS); file=models.FileField(upload_to='verification/%Y/%m/'); status=models.CharField(max_length=20,default='pending'); note=models.TextField(blank=True); created_at=models.DateTimeField(auto_now_add=True)
+    user=models.ForeignKey(User,on_delete=models.CASCADE,related_name='verification_documents'); kind=models.CharField(max_length=20); file=models.FileField(upload_to='verification/%Y/%m/'); status=models.CharField(max_length=20,default='pending'); note=models.TextField(blank=True); created_at=models.DateTimeField(auto_now_add=True)
 class AuditLog(models.Model):
     actor=models.ForeignKey(User,on_delete=models.SET_NULL,null=True,blank=True,related_name='audit_logs'); action=models.CharField(max_length=120); object_type=models.CharField(max_length=80,blank=True); object_id=models.CharField(max_length=80,blank=True); ip_address=models.GenericIPAddressField(null=True,blank=True); details=models.JSONField(default=dict,blank=True); created_at=models.DateTimeField(auto_now_add=True)
     class Meta: ordering=['-created_at']
