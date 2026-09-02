@@ -84,30 +84,76 @@ class Command(BaseCommand):
                 if level == "ADM1":
                     province, parent = name, ""
                 elif level == "ADM2":
-                    province, parent = "", ""
+                    # geoBoundaries ADM2 does not reliably provide the province
+                    # in its properties. Resolve it from the geometry BEFORE the
+                    # insert so the unique key is (territory, name, province, city)
+                    # instead of incorrectly using an empty province for every unit.
+                    province = ""
+                    parent = ""
                 else:
                     parent = ""
 
                 geom_json = json.dumps(geometry, separators=(",", ":"))
-                cursor.execute(
-                    """
-                    INSERT INTO core_administrativearea
-                        (level, name, province_name, city_name, geom, source, updated_at)
-                    VALUES
-                        (%s, %s, %s, %s,
-                         ST_Multi(ST_CollectionExtract(ST_MakeValid(ST_SetSRID(ST_GeomFromGeoJSON(%s), 4326)), 3)),
-                         %s, NOW())
-                    ON CONFLICT (level, name, province_name, city_name)
-                    DO UPDATE SET geom = EXCLUDED.geom, source = EXCLUDED.source, updated_at = NOW()
-                    """,
-                    [db_level, name, province, parent, geom_json, source],
-                )
+
+                if level == "ADM2":
+                    # The province is determined spatially against the canonical
+                    # ADM1 polygons. ST_PointOnSurface avoids failures with a
+                    # boundary that only partially overlaps the province polygon.
+                    cursor.execute(
+                        """
+                        WITH new_geom AS (
+                            SELECT ST_Multi(
+                                ST_CollectionExtract(
+                                    ST_MakeValid(ST_SetSRID(ST_GeomFromGeoJSON(%s), 4326)), 3
+                                )
+                            ) AS geom
+                        ),
+                        province_match AS (
+                            SELECT p.name
+                            FROM core_administrativearea AS p, new_geom AS g
+                            WHERE p.level = 'province'
+                              AND ST_Intersects(g.geom, p.geom)
+                            ORDER BY
+                                CASE WHEN ST_Covers(p.geom, ST_PointOnSurface(g.geom)) THEN 0 ELSE 1 END,
+                                ST_Area(ST_Intersection(g.geom, p.geom)) DESC,
+                                p.name
+                            LIMIT 1
+                        )
+                        INSERT INTO core_administrativearea
+                            (level, name, province_name, city_name, geom, source, updated_at)
+                        SELECT
+                            'territory', %s,
+                            COALESCE((SELECT name FROM province_match), ''),
+                            '', new_geom.geom, %s, NOW()
+                        FROM new_geom
+                        ON CONFLICT (level, name, province_name, city_name)
+                        DO UPDATE SET
+                            geom = EXCLUDED.geom,
+                            source = EXCLUDED.source,
+                            updated_at = NOW()
+                        """,
+                        [geom_json, name, source],
+                    )
+                else:
+                    cursor.execute(
+                        """
+                        INSERT INTO core_administrativearea
+                            (level, name, province_name, city_name, geom, source, updated_at)
+                        VALUES
+                            (%s, %s, %s, %s,
+                             ST_Multi(ST_CollectionExtract(ST_MakeValid(ST_SetSRID(ST_GeomFromGeoJSON(%s), 4326)), 3)),
+                             %s, NOW())
+                        ON CONFLICT (level, name, province_name, city_name)
+                        DO UPDATE SET
+                            geom = EXCLUDED.geom,
+                            source = EXCLUDED.source,
+                            updated_at = NOW()
+                        """,
+                        [db_level, name, province, parent, geom_json, source],
+                    )
                 imported += 1
 
             if level == "ADM2":
-                # PostgreSQL cannot safely correlate the target UPDATE alias inside
-                # the previous LATERAL form. Build the parent map in a CTE first,
-                # then update by primary key.
                 cursor.execute(
                     """
                     WITH candidates AS (
