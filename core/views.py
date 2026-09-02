@@ -40,7 +40,10 @@ def search(request):
     for prop in properties: prop.ui_score=match_score(prop,request)
     properties.sort(key=lambda p:p.ui_score,reverse=True); return render(request,'search.html',{'properties':properties,'q':q,'types':Property.TYPES})
 def property_detail(request,pk):
-    prop=get_object_or_404(Property.objects.prefetch_related('images'),pk=pk,status='published'); prop.views+=1; prop.save(update_fields=['views']); return render(request,'property_detail.html',{'property':prop,'score':match_score(prop,request),'images':prop.images.all()})
+    prop=get_object_or_404(Property.objects.prefetch_related('images'),pk=pk,status='published'); prop.views+=1; prop.save(update_fields=['views'])
+    context={'property':prop,'images':prop.images.all()}
+    if request.GET.get('matching')=='1': context['score']=match_score(prop,request)
+    return render(request,'property_detail.html',context)
 def register(request):
     if request.user.is_authenticated:return redirect('dashboard')
     form=RegisterForm(request.POST or None)
@@ -50,9 +53,7 @@ def register(request):
 def login_view(request):
     if request.user.is_authenticated:return redirect('dashboard')
     if request.method=='POST':
-        identifier=request.POST.get('username','').strip()
-        user_for_auth=User.objects.filter(Q(username__iexact=identifier)|Q(email__iexact=identifier)).first()
-        user=authenticate(request,username=user_for_auth.username if user_for_auth else identifier,password=request.POST.get('password',''))
+        identifier=request.POST.get('username','').strip(); user_for_auth=User.objects.filter(Q(username__iexact=identifier)|Q(email__iexact=identifier)).first(); user=authenticate(request,username=user_for_auth.username if user_for_auth else identifier,password=request.POST.get('password',''))
         if user: login(request,user); audit(request,'account.login',user); return redirect('dashboard')
         messages.error(request,'Email, téléphone ou mot de passe incorrect.')
     return render(request,'auth.html',{'mode':'login'})
@@ -146,7 +147,6 @@ def staff_required(user): return user.is_staff
 @user_passes_test(staff_required)
 def admin_dashboard(request):
     today=timezone.localdate(); return render(request,'admin_dashboard.html',{'users':User.objects.count(),'properties':Property.objects.count(),'review':Property.objects.filter(status='review').count(),'published':Property.objects.filter(status='published').count(),'visits':Visit.objects.count(),'today_visits':Visit.objects.filter(preferred_date=today).count(),'contracts':Contract.objects.count(),'late':Payment.objects.filter(status='late').count(),'payments':Payment.objects.count(),'properties_review':Property.objects.filter(status='review').order_by('-created_at')[:10],'visits_pending':Visit.objects.filter(status='pending').select_related('property','requester').order_by('preferred_date')[:10],'audit_logs':AuditLog.objects.select_related('actor')[:12]})
-
 @login_required
 @user_passes_test(staff_required)
 def review_publication(request,pk):
@@ -176,3 +176,18 @@ def verification_review(request,pk):
     if request.method=='POST':
         doc.status=request.POST.get('status','pending'); doc.note=request.POST.get('note',''); doc.save(update_fields=['status','note']); audit(request,'verification.reviewed',doc,{'status':doc.status}); Notification.objects.create(user=doc.user,title='Vérification mise à jour',message=f'Votre document {doc.get_kind_display()} est : {doc.status}.'); messages.success(request,'Document mis à jour.'); return redirect('admin_dashboard')
     return render(request,'verification_upload.html',{'document':doc})
+@login_required
+@user_passes_test(staff_required)
+def inspection(request,pk):
+    visit=get_object_or_404(Visit.objects.select_related('property','requester'),pk=pk)
+    inspection_obj, created = VisitInspection.objects.get_or_create(visit=visit)
+    if request.method=='POST':
+        inspection_obj.condition=request.POST.get('condition','').strip(); inspection_obj.meter_readings=request.POST.get('meter_readings','').strip()
+        try: inspection_obj.keys_received=max(0,int(request.POST.get('keys_received') or 0))
+        except (TypeError,ValueError): inspection_obj.keys_received=0
+        inspection_obj.notes=request.POST.get('notes','').strip(); inspection_obj.signed_by_tenant=request.POST.get('signed_by_tenant')=='on'; inspection_obj.signed_by_agent=request.POST.get('signed_by_agent')=='on'; inspection_obj.save(); audit(request,'visit.inspection_updated',inspection_obj,{'visit_id':visit.pk}); messages.success(request,'État des lieux enregistré.'); return redirect('manage_visit',pk=visit.pk)
+    return render(request,'inspection.html',{'visit':visit,'inspection':inspection_obj})
+
+def error_403(request,exception=None): return render(request,'403.html',status=403)
+def error_404(request,exception=None): return render(request,'404.html',status=404)
+def error_500(request): return render(request,'500.html',status=500)
