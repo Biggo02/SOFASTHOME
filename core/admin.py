@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.urls import reverse
 from django.utils.html import format_html
 from .models import Property, PropertyImage, Visit, VisitInspection, Contract, ContractDocument, Payment, PaymentProof, VerificationDocument, AuditLog, Notification
 
@@ -6,16 +7,33 @@ admin.site.site_header='FASTHOME — Administration'; admin.site.site_title='FAS
 
 @admin.register(Property)
 class PropertyAdmin(admin.ModelAdmin):
-    list_display=('reference','title','owner_identity','city','neighborhood','status','views','updated_at'); list_filter=('status','property_type','city','furnished','security'); search_fields=('reference','title','city','commune','neighborhood','owner__username','owner__first_name','owner__last_name','owner__email'); readonly_fields=('reference','status','views','created_at','updated_at','owner_identity_detail'); list_per_page=30
-    def get_queryset(self, request):
-        return super().get_queryset(request).exclude(status='draft')
-    @admin.display(description='Propriétaire', ordering='owner__last_name')
+    list_display=('reference','title','owner_identity','city','neighborhood','status_badge','workflow_action','views','updated_at'); list_filter=('status','property_type','city','furnished','security'); search_fields=('reference','title','city','commune','neighborhood','owner__username','owner__first_name','owner__last_name','owner__email'); readonly_fields=('reference','status_display','views','created_at','updated_at','owner_identity_detail','workflow_action_detail'); list_per_page=30
+    def get_queryset(self, request): return super().get_queryset(request).exclude(status='draft')
+    @admin.display(description='Propriétaire',ordering='owner__last_name')
     def owner_identity(self,obj):
         u=obj.owner; name=u.get_full_name().strip() or 'Nom non renseigné'; return f'{name} · ID {u.pk}'
     @admin.display(description='Identité du propriétaire')
     def owner_identity_detail(self,obj):
         u=obj.owner; name=u.get_full_name().strip() or 'Nom non renseigné'; phone=u.username or 'Non renseigné'; email=u.email or 'Non renseigné'
         return format_html('<div style="line-height:1.8"><strong>{}</strong><br>ID utilisateur : <strong>{}</strong><br>Téléphone : <strong>{}</strong><br>Email : <strong>{}</strong></div>',name,u.pk,phone,email)
+    @admin.display(description='État')
+    def status_badge(self,obj): return obj.get_status_display()
+    @admin.display(description='État actuel')
+    def status_display(self,obj): return format_html('<strong>{}</strong><br><small>Ce champ est informatif. Utilisez le bouton d’action FASTHOME ci-dessous.</small>',obj.get_status_display())
+    @admin.display(description='Action FASTHOME')
+    def workflow_action(self,obj):
+        url=reverse('review_publication',kwargs={'pk':obj.pk})
+        if obj.status=='review': return format_html('<a class="button" href="{}">Vérifier → Publier / Refuser</a>',url)
+        if obj.status=='published': return format_html('<a class="button" href="{}">Gérer</a>',url)
+        if obj.status=='rented': return format_html('<a class="button" href="{}">Archiver</a>',url)
+        return '—'
+    @admin.display(description='Action de workflow')
+    def workflow_action_detail(self,obj):
+        url=reverse('review_publication',kwargs={'pk':obj.pk})
+        if obj.status=='review': return format_html('<a class="button" href="{}">Ouvrir la vérification</a><p><strong>Décision :</strong> si tout est conforme, <strong>Publier</strong>. Sinon, <strong>Refuser</strong> avec un motif.</p>',url)
+        if obj.status=='published': return format_html('<a class="button" href="{}">Ouvrir la gestion FASTHOME</a>',url)
+        if obj.status=='rented': return format_html('<a class="button" href="{}">Archiver ce bien</a>',url)
+        return 'Aucune action de workflow disponible à cette étape.'
     fieldsets=(
         ('Identification',{'fields':('reference','owner_identity_detail','title','property_type','description')}),
         ('Localisation',{'fields':('province','city','commune','neighborhood','full_address','latitude','longitude')}),
@@ -24,7 +42,7 @@ class PropertyAdmin(admin.ModelAdmin):
         ('Services',{'fields':('water','water_days_per_week','water_source','water_details','electricity','electricity_days_per_week','electricity_source','electricity_details')}),
         ('État et disponibilité',{'fields':('floor_type','ceiling_type','condition','available_now','availability_date')}),
         ('Finances privées',{'fields':('rent','deposit','margin')}),
-        ('Workflow FASTHOME',{'fields':('status','rejection_reason'),'description':'Le statut n’est jamais modifié directement ici. Ouvrez la fiche de gestion pour appliquer uniquement l’action autorisée par l’étape actuelle.'}),
+        ('Workflow FASTHOME',{'fields':('status_display','rejection_reason','workflow_action_detail')}),
         ('Suivi',{'fields':('views','created_at','updated_at')}),
     )
 
