@@ -1,8 +1,10 @@
 from decimal import Decimal, InvalidOperation
 import re
 import unicodedata
+from urllib.parse import urlencode
 
 from django.shortcuts import get_object_or_404, render
+from django.urls import reverse
 
 from .models import Property
 
@@ -112,24 +114,29 @@ def matching_score(prop, criteria):
     ):
         requested = criteria[field]
         if requested:
-            location_score, accepted = _location_match(requested, getattr(prop, field, ''))
-            checks.append((label, weight, weight * (location_score / 100.0), accepted, location_score))
+            actual = getattr(prop, field, '') or ''
+            location_score, accepted = _location_match(requested, actual)
+            checks.append((label, weight, weight * (location_score / 100.0), accepted, location_score, requested, actual))
 
     if criteria['salons'] is not None:
-        points = _minimum_value_score(prop.salons, criteria['salons'], 10.0)
-        checks.append(('Salons', 10.0, points, points >= 10.0, None))
+        actual = prop.salons or 0
+        points = _minimum_value_score(actual, criteria['salons'], 10.0)
+        checks.append(('Salons', 10.0, points, points >= 10.0, None, criteria['salons'], actual))
 
     if criteria['bedrooms'] is not None:
-        points = _minimum_value_score(prop.bedrooms, criteria['bedrooms'], 15.0)
-        checks.append(('Chambres', 15.0, points, points >= 15.0, None))
+        actual = prop.bedrooms or 0
+        points = _minimum_value_score(actual, criteria['bedrooms'], 15.0)
+        checks.append(('Chambres', 15.0, points, points >= 15.0, None, criteria['bedrooms'], actual))
 
     if criteria['max_occupants'] is not None:
-        points = _minimum_value_score(prop.max_occupants, criteria['max_occupants'], 10.0)
-        checks.append(('Occupants', 10.0, points, points >= 10.0, None))
+        actual = prop.max_occupants or 0
+        points = _minimum_value_score(actual, criteria['max_occupants'], 10.0)
+        checks.append(('Occupants', 10.0, points, points >= 10.0, None, criteria['max_occupants'], actual))
 
     if criteria['rent'] is not None:
+        actual = _final_rent(prop)
         points = _rent_score(prop, criteria['rent'], 25.0)
-        checks.append(('Loyer mensuel final', 25.0, points, points >= 25.0, None))
+        checks.append(('Loyer mensuel final', 25.0, points, points >= 25.0, None, criteria['rent'], actual))
 
     if not checks:
         return 0, []
@@ -139,12 +146,14 @@ def matching_score(prop, criteria):
     score = max(0, min(100, round((earned / total_weight) * 100)))
 
     breakdown = []
-    for label, weight, points, ok, similarity in checks:
+    for label, weight, points, ok, similarity, requested, actual in checks:
         item = {
             'label': label,
             'earned': round(points, 1),
             'weight': round(weight, 1),
             'ok': ok,
+            'requested': requested,
+            'actual': actual,
         }
         if similarity is not None:
             item['similarity'] = round(similarity, 1)
@@ -182,6 +191,15 @@ def _is_eligible(prop, criteria):
     return True
 
 
+def _matching_query(criteria):
+    """Construit le contexte de recherche à conserver en ouvrant un bien."""
+    params = {}
+    for key, value in criteria.items():
+        if value not in ('', None):
+            params[key] = str(value)
+    return urlencode(params)
+
+
 def search(request):
     criteria = _criteria_from_request(request)
     searched = any(value not in ('', None) for value in criteria.values())
@@ -189,6 +207,7 @@ def search(request):
 
     if searched:
         queryset = Property.objects.filter(status='published').prefetch_related('images')
+        matching_query = _matching_query(criteria)
         for prop in queryset:
             if not _is_eligible(prop, criteria):
                 continue
@@ -198,6 +217,7 @@ def search(request):
             prop.ui_score = score
             prop.match_breakdown = breakdown
             prop.final_rent = _final_rent(prop)
+            prop.matching_url = f"{reverse('property_detail', args=[prop.pk])}?from_matching=1&{matching_query}"
             properties.append(prop)
 
         properties.sort(key=lambda prop: (-prop.ui_score, prop.final_rent, prop.id))
@@ -217,7 +237,26 @@ def property_detail(request, pk):
     )
     prop.views += 1
     prop.save(update_fields=['views'])
+
+    matching = request.GET.get('from_matching') == '1'
+    score = None
+    match_breakdown = []
+    match_criteria = None
+
+    if matching:
+        criteria = _criteria_from_request(request)
+        if any(value not in ('', None) for value in criteria.values()) and _is_eligible(prop, criteria):
+            score, match_breakdown = matching_score(prop, criteria)
+            if score > 0:
+                match_criteria = criteria
+            else:
+                score = None
+
     return render(request, 'property_detail.html', {
         'property': prop,
         'images': prop.images.all(),
+        'score': score,
+        'match_breakdown': match_breakdown,
+        'match_criteria': match_criteria,
+        'final_rent': _final_rent(prop),
     })
