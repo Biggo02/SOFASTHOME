@@ -13,7 +13,6 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'django.contrib.gis',
     'core',
 ]
 
@@ -51,23 +50,17 @@ if os.getenv('DATABASE_URL'):
     import urllib.parse
 
     u = urllib.parse.urlparse(os.getenv('DATABASE_URL'))
-    # Active automatiquement PostGIS lorsque DATABASE_URL est PostgreSQL.
-    # POSTGIS=0 permet explicitement de forcer le backend PostgreSQL classique.
-    is_postgres = u.scheme.startswith('postgres')
-    use_postgis = is_postgres and os.getenv('POSTGIS', '1') == '1'
-    db_engine = 'django.contrib.gis.db.backends.postgis' if use_postgis else 'django.db.backends.postgresql'
     DATABASES = {
         'default': {
-            'ENGINE': db_engine,
-            'NAME': u.path.lstrip('/'),
-            'USER': u.username,
-            'PASSWORD': u.password,
-            'HOST': u.hostname,
-            'PORT': u.port or 5432,
+            'ENGINE': 'django.db.backends.postgresql' if u.scheme.startswith('postgres') else 'django.db.backends.sqlite3',
+            'NAME': u.path.lstrip('/') if u.scheme.startswith('postgres') else BASE_DIR / 'db.sqlite3',
+            'USER': u.username if u.scheme.startswith('postgres') else '',
+            'PASSWORD': u.password if u.scheme.startswith('postgres') else '',
+            'HOST': u.hostname if u.scheme.startswith('postgres') else '',
+            'PORT': u.port or 5432 if u.scheme.startswith('postgres') else '',
         }
     }
 else:
-    # Développement local sans DATABASE_URL : SQLite reste disponible.
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
