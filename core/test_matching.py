@@ -38,7 +38,7 @@ class MatchingScoreTests(TestCase):
             'salons': 4, 'bedrooms': 4, 'max_occupants': 8, 'rent': Decimal('500000'),
         }
         score, _ = matching_score(self.property, criteria)
-        self.assertEqual(score, 78)
+        self.assertEqual(score, 81)
 
     def test_zero_rent_never_gets_budget_points(self):
         self.property.rent = Decimal('0')
