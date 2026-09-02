@@ -6,6 +6,9 @@ admin.site.site_header='FASTHOME — Administration'; admin.site.site_title='FAS
 @admin.register(Property)
 class PropertyAdmin(admin.ModelAdmin):
     list_display=('reference','title','owner','city','neighborhood','status','views','updated_at'); list_filter=('status','property_type','city','furnished','security'); search_fields=('reference','title','city','commune','neighborhood','owner__username','owner__first_name','owner__last_name'); readonly_fields=('reference','status','views','created_at','updated_at'); list_per_page=30
+    def get_queryset(self, request):
+        # Les brouillons appartiennent à l'espace du client. L'administration ne traite que les publications soumises.
+        return super().get_queryset(request).exclude(status='draft')
     fieldsets=(
         ('Identification',{'fields':('reference','owner','title','property_type','description')}),
         ('Localisation',{'fields':('province','city','commune','neighborhood','full_address','latitude','longitude')}),
@@ -14,7 +17,7 @@ class PropertyAdmin(admin.ModelAdmin):
         ('Services',{'fields':('water','water_days_per_week','water_source','water_details','electricity','electricity_days_per_week','electricity_source','electricity_details')}),
         ('État et disponibilité',{'fields':('floor_type','ceiling_type','condition','available_now','availability_date')}),
         ('Finances privées',{'fields':('rent','deposit','margin')}),
-        ('Workflow FASTHOME',{'fields':('status','rejection_reason'),'description':'Le statut est contrôlé par le workflow FASTHOME. Utilisez le tableau de gestion pour Valider, Publier ou Refuser une publication.'}),
+        ('Workflow FASTHOME',{'fields':('status','rejection_reason'),'description':'Le statut n’est jamais modifié directement ici. Ouvrez la fiche de gestion pour appliquer uniquement l’action autorisée par l’étape actuelle.'}),
         ('Suivi',{'fields':('views','created_at','updated_at')}),
     )
 
