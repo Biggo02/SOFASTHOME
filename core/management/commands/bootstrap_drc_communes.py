@@ -12,8 +12,8 @@ OVERPASS_ENDPOINTS = [
     "https://overpass.kumi.systems/api/interpreter",
     "https://overpass.private.coffee/api/interpreter",
 ]
-GEOBOUNDARIES_ADM1_API = "https://www.geoboundaries.org/api/current/gbOpen/COD/ADM1/"
-REQUEST_TIMEOUT = 180
+GEOBOUNDARIES_API = "https://www.geoboundaries.org/api/current/gbOpen/COD/{level}/"
+REQUEST_TIMEOUT = 240
 RETRIES_PER_ENDPOINT = 2
 
 
@@ -70,12 +70,11 @@ def build_geometry(relation):
         candidate = Polygon(polygon.exterior.coords, holes)
         if not candidate.is_valid:
             candidate = candidate.buffer(0)
-        if candidate.is_empty or candidate.area <= 0:
-            continue
-        if candidate.geom_type == "Polygon":
-            result.append(candidate)
-        elif candidate.geom_type == "MultiPolygon":
-            result.extend(candidate.geoms)
+        if not candidate.is_empty and candidate.area > 0:
+            if candidate.geom_type == "Polygon":
+                result.append(candidate)
+            elif candidate.geom_type == "MultiPolygon":
+                result.extend(candidate.geoms)
 
     if not result:
         return None
@@ -87,14 +86,8 @@ def explicitly_commune(tags):
     values = [
         clean(tags.get(key)).casefold()
         for key in (
-            "designation",
-            "official_status",
-            "government",
-            "place",
-            "type",
-            "admin_type",
-            "boundary",
-            "name:fr",
+            "designation", "official_status", "government", "place",
+            "type", "admin_type", "boundary", "name:fr",
         )
     ]
     text = " ".join(values)
@@ -105,12 +98,8 @@ def is_city_relation(tags):
     values = {
         key: clean(tags.get(key)).casefold()
         for key in (
-            "place",
-            "designation",
-            "official_status",
-            "government",
-            "admin_type",
-            "type",
+            "place", "designation", "official_status", "government",
+            "admin_type", "type",
         )
     }
     return (
@@ -122,25 +111,20 @@ def is_city_relation(tags):
     )
 
 
-def is_inside(geometry, candidate_shapes):
+def is_inside_city(geometry, city_shapes):
     from shapely.geometry import shape
-
     point = shape(geometry).representative_point()
-    return any(candidate_shape.covers(point) for candidate_shape in candidate_shapes)
-
-
-def is_in_explicit_city_relation(geometry, city_shapes):
-    return is_inside(geometry, city_shapes)
+    return any(city_shape.covers(point) for city_shape in city_shapes)
 
 
 class Command(BaseCommand):
     help = (
-        "Importe les communes de RDC depuis OpenStreetMap avec des requêtes Overpass "
-        "découpées, sans confondre les secteurs/chefferies/collectivités rurales."
+        "Importe les communes de RDC depuis OpenStreetMap avec des requêtes "
+        "Overpass découpées par province, sans confondre les secteurs/chefferies/collectivités."
     )
 
     def add_arguments(self, parser):
-        parser.add_argument("--overpass-url", dest="overpass_url", default="", help="Endpoint Overpass personnalisé (facultatif).")
+        parser.add_argument("--overpass-url", dest="overpass_url", default="", help="Endpoint Overpass personnalisé.")
         parser.add_argument("--clear", action="store_true", help="Efface les communes OSM existantes avant import.")
         parser.add_argument("--province", dest="province", default="", help="Traite uniquement cette province (nom exact ou partiel).")
 
@@ -156,40 +140,31 @@ class Command(BaseCommand):
 
         endpoints = [options["overpass_url"]] if options["overpass_url"] else OVERPASS_ENDPOINTS
         provinces = self._load_provinces(options.get("province"))
+
         if not provinces:
             self.stdout.write(self.style.WARNING(
-                "Les provinces existantes ne possèdent pas d'ID de relation OSM exploitable. "
-                "Récupération automatique des IDs OSM des 26 provinces depuis les données OpenStreetMap..."
+                "Les provinces n'ont pas encore d'ID OSM. Récupération spatiale des 26 relations OSM..."
             ))
             self._enrich_province_osm_ids(endpoints)
             provinces = self._load_provinces(options.get("province"))
 
         if not provinces:
-            raise CommandError(
-                "Impossible de récupérer les identifiants OSM des provinces. "
-                "Les provinces ADM1 existent, mais leur relation OSM n'est pas connue."
-            )
+            raise CommandError("Aucune province exploitable après récupération des relations OSM.")
 
-        with transaction.atomic(), connection.cursor() as cursor:
-            if options["clear"]:
+        if options["clear"]:
+            with transaction.atomic(), connection.cursor() as cursor:
                 cursor.execute(
                     "DELETE FROM core_administrativearea "
-                    "WHERE level='commune' AND source LIKE 'OpenStreetMap%'"
+                    "WHERE level='commune' AND source LIKE 'OpenStreetMap%%'"
                 )
-                self.stdout.write(self.style.WARNING("Communes OSM existantes supprimées."))
-
-        totals = {
-            "imported": 0,
-            "skipped": 0,
-            "non_communes": 0,
-            "explicit": 0,
-            "spatial": 0,
-        }
-        failed_provinces = []
+            self.stdout.write(self.style.WARNING("Communes OSM existantes supprimées."))
 
         self.stdout.write(self.style.NOTICE(
             f"Import découpé: {len(provinces)} province(s), une requête Overpass par province."
         ))
+
+        totals = {"imported": 0, "skipped": 0, "non_communes": 0, "explicit": 0, "spatial": 0}
+        failed_provinces = []
 
         for index, province in enumerate(provinces, 1):
             province_name = province["name"]
@@ -198,9 +173,7 @@ class Command(BaseCommand):
 
             try:
                 data = self._fetch_with_fallback(
-                    endpoints,
-                    self._province_query(relation_id),
-                    province_name,
+                    endpoints, self._province_query(relation_id), province_name
                 )
             except CommandError as exc:
                 failed_provinces.append(province_name)
@@ -237,17 +210,16 @@ class Command(BaseCommand):
                         continue
 
                     explicit = explicitly_commune(tags)
-                    urban = is_in_explicit_city_relation(geometry, city_shapes)
+                    urban = is_inside_city(geometry, city_shapes)
                     if not explicit and not urban:
                         non_communes += 1
                         continue
 
-                    if explicit:
-                        explicit_count += 1
-                    else:
-                        spatial_count += 1
-
+                    explicit_count += int(explicit)
+                    spatial_count += int(not explicit)
                     geom_json = json.dumps(geometry, separators=(",", ":"))
+                    source = f"OpenStreetMap relation {relation.get('id')} — admin_level=7"
+
                     cursor.execute(
                         """
                         INSERT INTO core_administrativearea
@@ -258,20 +230,15 @@ class Command(BaseCommand):
                                  ST_MakeValid(ST_SetSRID(ST_GeomFromGeoJSON(%s),4326)),3)),
                              %s, NOW())
                         ON CONFLICT (level,name,province_name,city_name)
-                        DO UPDATE SET
-                            geom=EXCLUDED.geom,
-                            source=EXCLUDED.source,
-                            updated_at=NOW()
+                        DO UPDATE SET geom=EXCLUDED.geom, source=EXCLUDED.source, updated_at=NOW()
                         """,
-                        [
-                            name,
-                            province_name,
-                            geom_json,
-                            f"OpenStreetMap relation {relation.get('id')} — admin_level=7",
-                        ],
+                        (name, province_name, geom_json, source),
                     )
                     imported += 1
 
+                # A commune can legally be inside a territory or a city. We keep
+                # the existing schema field city_name as the parent administrative
+                # label for compatibility with the search code.
                 cursor.execute(
                     """
                     WITH candidates AS (
@@ -289,7 +256,7 @@ class Command(BaseCommand):
                         LEFT JOIN core_administrativearea t
                           ON t.level='territory' AND ST_Intersects(c.geom,t.geom)
                         WHERE c.level='commune'
-                          AND c.source LIKE 'OpenStreetMap%'
+                          AND c.source LIKE 'OpenStreetMap%%'
                           AND c.province_name=%s
                     ), ranked AS (
                         SELECT *, ROW_NUMBER() OVER (
@@ -308,7 +275,7 @@ class Command(BaseCommand):
                       FROM ranked r
                      WHERE r.rn=1 AND r.commune_id=c.id
                     """,
-                    [province_name, province_name],
+                    (province_name, province_name),
                 )
 
             totals["imported"] += imported
@@ -316,7 +283,6 @@ class Command(BaseCommand):
             totals["non_communes"] += non_communes
             totals["explicit"] += explicit_count
             totals["spatial"] += spatial_count
-
             self.stdout.write(self.style.SUCCESS(
                 f"  admin6={len(level6)}, villes={len(city_shapes)}, admin7={len(level7)} → "
                 f"communes={imported}, explicites={explicit_count}, urbaines déduites={spatial_count}, "
@@ -338,9 +304,7 @@ class Command(BaseCommand):
 
         self.stdout.write("\nCouverture province → territoire → communes:")
         for province, territory, count in self._coverage():
-            self.stdout.write(
-                f"  - {province or '[sans province]'} / {territory or '[sans territoire]'}: {count}"
-            )
+            self.stdout.write(f"  - {province or '[sans province]'} / {territory or '[sans territoire]'}: {count}")
 
         self.stdout.write(self.style.WARNING(
             "QUALITÉ: admin_level=7 n'est pas à lui seul une preuve juridique de commune en RDC. "
@@ -349,31 +313,18 @@ class Command(BaseCommand):
         ))
         self.stdout.write("Source cartographique: OpenStreetMap / Overpass; attribution OSM requise.")
 
-        if failed_provinces:
-            raise CommandError(
-                f"Import partiel: {len(failed_provinces)} province(s) n'ont pas pu être interrogées."
-            )
-
     def _load_provinces(self, requested):
         with connection.cursor() as cursor:
             cursor.execute("SELECT id,name,source FROM core_administrativearea WHERE level='province' ORDER BY name")
             rows = cursor.fetchall()
-
         wanted = normalize_name(requested) if requested else ""
         provinces = []
         for row_id, name, source in rows:
             if wanted and wanted not in normalize_name(name):
                 continue
-            match = re.search(r"OSM(?: relation)?\s+(\d+)", source or "", flags=re.IGNORECASE)
-            if not match:
-                match = re.search(r"relation\s+(\d+)", source or "", flags=re.IGNORECASE)
-            if not match:
-                continue
-            provinces.append({
-                "id": row_id,
-                "name": name,
-                "osm_relation_id": int(match.group(1)),
-            })
+            match = re.search(r"(?:OSM(?: relation)?|relation)\s+(\d+)", source or "", re.IGNORECASE)
+            if match:
+                provinces.append({"id": row_id, "name": name, "osm_relation_id": int(match.group(1))})
         return provinces
 
     def _enrich_province_osm_ids(self, endpoints):
@@ -385,35 +336,70 @@ class Command(BaseCommand):
         """
         data = self._fetch_with_fallback(endpoints, query, "RDC / provinces")
         relations = [e for e in data.get("elements", []) if e.get("type") == "relation"]
+        if not relations:
+            raise CommandError("Overpass n'a retourné aucune province admin_level=4.")
+
+        from shapely.geometry import Point
+        from shapely.prepared import prep
+
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT id,name,geom FROM core_administrativearea WHERE level='province'")
+            db_provinces = cursor.fetchall()
+
+        shapes = []
+        for row_id, name, geom in db_provinces:
+            if geom is None:
+                continue
+            # PostGIS geometry is converted through WKBElement by Django/psycopg2;
+            # use SQL spatial matching below instead of relying on driver geometry types.
+            shapes.append((row_id, name))
+
         mapping = {}
-        for relation in relations:
-            tags = relation.get("tags") or {}
-            name = clean(tags.get("name") or tags.get("official_name") or tags.get("name:fr"))
-            if name:
-                mapping[normalize_name(name)] = int(relation["id"])
+        with connection.cursor() as cursor:
+            for relation in relations:
+                center = relation.get("center") or {}
+                lon, lat = center.get("lon"), center.get("lat")
+                if lon is None or lat is None:
+                    continue
+                cursor.execute(
+                    """
+                    SELECT id, name
+                    FROM core_administrativearea
+                    WHERE level='province'
+                      AND ST_Covers(geom, ST_SetSRID(ST_Point(%s,%s),4326))
+                    ORDER BY name
+                    LIMIT 1
+                    """,
+                    (float(lon), float(lat)),
+                )
+                row = cursor.fetchone()
+                if row:
+                    mapping[row[0]] = int(relation["id"])
 
         updated = 0
         with transaction.atomic(), connection.cursor() as cursor:
             cursor.execute("SELECT id,name,source FROM core_administrativearea WHERE level='province'")
             rows = cursor.fetchall()
             for row_id, name, source in rows:
-                osm_id = mapping.get(normalize_name(name))
+                osm_id = mapping.get(row_id)
                 if not osm_id:
                     continue
-                base_source = re.sub(r"\s*\|\s*OSM relation non disponible\s*$", "", source or "").strip()
+                base_source = re.sub(r"\s*\|\s*OSM relation\s+\d+", "", source or "", flags=re.IGNORECASE).strip()
+                base_source = re.sub(r"\s*\|\s*OSM relation non disponible", "", base_source, flags=re.IGNORECASE).strip()
                 enriched = f"{base_source} | OSM relation {osm_id}"
                 cursor.execute(
                     "UPDATE core_administrativearea SET source=%s, updated_at=NOW() WHERE id=%s",
-                    [enriched, row_id],
+                    (enriched, row_id),
                 )
                 updated += 1
-        self.stdout.write(self.style.SUCCESS(
-            f"  IDs OSM de provinces récupérés: {updated}/{len(rows)}"
-        ))
+
+        self.stdout.write(self.style.SUCCESS(f"  IDs OSM de provinces récupérés spatialement: {updated}/{len(db_provinces)}"))
+        if updated < len(db_provinces):
+            missing = [name for row_id, name in db_provinces if row_id not in mapping]
+            self.stdout.write(self.style.WARNING("  Provinces sans relation OSM: " + ", ".join(missing)))
 
     @staticmethod
     def _province_query(relation_id):
-        # Overpass area ids are relation ids + 3600000000 for administrative areas.
         area_id = relation_id + 3600000000
         return f"""
         [out:json][timeout:150];
@@ -432,9 +418,7 @@ class Command(BaseCommand):
             if not endpoint:
                 continue
             for attempt in range(1, RETRIES_PER_ENDPOINT + 1):
-                self.stdout.write(
-                    f"  Overpass: {endpoint} ({label}, tentative {attempt}/{RETRIES_PER_ENDPOINT})"
-                )
+                self.stdout.write(f"  Overpass: {endpoint} ({label}, tentative {attempt}/{RETRIES_PER_ENDPOINT})")
                 request = Request(
                     endpoint,
                     data=query.encode("utf-8"),
@@ -463,13 +447,14 @@ class Command(BaseCommand):
                     time.sleep(1.5 * attempt)
         raise CommandError(f"Tous les endpoints Overpass ont échoué pour {label}: {last_error}")
 
-    def _coverage(self):
+    @staticmethod
+    def _coverage():
         with connection.cursor() as cursor:
             cursor.execute(
                 """
                 SELECT province_name, city_name, COUNT(*)
                   FROM core_administrativearea
-                 WHERE level='commune' AND source LIKE 'OpenStreetMap%'
+                 WHERE level='commune' AND source LIKE 'OpenStreetMap%%'
                  GROUP BY province_name, city_name
                  ORDER BY province_name, city_name
                 """
