@@ -74,7 +74,6 @@ def build_geometry(relation):
 
 
 def explicitly_commune(tags):
-    """Ne considère comme commune certaine qu'une relation explicitement communale."""
     text = " ".join(
         clean(tags.get(key))
         for key in ("designation", "official_status", "government", "place", "type")
@@ -87,7 +86,7 @@ def is_urban_inside_city(geometry, city_shapes):
     from shapely.geometry import shape
 
     point = shape(geometry).representative_point()
-    return any(city_shape.covers(point) for city_shape in city_shapes)
+    return any(city_shape.covers(point) for _, city_shape in city_shapes)
 
 
 class Command(BaseCommand):
@@ -146,7 +145,7 @@ class Command(BaseCommand):
         for city in cities:
             geometry = build_geometry(city)
             if geometry:
-                city_shapes.append((clean((city.get("tags") or {}).get("name")), shape(geometry)))
+                city_shapes.append(shape(geometry))
 
         self.stdout.write(
             f"OSM: {len(cities)} villes admin_level=6 et {len(level7)} unités admin_level=7 reçues."
@@ -204,8 +203,6 @@ class Command(BaseCommand):
                 )
                 imported += 1
 
-            # Rattachement à la province et à l'unité ADM2 qui couvre la commune.
-            # ST_PointOnSurface évite les erreurs dues aux frontières complexes.
             cursor.execute(
                 """
                 WITH candidates AS (
