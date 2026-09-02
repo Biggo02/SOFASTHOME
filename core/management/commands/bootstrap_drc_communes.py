@@ -86,7 +86,7 @@ class Command(BaseCommand):
     help = "Importe les communes RDC depuis OpenStreetMap sans confondre les collectivités/secteurs/chefferies rurales avec les communes."
 
     def add_arguments(self, parser):
-        parser.add_argument("--overpass-url", default="", help="Endpoint Overpass personnalisé (facultatif).")
+        parser.add_argument("--overpass-url", dest="overpass_url", default="", help="Endpoint Overpass personnalisé (facultatif).")
         parser.add_argument("--clear", action="store_true", help="Efface les communes OSM existantes avant import.")
 
     def handle(self, *args, **options):
@@ -107,7 +107,7 @@ class Command(BaseCommand):
         );
         out body geom;
         """
-        endpoints = [options["overpass-url"]] if options["overpass-url"] else OVERPASS_ENDPOINTS
+        endpoints = [options["overpass_url"]] if options["overpass_url"] else OVERPASS_ENDPOINTS
         data = self._fetch_with_fallback(endpoints, query)
         relations = [e for e in data.get("elements", []) if e.get("type") == "relation"]
         level6 = [r for r in relations if (r.get("tags") or {}).get("admin_level") == "6"]
