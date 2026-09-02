@@ -22,13 +22,13 @@ def first_value(props, *names):
 
 
 class Command(BaseCommand):
-    help = "Importe automatiquement les limites administratives ouvertes de toute la RDC dans PostGIS."
+    help = "Importe les limites administratives ouvertes de toute la RDC dans PostGIS avec rattachement spatial des niveaux."
 
     def add_arguments(self, parser):
         parser.add_argument(
             "--levels",
             default="ADM1,ADM2",
-            help="Niveaux geoBoundaries à importer, par défaut ADM1,ADM2. ADM3 peut être ajouté.",
+            help="Niveaux geoBoundaries à importer, par défaut ADM1,ADM2. ADM3 peut être ajouté séparément.",
         )
         parser.add_argument(
             "--simplified",
@@ -60,12 +60,21 @@ class Command(BaseCommand):
         self.stdout.write(self.style.NOTICE(f"PostGIS {version} détecté. Import national RDC en cours..."))
         totals = {}
 
+        # ADM1 must exist before ADM2 so that province parents can be resolved spatially.
+        if "ADM2" in requested and "ADM1" not in requested:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT COUNT(*) FROM core_administrativearea WHERE level='province'")
+                if cursor.fetchone()[0] == 0:
+                    raise CommandError("ADM2 nécessite d'abord les provinces ADM1. Lancez avec --levels ADM1,ADM2.")
+
         for level in requested:
             metadata = self._fetch_json(API.format(level=level))
             url = metadata.get("simplifiedGeometryGeoJSON") if options["simplified"] else metadata.get("gjDownloadURL")
             if not url:
                 raise CommandError(f"Aucune URL GeoJSON disponible pour {level}.")
-            self.stdout.write(f"\n{level}: {metadata.get('boundaryCanonical', '')} — {metadata.get('admUnitCount', '?')} unités")
+            self.stdout.write(
+                f"\n{level}: {metadata.get('boundaryCanonical', '')} — {metadata.get('admUnitCount', '?')} unités"
+            )
             data = self._fetch_json(url)
             count = self._import_features(level, data, metadata, options["clear"])
             totals[level] = count
@@ -73,6 +82,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(
             "Import terminé: " + ", ".join(f"{level}={count}" for level, count in totals.items())
         ))
+        self._report_hierarchy()
         self.stdout.write(
             "Source: geoBoundaries gbOpen / sources RGC-OCHA-OSM selon le niveau; attribution requise."
         )
@@ -84,6 +94,7 @@ class Command(BaseCommand):
         db_level = LEVELS[level]
         imported = 0
         skipped = 0
+        spatial_parented = 0
         source = f"geoBoundaries gbOpen — {metadata.get('boundarySource', 'RDC')}"
 
         with transaction.atomic(), connection.cursor() as cursor:
@@ -107,13 +118,15 @@ class Command(BaseCommand):
                     province = name
                     parent = ""
                 elif level == "ADM2":
-                    # geoBoundaries ADM2 already carries the province parent in shapeName_1 on standard releases.
-                    if not province:
-                        province = ""
+                    # The current DRC ADM2 GeoJSON does not reliably expose the parent
+                    # province in the expected property names. Resolve it from geometry.
+                    province = ""
+                    parent = ""
                 else:
-                    # ADM3 is retained as a separate source level; it is not mislabeled as a commune.
-                    if not province:
-                        province = ""
+                    # ADM3 is deliberately kept separate. It is not renamed to "commune"
+                    # because an administrative level number alone does not prove that
+                    # every unit is a DRC commune.
+                    parent = ""
 
                 geom_json = json.dumps(geometry, separators=(",", ":"))
                 cursor.execute(
@@ -135,8 +148,57 @@ class Command(BaseCommand):
                 )
                 imported += 1
 
-        self.stdout.write(self.style.SUCCESS(f"  ✓ {imported} importées, {skipped} ignorées"))
+            # For ADM2, derive the province parent from spatial containment/maximum
+            # intersection with the already imported ADM1 polygons. This is much safer
+            # than guessing from names or undocumented property columns.
+            if level == "ADM2":
+                cursor.execute(
+                    """
+                    UPDATE core_administrativearea child
+                    SET province_name = parent.name,
+                        updated_at = NOW()
+                    FROM LATERAL (
+                        SELECT p.name
+                        FROM core_administrativearea p
+                        WHERE p.level = 'province'
+                          AND ST_Intersects(child.geom, p.geom)
+                        ORDER BY
+                          CASE WHEN ST_Covers(p.geom, ST_PointOnSurface(child.geom)) THEN 0 ELSE 1 END,
+                          ST_Area(ST_Intersection(child.geom, p.geom)) DESC,
+                          p.id
+                        LIMIT 1
+                    ) parent
+                    WHERE child.level = 'territory'
+                      AND (child.province_name IS NULL OR child.province_name = '')
+                    """
+                )
+                spatial_parented = cursor.rowcount
+
+        if level == "ADM2":
+            self.stdout.write(self.style.SUCCESS(
+                f"  ✓ {imported} importées, {skipped} ignorées; {spatial_parented} rattachées spatialement à une province"
+            ))
+        else:
+            self.stdout.write(self.style.SUCCESS(f"  ✓ {imported} importées, {skipped} ignorées"))
         return imported
+
+    def _report_hierarchy(self):
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT COUNT(*) FROM core_administrativearea WHERE level='province'")
+            provinces = cursor.fetchone()[0]
+            cursor.execute("SELECT COUNT(*) FROM core_administrativearea WHERE level='territory'")
+            territories = cursor.fetchone()[0]
+            cursor.execute(
+                "SELECT COUNT(*) FROM core_administrativearea WHERE level='territory' AND province_name <> ''"
+            )
+            attached = cursor.fetchone()[0]
+            cursor.execute(
+                "SELECT COUNT(*) FROM core_administrativearea WHERE level='territory' AND (province_name IS NULL OR province_name='')"
+            )
+            orphaned = cursor.fetchone()[0]
+        self.stdout.write(
+            f"Hiérarchie RDC: provinces={provinces}, ADM2={territories}, ADM2 rattachées={attached}, ADM2 sans province={orphaned}"
+        )
 
     @staticmethod
     def _fetch_json(url):
