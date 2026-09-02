@@ -9,7 +9,9 @@ MIDDLEWARE = ['django.middleware.security.SecurityMiddleware','django.contrib.se
 ROOT_URLCONF='fasthome.urls'; TEMPLATES=[{'BACKEND':'django.template.backends.django.DjangoTemplates','DIRS':[BASE_DIR/'templates'],'APP_DIRS':True,'OPTIONS':{'context_processors':['django.template.context_processors.debug','django.template.context_processors.request','django.contrib.auth.context_processors.auth','django.contrib.messages.context_processors.messages','core.context_processors.user_ui']}}]; WSGI_APPLICATION='fasthome.wsgi.application'
 if os.getenv('DATABASE_URL'):
     import urllib.parse
-    u=urllib.parse.urlparse(os.getenv('DATABASE_URL')); DATABASES={'default':{'ENGINE':'django.db.backends.postgresql','NAME':u.path.lstrip('/'),'USER':u.username,'PASSWORD':u.password,'HOST':u.hostname,'PORT':u.port or 5432}}
+    u=urllib.parse.urlparse(os.getenv('DATABASE_URL'))
+    db_engine = 'django.contrib.gis.db.backends.postgis' if os.getenv('POSTGIS','0') == '1' else 'django.db.backends.postgresql'
+    DATABASES={'default':{'ENGINE':db_engine,'NAME':u.path.lstrip('/'),'USER':u.username,'PASSWORD':u.password,'HOST':u.hostname,'PORT':u.port or 5432}}
 else: DATABASES={'default':{'ENGINE':'django.db.backends.sqlite3','NAME':BASE_DIR/'db.sqlite3'}}
 AUTH_PASSWORD_VALIDATORS=[{'NAME':'django.contrib.auth.password_validation.MinimumLengthValidator','OPTIONS':{'min_length':8}}]
 LANGUAGE_CODE='fr-fr'; TIME_ZONE='Africa/Lubumbashi'; USE_I18N=True; USE_TZ=True
