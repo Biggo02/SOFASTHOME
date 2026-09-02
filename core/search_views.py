@@ -12,25 +12,8 @@ except ImportError:  # pragma: no cover
     ratio = None
 
 
-# Seuils volontairement élevés : on corrige les fautes probables sans transformer
-# une commune en une autre commune simplement parce que le nom est proche.
-LOCATION_AUTO_MATCH = 88.0
+# Seuil élevé pour accepter uniquement les fautes de frappe suffisamment proches.
 LOCATION_ACCEPT_MATCH = 78.0
-
-# Variantes courantes / abréviations utiles. Le référentiel pourra être enrichi
-# progressivement sans modifier le moteur de matching.
-LOCATION_ALIASES = {
-    'haut katanga': 'haut-katanga',
-    'haut-katanga': 'haut-katanga',
-    'haut katnga': 'haut-katanga',
-    'hautkatanga': 'haut-katanga',
-    'lubumbashi': 'lubumbashi',
-    'lubumashi': 'lubumbashi',
-    'lubumbshi': 'lubumbashi',
-    'lubumbasi': 'lubumbashi',
-    'anex': 'annexe',
-    'annexe': 'annexe',
-}
 
 
 def _clean(value):
@@ -38,7 +21,7 @@ def _clean(value):
 
 
 def _normalize_location(value):
-    """Normalise un nom géographique avant comparaison."""
+    """Normalise un nom géographique avant la comparaison fuzzy."""
     value = _clean(value)
     value = unicodedata.normalize('NFKD', value)
     value = ''.join(char for char in value if not unicodedata.combining(char))
@@ -48,26 +31,19 @@ def _normalize_location(value):
     return value
 
 
-def _location_key(value):
-    normalized = _normalize_location(value)
-    return LOCATION_ALIASES.get(normalized, normalized)
-
-
 def _location_similarity(requested, actual):
-    """Retourne un score 0-100 pour une localisation."""
-    requested_key = _location_key(requested)
-    actual_key = _location_key(actual)
-    if not requested_key or not actual_key:
+    """Retourne un score fuzzy 0-100 pour une localisation."""
+    requested_key = _normalize_location(requested)
+    actual_key = _normalize_location(actual)
+    if not requested_key or not actual_key or ratio is None:
         return 0.0
     if requested_key == actual_key:
         return 100.0
-    if ratio is None:
-        return 0.0
     return float(ratio(requested_key, actual_key))
 
 
 def _location_match(requested, actual):
-    """Renvoie (score, accepté). Exact/alias ou fuzzy au-dessus du seuil."""
+    """Renvoie (score, accepté) selon la similarité fuzzy."""
     score = _location_similarity(requested, actual)
     return score, score >= LOCATION_ACCEPT_MATCH
 
