@@ -10,7 +10,6 @@ from django.utils import timezone
 from .forms import RegisterForm, PropertyForm
 from .models import Property, PropertyImage, Visit, VisitInspection, Contract, ContractDocument, Payment, PaymentProof, VerificationDocument, AuditLog, Notification
 
-
 def audit(request, action, obj=None, details=None):
     AuditLog.objects.create(actor=request.user if request.user.is_authenticated else None, action=action, object_type=obj.__class__.__name__ if obj else '', object_id=str(getattr(obj,'pk','')), ip_address=request.META.get('REMOTE_ADDR'), details=details or {})
 
@@ -74,7 +73,6 @@ def add_property(request):
         if obj.status=='review': Notification.objects.create(user=request.user,title='Publication en vérification',message=f'{obj.reference} a été transmise à FASTHOME.')
         messages.success(request,'Publication soumise à vérification.' if obj.status=='review' else 'Brouillon enregistré.'); return redirect('publications')
     return render(request,'property_form.html',{'form':form})
-
 @login_required
 def upload_property_images(request,pk):
     prop=get_object_or_404(Property,pk=pk,owner=request.user)
@@ -83,7 +81,6 @@ def upload_property_images(request,pk):
     if existing+len(files)>10: messages.error(request,'Un bien peut contenir au maximum 10 photos.'); return redirect('publications')
     for i,uploaded in enumerate(files): PropertyImage.objects.create(property=prop,image=uploaded,order=existing+i,is_cover=(existing==0 and i==0))
     audit(request,'property.images_uploaded',prop,{'count':len(files)}); messages.success(request,f'{len(files)} photo(s) ajoutée(s).'); return redirect('publications')
-
 @login_required
 def request_visit(request,pk):
     prop=get_object_or_404(Property,pk=pk,status='published')
@@ -125,7 +122,6 @@ def about(request): return render(request,'placeholder.html',{'title':'À propos
 def how_it_works(request): return render(request,'placeholder.html',{'title':'Comment ça marche ?','text':'Recherchez, comparez, demandez une visite, recevez la confirmation, visitez, puis suivez votre location depuis un seul compte.'})
 def contact(request): return render(request,'placeholder.html',{'title':'Contact','text':'L’équipe FASTHOME vous accompagne à chaque étape.'})
 def contract_verify(request,reference): return render(request,'verify.html',{'contract':get_object_or_404(Contract,reference=reference)})
-
 @login_required
 def verification_upload(request):
     if request.method=='POST':
@@ -134,7 +130,6 @@ def verification_upload(request):
             if f: VerificationDocument.objects.create(user=request.user,kind=kind,file=f); audit(request,'verification.document_uploaded',details={'kind':kind})
         messages.success(request,'Vos documents de vérification ont été envoyés à FASTHOME.'); return redirect('profile')
     return render(request,'verification_upload.html')
-
 @login_required
 def contract_pdf(request,reference):
     contract=get_object_or_404(Contract.objects.select_related('property','user'),reference=reference)
@@ -143,15 +138,11 @@ def contract_pdf(request,reference):
         from reportlab.lib.pagesizes import A4
         from reportlab.pdfgen import canvas
         import qrcode
-        buffer=BytesIO(); c=canvas.Canvas(buffer,pagesize=A4); w,h=A4
-        c.setTitle(f'FASTHOME {contract.reference}'); c.setFont('Helvetica-Bold',20); c.drawString(50,h-60,'FASTHOME — CONTRAT LOCATIF')
-        c.setFont('Helvetica',11); y=h-100
+        buffer=BytesIO(); c=canvas.Canvas(buffer,pagesize=A4); w,h=A4; c.setTitle(f'FASTHOME {contract.reference}'); c.setFont('Helvetica-Bold',20); c.drawString(50,h-60,'FASTHOME — CONTRAT LOCATIF'); c.setFont('Helvetica',11); y=h-100
         lines=[f'Reférence : {contract.reference}',f'Bien : {contract.property.title} ({contract.property.reference})',f'Ville : {contract.property.city} — {contract.property.neighborhood}',f'Partie : {contract.user.get_full_name() or contract.user.username}',f'Rôle : {contract.get_role_display()}',f'Montant : {contract.amount} USD',f'Début : {contract.start_date or "—"}',f'Fin : {contract.end_date or "—"}',f'Statut : {contract.status}']
         for line in lines: c.drawString(50,y,line); y-=22
         qr=qrcode.make(f'FASTHOME|{contract.reference}'); qpath=BytesIO(); qr.save(qpath,format='PNG'); qpath.seek(0)
-        from reportlab.lib.utils import ImageReader; c.drawImage(ImageReader(qpath),w-150,100,width=90,height=90); c.drawString(w-155,85,'Vérification contrat')
-        c.setFont('Helvetica',9); c.drawString(50,50,'Document généré par FASTHOME. Vérification : référence du contrat.')
-        c.showPage(); c.save(); buffer.seek(0); return HttpResponse(buffer.getvalue(),content_type='application/pdf',headers={'Content-Disposition':f'inline; filename="{contract.reference}.pdf"'})
+        from reportlab.lib.utils import ImageReader; c.drawImage(ImageReader(qpath),w-150,100,width=90,height=90); c.drawString(w-155,85,'Vérification contrat'); c.setFont('Helvetica',9); c.drawString(50,50,'Document généré par FASTHOME. Vérification : référence du contrat.'); c.showPage(); c.save(); buffer.seek(0); return HttpResponse(buffer.getvalue(),content_type='application/pdf',headers={'Content-Disposition':f'inline; filename="{contract.reference}.pdf"'})
     except ImportError: messages.error(request,'Le module PDF n’est pas installé sur cet environnement.'); return redirect('contracts')
 
 def staff_required(user): return user.is_staff
@@ -159,20 +150,33 @@ def staff_required(user): return user.is_staff
 @user_passes_test(staff_required)
 def admin_dashboard(request):
     today=timezone.localdate(); return render(request,'admin_dashboard.html',{'users':User.objects.count(),'properties':Property.objects.count(),'review':Property.objects.filter(status='review').count(),'published':Property.objects.filter(status='published').count(),'visits':Visit.objects.count(),'today_visits':Visit.objects.filter(preferred_date=today).count(),'contracts':Contract.objects.count(),'late':Payment.objects.filter(status='late').count(),'payments':Payment.objects.count(),'properties_review':Property.objects.filter(status='review').order_by('-created_at')[:10],'visits_pending':Visit.objects.filter(status='pending').select_related('property','requester').order_by('preferred_date')[:10],'audit_logs':AuditLog.objects.select_related('actor')[:12]})
+
 @login_required
 @user_passes_test(staff_required)
 def review_publication(request,pk):
     prop=get_object_or_404(Property,pk=pk)
     if request.method=='POST':
         action=request.POST.get('action')
-        if action=='validate': prop.status='validated'; prop.rejection_reason=''; notice='Publication validée : elle reste masquée jusqu’à publication.'
-        elif action=='publish': prop.status='published'; prop.rejection_reason=''; notice='Publication mise en ligne.'
+        allowed={
+            'review': {'validate','reject'},
+            'validated': {'publish','reject'},
+            'published': set(),
+            'rented': {'archive'},
+            'archived': set(),
+            'rejected': {'validate'},
+        }
+        current=prop.status
+        if action not in allowed.get(current,set()):
+            messages.error(request,f'Action impossible pour le statut « {prop.get_status_display()} ».')
+            return redirect('review_publication',pk=prop.pk)
+        if action=='validate': prop.status='validated'; prop.rejection_reason=''; notice='Publication validée. Elle reste invisible au public jusqu’à sa mise en ligne.'
+        elif action=='publish': prop.status='published'; prop.rejection_reason=''; notice='Publication mise en ligne. Le bien peut maintenant recevoir des demandes de visite.'
         elif action=='reject':
             reason=request.POST.get('rejection_reason','').strip()
             if not reason: messages.error(request,'Le motif de refus est obligatoire.'); return render(request,'review_publication.html',{'property':prop})
-            prop.status='rejected'; prop.rejection_reason=reason; notice='Publication refusée avec motif.'
-        else: notice='Aucune action appliquée.'
-        prop.save(update_fields=['status','rejection_reason','updated_at']); audit(request,'property.status_changed',prop,{'status':prop.status}); Notification.objects.create(user=prop.owner,title='Statut de publication mis à jour',message=f'{prop.reference} : {prop.get_status_display()}.'); messages.success(request,notice); return redirect('admin_dashboard')
+            prop.status='rejected'; prop.rejection_reason=reason; notice='Publication refusée. Le propriétaire doit la corriger puis la soumettre à nouveau.'
+        elif action=='archive': prop.status='archived'; notice='Bien archivé. Il n’est plus proposé publiquement.'
+        prop.save(update_fields=['status','rejection_reason','updated_at']); audit(request,'property.workflow_transition',prop,{'from':current,'to':prop.status}); Notification.objects.create(user=prop.owner,title='Statut de publication mis à jour',message=f'{prop.reference} : {prop.get_status_display()}.'); messages.success(request,notice); return redirect('admin_dashboard')
     return render(request,'review_publication.html',{'property':prop})
 @login_required
 @user_passes_test(staff_required)
