@@ -1,12 +1,75 @@
 from decimal import Decimal, InvalidOperation
+import re
+import unicodedata
 
 from django.shortcuts import get_object_or_404, render
 
 from .models import Property
 
+try:
+    from rapidfuzz.fuzz import ratio
+except ImportError:  # pragma: no cover
+    ratio = None
+
+
+# Seuils volontairement élevés : on corrige les fautes probables sans transformer
+# une commune en une autre commune simplement parce que le nom est proche.
+LOCATION_AUTO_MATCH = 88.0
+LOCATION_ACCEPT_MATCH = 78.0
+
+# Variantes courantes / abréviations utiles. Le référentiel pourra être enrichi
+# progressivement sans modifier le moteur de matching.
+LOCATION_ALIASES = {
+    'haut katanga': 'haut-katanga',
+    'haut-katanga': 'haut-katanga',
+    'haut katnga': 'haut-katanga',
+    'hautkatanga': 'haut-katanga',
+    'lubumbashi': 'lubumbashi',
+    'lubumashi': 'lubumbashi',
+    'lubumbshi': 'lubumbashi',
+    'lubumbasi': 'lubumbashi',
+    'anex': 'annexe',
+    'annexe': 'annexe',
+}
+
 
 def _clean(value):
     return (value or '').strip()
+
+
+def _normalize_location(value):
+    """Normalise un nom géographique avant comparaison."""
+    value = _clean(value)
+    value = unicodedata.normalize('NFKD', value)
+    value = ''.join(char for char in value if not unicodedata.combining(char))
+    value = value.casefold().replace("'", ' ')
+    value = re.sub(r'[-_/.,]+', ' ', value)
+    value = re.sub(r'\s+', ' ', value).strip()
+    return value
+
+
+def _location_key(value):
+    normalized = _normalize_location(value)
+    return LOCATION_ALIASES.get(normalized, normalized)
+
+
+def _location_similarity(requested, actual):
+    """Retourne un score 0-100 pour une localisation."""
+    requested_key = _location_key(requested)
+    actual_key = _location_key(actual)
+    if not requested_key or not actual_key:
+        return 0.0
+    if requested_key == actual_key:
+        return 100.0
+    if ratio is None:
+        return 0.0
+    return float(ratio(requested_key, actual_key))
+
+
+def _location_match(requested, actual):
+    """Renvoie (score, accepté). Exact/alias ou fuzzy au-dessus du seuil."""
+    score = _location_similarity(requested, actual)
+    return score, score >= LOCATION_ACCEPT_MATCH
 
 
 def _to_int(value):
@@ -25,10 +88,6 @@ def _to_decimal(value):
         return None
 
 
-def _text_match(actual, requested):
-    return bool(actual and requested and actual.strip().casefold() == requested.strip().casefold())
-
-
 def _minimum_value_score(actual, requested, weight):
     if requested is None:
         return 0.0
@@ -42,52 +101,80 @@ def _minimum_value_score(actual, requested, weight):
     return float(weight) * max(0.0, float(actual / requested))
 
 
-def _rent_score(actual, maximum, weight):
+def _final_rent(prop):
+    """Loyer présenté au demandeur = loyer propriétaire + marge FASTHOME."""
+    try:
+        rent = Decimal(str(prop.rent or 0))
+        margin = Decimal(str(prop.margin or 0))
+        return rent + margin
+    except (TypeError, ValueError, InvalidOperation):
+        return Decimal('0')
+
+
+def _rent_score(prop, maximum, weight):
     if maximum is None:
         return 0.0
     try:
-        actual = Decimal(str(actual or 0))
         maximum = Decimal(str(maximum))
+        final_rent = _final_rent(prop)
     except (TypeError, ValueError, InvalidOperation):
         return 0.0
-    if actual <= 0 or maximum <= 0:
+    if final_rent <= 0 or maximum <= 0:
         return 0.0
-    if actual <= maximum:
+    if final_rent <= maximum:
         return float(weight)
-    excess_ratio = (actual - maximum) / maximum
+    excess_ratio = (final_rent - maximum) / maximum
     return float(weight) * max(0.0, 1.0 - float(excess_ratio))
 
 
 def matching_score(prop, criteria):
-    """Transparent 0-100 score using only the seven search criteria.
-
-    Weights total exactly 100 when all seven criteria are present:
-    location 40%, rooms/capacity 35%, budget 25%.
-    """
+    """Score transparent 0-100 basé uniquement sur les 7 critères de recherche."""
     checks = []
-    if criteria['province']:
-        checks.append(('Province', 10.0, 10.0 if _text_match(prop.province, criteria['province']) else 0.0))
-    if criteria['city']:
-        checks.append(('Ville / territoire', 15.0, 15.0 if _text_match(prop.city, criteria['city']) else 0.0))
-    if criteria['commune']:
-        checks.append(('Commune / commune rurale', 15.0, 15.0 if _text_match(prop.commune, criteria['commune']) else 0.0))
+
+    for field, label, weight in (
+        ('province', 'Province', 10.0),
+        ('city', 'Ville / territoire', 15.0),
+        ('commune', 'Commune / commune rurale', 15.0),
+    ):
+        requested = criteria[field]
+        if requested:
+            location_score, accepted = _location_match(requested, getattr(prop, field, ''))
+            checks.append((label, weight, weight * (location_score / 100.0), accepted, location_score))
+
     if criteria['salons'] is not None:
-        checks.append(('Salons', 10.0, _minimum_value_score(prop.salons, criteria['salons'], 10.0)))
+        points = _minimum_value_score(prop.salons, criteria['salons'], 10.0)
+        checks.append(('Salons', 10.0, points, points >= 10.0, None))
+
     if criteria['bedrooms'] is not None:
-        checks.append(('Chambres', 15.0, _minimum_value_score(prop.bedrooms, criteria['bedrooms'], 15.0)))
+        points = _minimum_value_score(prop.bedrooms, criteria['bedrooms'], 15.0)
+        checks.append(('Chambres', 15.0, points, points >= 15.0, None))
+
     if criteria['max_occupants'] is not None:
-        checks.append(('Occupants', 10.0, _minimum_value_score(prop.max_occupants, criteria['max_occupants'], 10.0)))
+        points = _minimum_value_score(prop.max_occupants, criteria['max_occupants'], 10.0)
+        checks.append(('Occupants', 10.0, points, points >= 10.0, None))
+
     if criteria['rent'] is not None:
-        checks.append(('Loyer mensuel', 25.0, _rent_score(prop.rent, criteria['rent'], 25.0)))
+        points = _rent_score(prop, criteria['rent'], 25.0)
+        checks.append(('Loyer mensuel final', 25.0, points, points >= 25.0, None))
+
     if not checks:
         return 0, []
-    total_weight = sum(weight for _, weight, _ in checks)
-    earned = sum(points for _, _, points in checks)
+
+    total_weight = sum(weight for _, weight, *_ in checks)
+    earned = sum(points for _, _, points, *_ in checks)
     score = max(0, min(100, round((earned / total_weight) * 100)))
-    breakdown = [
-        {'label': label, 'earned': round(points, 1), 'weight': round(weight, 1), 'ok': points >= weight}
-        for label, weight, points in checks
-    ]
+
+    breakdown = []
+    for label, weight, points, ok, similarity in checks:
+        item = {
+            'label': label,
+            'earned': round(points, 1),
+            'weight': round(weight, 1),
+            'ok': ok,
+        }
+        if similarity is not None:
+            item['similarity'] = round(similarity, 1)
+        breakdown.append(item)
     return score, breakdown
 
 
@@ -104,14 +191,15 @@ def _criteria_from_request(request):
 
 
 def _is_eligible(prop, criteria):
-    if criteria['province'] and not _text_match(prop.province, criteria['province']):
-        return False
-    if criteria['city'] and not _text_match(prop.city, criteria['city']):
-        return False
-    if criteria['commune'] and not _text_match(prop.commune, criteria['commune']):
-        return False
-    # A missing/zero rent is invalid data for a budget-based search, not a match.
-    if criteria['rent'] is not None and Decimal(str(prop.rent or 0)) <= 0:
+    """Filtre dur sur la localisation : une localisation incompatible est rejetée."""
+    for field in ('province', 'city', 'commune'):
+        requested = criteria[field]
+        if requested:
+            _, accepted = _location_match(requested, getattr(prop, field, ''))
+            if not accepted:
+                return False
+
+    if criteria['rent'] is not None and _final_rent(prop) <= 0:
         return False
     return True
 
@@ -120,8 +208,10 @@ def search(request):
     criteria = _criteria_from_request(request)
     searched = any(value not in ('', None) for value in criteria.values())
     properties = []
+
     if searched:
-        for prop in Property.objects.filter(status='published').prefetch_related('images'):
+        queryset = Property.objects.filter(status='published').prefetch_related('images')
+        for prop in queryset:
             if not _is_eligible(prop, criteria):
                 continue
             score, breakdown = matching_score(prop, criteria)
@@ -129,8 +219,11 @@ def search(request):
                 continue
             prop.ui_score = score
             prop.match_breakdown = breakdown
+            prop.final_rent = _final_rent(prop)
             properties.append(prop)
-        properties.sort(key=lambda prop: (-prop.ui_score, prop.rent, prop.id))
+
+        properties.sort(key=lambda prop: (-prop.ui_score, prop.final_rent, prop.id))
+
     return render(request, 'search.html', {
         'properties': properties,
         'searched': searched,
