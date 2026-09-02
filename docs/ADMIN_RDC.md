@@ -1,96 +1,100 @@
 # Référentiel administratif RDC — FASTHOME
 
-FASTHOME utilise PostGIS pour les recherches géographiques. Le bootstrap national télécharge automatiquement les limites ouvertes geoBoundaries pour la RDC.
+FASTHOME limite volontairement sa localisation au niveau **Commune / Commune rurale**.
 
-## Niveaux disponibles
+La hiérarchie utilisée par l'application est exclusivement :
 
-- `ADM1` → 26 provinces
-- `ADM2` → villes et territoires (189 unités dans la source actuelle)
-- `ADM3` → niveau supplémentaire disponible dans geoBoundaries, importable séparément; il ne doit pas être présenté automatiquement comme « commune » car la source le décrit comme territoire.
-- `commune` → frontières communales opérationnelles récupérées depuis OpenStreetMap/Overpass lorsque leur qualification communale peut être établie par les règles du chargeur.
+**Province → Ville / Territoire → Commune / Commune rurale**
 
-## Installation
+Aucun quartier, aucune frontière GPS et aucune source géographique externe ne sont nécessaires pour le fonctionnement du site.
 
-Configurer PostgreSQL + PostGIS puis activer le backend spatial:
+## Source de référence
 
-```bash
-export POSTGIS=1
-python manage.py migrate
-```
+Le référentiel opérationnel est celui du document fourni pour FASTHOME :
 
-Sur Windows PowerShell:
+`liaisons_parent_enfant_rdc (1).pdf`
 
-```powershell
-$env:POSTGIS="1"
-python manage.py migrate
-```
+Ce document couvre les provinces de **Kinshasa, Haut-Katanga et Lualaba** et définit les relations parent-enfant utilisées par FASTHOME.
 
-Le chargeur des communes utilise Shapely. La dépendance est déjà déclarée dans `requirements.txt` sous la forme `Shapely>=2.0,<3.0`. fileciteturn418file0L2-L2
+## Structure retenue
 
-## Import national
+### Kinshasa
 
-Version complète:
+Kinshasa est traitée comme province-ville et ses communes sont :
 
-```bash
-python manage.py bootstrap_drc_boundaries --levels ADM1,ADM2
-```
+- Bandalungwa
+- Barumbu
+- Bumbu
+- Gombe
+- Kalamu
+- Kasa-Vubu
+- Kimbanseke
+- Kinshasa
+- Kintambo
+- Kisenso
+- Lemba
+- Limete
+- Lingwala
+- Makala
+- Maluku
+- Masina
+- Matete
+- Ngaba
+- Ngaliema
+- Ngiri-Ngiri
+- Nsele
+- Mont-Ngafula
+- Ona (Selembao)
+- Ndjili
 
-Version simplifiée, recommandée pour les premiers tests:
+### Haut-Katanga
 
-```bash
-python manage.py bootstrap_drc_boundaries --levels ADM1,ADM2 --simplified
-```
+**Lubumbashi** :
 
-Pour ajouter le niveau ADM3:
+- Kamalondo
+- Kampemba
+- Katuba
+- Kenya
+- Lubumbashi
+- Ruashi
+- Annexes
 
-```bash
-python manage.py bootstrap_drc_boundaries --levels ADM3 --simplified
-```
+**Likasi** :
 
-Pour reconstruire les niveaux:
+- Kikula
+- Likasi
+- Panda
+- Shituru
 
-```bash
-python manage.py bootstrap_drc_boundaries --levels ADM1,ADM2 --simplified --clear
-```
+**Kasumbalesa** :
 
-### Communes OpenStreetMap
+- Musoshi
+- Kasumbalesa
 
-Pour importer ou reconstruire la couche nationale des communes détectées par OSM:
+### Lualaba
 
-```bash
-python manage.py bootstrap_drc_communes --clear
-```
+**Kolwezi** :
 
-Le chargeur interroge Overpass et récupère les relations administratives `admin_level=6` et `admin_level=7`. Il ne transforme pas aveuglément tout `admin_level=7` en commune: en RDC ce niveau peut aussi représenter d'autres unités. Une unité est retenue lorsqu'elle est explicitement identifiée comme communale ou lorsqu'elle est couverte par une frontière de ville `admin_level=6`. Le code d'import correspond à cette logique. fileciteturn419file0L2-L2
+- Dilala
+- Manika
 
-Cette couche OSM est une couverture géographique opérationnelle pour la recherche FASTHOME. Elle ne doit pas être présentée comme un registre juridique exhaustif des communes de la RDC sans validation administrative complémentaire.
+**Kasaji** :
 
-## Audit après import
+- Lua
+- Monde
+- Kasaji
 
-Après les imports, lancer:
+**Lubudi** :
 
-```bash
-python manage.py audit_drc_admin --verbose-coverage
-```
+- Lubudi
+- Fungurume
 
-L'audit contrôle notamment:
+## Règles d'application
 
-- le nombre de provinces, territoires/villes et communes;
-- les communes sans province ou parent;
-- les doublons nom + parent;
-- la couverture de Lubumbashi;
-- les provinces et territoires/villes sans commune importée.
-
-L'audit est en lecture seule et ne modifie aucune donnée.
-
-## Recherche et communes limitrophes
-
-La recherche FASTHOME peut utiliser les géométries des communes pour élargir une recherche lorsque la commune demandée fournit moins de cinq résultats exacts. L'élargissement reste soumis au budget maximum, au nombre minimal de salons/chambres et à la capacité maximale demandée.
-
-Ne pas utiliser automatiquement une couche ADM3 ou ADM7 comme synonyme de « commune » sans validation de sa signification administrative.
-
-## Source et attribution
-
-La source programmatique principale des provinces et territoires/villes est geoBoundaries `gbOpen` pour `COD`. geoBoundaries documente son API et indique que gbOpen est sous CC-BY 4.0; l'attribution est donc conservée dans FASTHOME.
-
-Pour les communes, la source est OpenStreetMap via Overpass. Les données OpenStreetMap sont © les contributeurs OpenStreetMap et sont distribuées sous licence ODbL; FASTHOME doit conserver l'attribution requise lors de leur utilisation et affichage.
+- Le champ géographique final d'un bien est toujours la **commune**.
+- La recherche utilisateur ne descend jamais au niveau quartier.
+- Les résultats affichent la commune et la ville / territoire, sans quartier.
+- Le matching géographique compare uniquement Province, Ville / Territoire et Commune.
+- Une faute de frappe peut être tolérée lors de la comparaison des noms administratifs connus du référentiel.
+- Aucun calcul de distance ou de commune limitrophe n'est effectué.
+- Aucune requête OSM, Overpass, geoBoundaries, Nominatim ou autre service géographique externe ne doit être ajoutée.
