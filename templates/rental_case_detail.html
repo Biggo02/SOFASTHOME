@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% block title %}Dossier {{ case.reference }} — FASTHOME{% endblock %}
+{% block content %}
+<section class="form-page">
+  <div class="page-head">
+    <small>FASTHOME · DOSSIER DE LOCATION</small>
+    <h1>{{ case.reference }}</h1>
+    <p>Préparation sécurisée de la location. Les deux contrats restent distincts : FASTHOME–propriétaire et FASTHOME–locataire.</p>
+  </div>
+  <div class="form-card">
+    <div class="profile-grid">
+      <div><span>Bien</span><b>{{ case.property.title }}</b></div>
+      <div><span>Référence bien</span><b>{{ case.property.reference }}</b></div>
+      <div><span>Propriétaire</span><b>{{ case.owner.get_full_name|default:case.owner.username }}</b></div>
+      <div><span>Locataire</span><b>{{ case.tenant.get_full_name|default:case.tenant.username }}</b></div>
+      <div><span>Statut du dossier</span><b>{{ case.get_status_display }}</b></div>
+      <div><span>Décision visite</span><b>{{ case.visit.get_final_decision_display }}</b></div>
+    </div>
+
+    {% if not case.owner_contract or not case.tenant_contract %}
+    <div class="notice" style="margin-top:22px">
+      <b>Deux contrats doivent être préparés</b>
+      <span>1. FASTHOME ↔ Propriétaire · 2. FASTHOME ↔ Locataire.</span>
+    </div>
+    <form method="post" style="margin-top:18px">
+      {% csrf_token %}
+      <button class="btn btn-primary" name="action" value="prepare_contracts">Préparer les deux contrats</button>
+    </form>
+    {% endif %}
+
+    <h2 style="margin-top:30px">Contrats</h2>
+    <div class="profile-grid" style="margin-top:14px">
+      {% if case.owner_contract %}
+      <div class="notice"><b>FASTHOME ↔ Propriétaire</b><span>{{ case.owner_contract.reference }} · {{ case.owner_contract.get_status_display }} · {{ case.owner_contract.amount }} USD</span><a class="btn btn-light" href="{% url 'rental_contract_pdf' case.owner_contract.pk %}">Voir le PDF</a></div>
+      {% endif %}
+      {% if case.tenant_contract %}
+      <div class="notice"><b>FASTHOME ↔ Locataire</b><span>{{ case.tenant_contract.reference }} · {{ case.tenant_contract.get_status_display }} · {{ case.tenant_contract.amount }} USD</span><a class="btn btn-light" href="{% url 'rental_contract_pdf' case.tenant_contract.pk %}">Voir le PDF</a></div>
+      {% endif %}
+    </div>
+
+    <h2 style="margin-top:30px">Documents du dossier</h2>
+    <div class="panel list-panel" style="margin-top:12px">
+      {% for document in case.documents.all %}
+      <div class="list-row"><div><b>{{ document.label }}</b><small>{{ document.get_document_type_display }}</small></div><span class="status">{{ document.get_status_display }}</span></div>
+      {% empty %}<div class="empty">Aucun document.</div>{% endfor %}
+    </div>
+
+    <div class="notice" style="margin-top:22px"><b>Étape suivante</b><span>Les contrats sont préparés par FASTHOME puis suivent leur propre validation et signature. Le contrat locataire ne doit pas être considéré comme final tant que le dossier propriétaire n’est pas validé.</span></div>
+
+    <form method="post" style="margin-top:18px">
+      {% csrf_token %}
+      <label class="field"><span>Mettre à jour l’étape</span><select name="status"><option value="preparing">Dossier à préparer</option><option value="owner_contract">Contrat propriétaire à valider</option><option value="tenant_contract">Contrat locataire à valider</option><option value="signing">En attente des signatures</option><option value="payment">En attente du paiement</option><option value="inspection">État des lieux</option><option value="active">Location active</option><option value="cancelled">Dossier annulé</option></select></label>
+      <button class="btn btn-light" name="action" value="status">Enregistrer l’étape</button>
+      <a class="btn btn-light" href="{% url 'rental_cases' %}">Retour aux dossiers</a>
+    </form>
+  </div>
+</section>
+{% endblock %}
