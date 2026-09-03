@@ -21,6 +21,8 @@ urlpatterns = [
     path('mot-de-passe-oublie/envoye/', auth_views.PasswordResetDoneView.as_view(template_name='password_reset_done.html'), name='password_reset_done'),
     path('reinitialisation/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(template_name='password_reset_confirm.html'), name='password_reset_confirm'),
     path('reinitialisation/terminee/', auth_views.PasswordResetCompleteView.as_view(template_name='password_reset_complete.html'), name='password_reset_complete'),
+    path('mot-de-passe/', auth_views.PasswordChangeView.as_view(template_name='password_change.html', success_url='/mot-de-passe/modifie/'), name='password_change'),
+    path('mot-de-passe/modifie/', auth_views.PasswordChangeDoneView.as_view(template_name='password_change_done.html'), name='password_change_done'),
     path('espace-personnel/', views.dashboard, name='dashboard'), path('mon-profil/', profile_views.profile, name='profile'), path('mes-favoris/', views.favorites, name='favorites'),
     path('mes-publications/', views.publications, name='publications'), path('ajouter-un-bien/', views.add_property, name='add_property'), path('mes-visites/', views.visits, name='visits'),
     path('mes-contrats/', views.contracts, name='contracts'), path('mes-paiements/', views.payments, name='payments'), path('paiement/<int:pk>/preuve/', views.payment_proof, name='payment_proof'),
