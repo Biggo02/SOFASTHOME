@@ -2,25 +2,20 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.http import HttpResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
-from django.utils import timezone
 
-from .models import AuditLog, Notification, Visit, RentalCase, RentalContract, RentalDocument
+from .models import Notification, RentalCase, RentalContract
 
 
 def staff_required(user):
     return user.is_staff
 
 
-def __staff_users():
-    from django.contrib.auth.models import User
-    return User.objects.filter(is_staff=True, is_active=True)
-
-
 @login_required
-@user_passes_test(staff_required)
 def rental_cases(request):
-    cases = RentalCase.objects.select_related('property', 'owner', 'tenant', 'visit').prefetch_related('contracts', 'documents').order_by('-updated_at')
-    return render(request, 'rental_cases.html', {'cases': cases})
+    queryset = RentalCase.objects.select_related('property', 'owner', 'tenant', 'visit').prefetch_related('contracts', 'documents').order_by('-updated_at')
+    if not request.user.is_staff:
+        queryset = queryset.filter(tenant=request.user) | queryset.filter(owner=request.user)
+    return render(request, 'rental_cases.html', {'cases': queryset.distinct()})
 
 
 @login_required
