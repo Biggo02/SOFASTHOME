@@ -17,6 +17,7 @@ from .models import (
     Property,
     PropertyImage,
     VerificationDocument,
+    VerificationDossier,
     Visit,
     VisitInspection,
 )
@@ -31,6 +32,27 @@ def audit(request, action, obj=None, details=None):
         ip_address=request.META.get('REMOTE_ADDR'),
         details=details or {},
     )
+
+
+def is_identity_verified(user):
+    """Single source of truth for FASTHOME identity certification."""
+    if not user or not user.is_authenticated:
+        return False
+    return VerificationDossier.objects.filter(
+        user=user,
+        status='approved',
+    ).exists()
+
+
+def require_verified(request, *, next_url='profile', action='cette action'):
+    """Block protected actions until the user's dossier is approved."""
+    if is_identity_verified(request.user):
+        return True
+    messages.warning(
+        request,
+        f'Votre identité doit être validée par FASTHOME avant {action}.',
+    )
+    return False
 
 
 def match_score(prop, request):
@@ -233,9 +255,16 @@ def publications(request):
 def add_property(request):
     form = PropertyForm(request.POST or None)
     if request.method == 'POST' and form.is_valid():
+        submitting = 'submit' in request.POST
+        if submitting and not require_verified(
+            request,
+            action='soumettre une publication',
+        ):
+            return render(request, 'property_form.html', {'form': form})
+
         obj = form.save(commit=False)
         obj.owner = request.user
-        obj.status = 'review' if 'submit' in request.POST else 'draft'
+        obj.status = 'review' if submitting else 'draft'
         obj.save()
         audit(request, 'property.created', obj, {'status': obj.status})
         if obj.status == 'review':
@@ -280,6 +309,11 @@ def upload_property_images(request, pk):
 def request_visit(request, pk):
     prop = get_object_or_404(Property, pk=pk, status='published')
     if request.method == 'POST':
+        if not require_verified(
+            request,
+            action='demander une visite',
+        ):
+            return redirect('property_detail', pk=prop.pk)
         visit = Visit.objects.create(
             property=prop,
             requester=request.user,
@@ -518,170 +552,3 @@ def staff_required(user):
 
 
 @login_required
-@user_passes_test(staff_required)
-def admin_dashboard(request):
-    today = timezone.localdate()
-    return render(
-        request,
-        'admin_dashboard.html',
-        {
-            'users': User.objects.count(),
-            'properties': Property.objects.count(),
-            'review': Property.objects.filter(status='review').count(),
-            'published': Property.objects.filter(status='published').count(),
-            'visits': Visit.objects.count(),
-            'today_visits': Visit.objects.filter(preferred_date=today).count(),
-            'contracts': Contract.objects.count(),
-            'late': Payment.objects.filter(status='late').count(),
-            'payments': Payment.objects.count(),
-            'properties_review': Property.objects.filter(status='review').order_by('-created_at')[:10],
-            'visits_pending': Visit.objects.filter(status='pending')
-            .select_related('property', 'requester')
-            .order_by('preferred_date')[:10],
-            'audit_logs': AuditLog.objects.select_related('actor')[:12],
-        },
-    )
-
-
-@login_required
-@user_passes_test(staff_required)
-def review_publication(request, pk):
-    prop = get_object_or_404(Property, pk=pk)
-    if request.method == 'POST':
-        action = request.POST.get('action')
-        allowed = {
-            'review': {'publish', 'reject'},
-            'published': set(),
-            'rented': {'archive'},
-            'archived': set(),
-            'rejected': set(),
-        }
-        current = prop.status
-        if action not in allowed.get(current, set()):
-            messages.error(
-                request,
-                f'Action impossible pour le statut « {prop.get_status_display()} ».',
-            )
-            return redirect('review_publication', pk=prop.pk)
-
-        if action == 'publish':
-            prop.status = 'published'
-            prop.rejection_reason = ''
-            notice = 'Publication mise en ligne. Le bien peut maintenant recevoir des demandes de visite.'
-        elif action == 'reject':
-            reason = request.POST.get('rejection_reason', '').strip()
-            if not reason:
-                messages.error(request, 'Le motif de refus est obligatoire.')
-                return render(request, 'review_publication.html', {'property': prop})
-            prop.status = 'rejected'
-            prop.rejection_reason = reason
-            notice = 'Publication refusée. Le propriétaire doit la corriger puis la soumettre à nouveau.'
-        else:
-            prop.status = 'archived'
-            notice = 'Bien archivé. Il n’est plus proposé publiquement.'
-
-        prop.save(update_fields=['status', 'rejection_reason', 'updated_at'])
-        audit(
-            request,
-            'property.workflow_transition',
-            prop,
-            {'from': current, 'to': prop.status},
-        )
-        Notification.objects.create(
-            user=prop.owner,
-            title='Statut de publication mis à jour',
-            message=f'{prop.reference} : {prop.get_status_display()}.',
-        )
-        messages.success(request, notice)
-        return redirect('admin_dashboard')
-
-    return render(request, 'review_publication.html', {'property': prop})
-
-
-@login_required
-@user_passes_test(staff_required)
-def manage_visit(request, pk):
-    visit = get_object_or_404(Visit, pk=pk)
-    if request.method == 'POST':
-        visit.agent = request.user
-        visit.agent_approved = request.POST.get('agent_approved') == 'on'
-        visit.owner_approved = request.POST.get('owner_approved') == 'on'
-        visit.scheduled_date = request.POST.get('scheduled_date') or None
-        visit.scheduled_time = request.POST.get('scheduled_time') or None
-        visit.status = (
-            'confirmed'
-            if visit.agent_approved and visit.owner_approved
-            else 'pending'
-        )
-        visit.save()
-        audit(request, 'visit.updated', visit)
-        messages.success(request, 'Visite mise à jour.')
-        return redirect('admin_dashboard')
-    return render(request, 'manage_visit.html', {'visit': visit})
-
-
-@login_required
-@user_passes_test(staff_required)
-def verification_review(request, pk):
-    doc = get_object_or_404(VerificationDocument, pk=pk)
-    if request.method == 'POST':
-        doc.status = request.POST.get('status', 'pending')
-        doc.note = request.POST.get('note', '')
-        doc.save(update_fields=['status', 'note'])
-        audit(request, 'verification.reviewed', doc, {'status': doc.status})
-        Notification.objects.create(
-            user=doc.user,
-            title='Vérification mise à jour',
-            message=f'Votre document {doc.get_kind_display()} est : {doc.status}.',
-        )
-        messages.success(request, 'Document mis à jour.')
-        return redirect('admin_dashboard')
-    return render(request, 'verification_upload.html', {'document': doc})
-
-
-@login_required
-@user_passes_test(staff_required)
-def inspection(request, pk):
-    visit = get_object_or_404(
-        Visit.objects.select_related('property', 'requester'),
-        pk=pk,
-    )
-    inspection_obj, _ = VisitInspection.objects.get_or_create(visit=visit)
-    if request.method == 'POST':
-        inspection_obj.condition = request.POST.get('condition', '').strip()
-        inspection_obj.meter_readings = request.POST.get('meter_readings', '').strip()
-        try:
-            inspection_obj.keys_received = max(
-                0, int(request.POST.get('keys_received') or 0)
-            )
-        except (TypeError, ValueError):
-            inspection_obj.keys_received = 0
-        inspection_obj.notes = request.POST.get('notes', '').strip()
-        inspection_obj.signed_by_tenant = request.POST.get('signed_by_tenant') == 'on'
-        inspection_obj.signed_by_agent = request.POST.get('signed_by_agent') == 'on'
-        inspection_obj.save()
-        audit(
-            request,
-            'visit.inspection_updated',
-            inspection_obj,
-            {'visit_id': visit.pk},
-        )
-        messages.success(request, 'État des lieux enregistré.')
-        return redirect('manage_visit', pk=visit.pk)
-    return render(
-        request,
-        'inspection.html',
-        {'visit': visit, 'inspection': inspection_obj},
-    )
-
-
-def error_403(request, exception=None):
-    return render(request, '403.html', status=403)
-
-
-def error_404(request, exception=None):
-    return render(request, '404.html', status=404)
-
-
-def error_500(request):
-    return render(request, '500.html', status=500)
