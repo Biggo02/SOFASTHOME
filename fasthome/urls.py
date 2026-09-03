@@ -14,7 +14,7 @@ from core import favorite_views
 urlpatterns = [
     path('admin/', admin.site.urls), path('', views.home, name='home'), path('rechercher/', search_views.search, name='search'),
     path('bien/<int:pk>/', search_views.property_detail, name='property_detail'), path('bien/<int:pk>/visite/', views.request_visit, name='request_visit'),
-    path('bien/<int:pk>/favori/', favorite_views.toggle_favorite, name='toggle_favorite'), path('bien/<int:pk>/photos/', views.upload_property_images, name='upload_property_images'),
+    path('bien/<int:pk>/favori/', views.toggle_favorite, name='toggle_favorite'), path('bien/<int:pk>/favori-ajax/', favorite_views.toggle_favorite, name='toggle_favorite_ajax'), path('bien/<int:pk>/photos/', views.upload_property_images, name='upload_property_images'),
     path('inscription/', views.register, name='register'), path('connexion/', views.login_view, name='login'), path('deconnexion/', views.logout_view, name='logout'),
     path('mot-de-passe-oublie/', auth_views.PasswordResetView.as_view(template_name='password_reset.html'), name='password_reset'),
     path('mot-de-passe-oublie/envoye/', auth_views.PasswordResetDoneView.as_view(template_name='password_reset_done.html'), name='password_reset_done'),
