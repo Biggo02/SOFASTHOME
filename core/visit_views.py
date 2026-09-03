@@ -66,6 +66,25 @@ def agent_visit_decision(request, pk):
         return render(request, 'manage_visit.html', {'visit': visit})
 
     action = request.POST.get('action')
+
+    if action == 'done':
+        if visit.status != 'confirmed':
+            messages.error(request, 'Seule une visite confirmée peut être marquée comme effectuée.')
+            return redirect('manage_visit', pk=visit.pk)
+
+        visit.status = 'done'
+        observation = request.POST.get('observation', '').strip()
+        if observation:
+            visit.observation = observation
+        visit.save(update_fields=['status', 'observation'])
+        Notification.objects.create(
+            user=visit.requester,
+            title='Visite effectuée',
+            message='Votre visite a été effectuée.',
+        )
+        messages.success(request, 'La visite a été enregistrée comme effectuée.')
+        return redirect('manage_visit', pk=visit.pk)
+
     if action == 'approve':
         was_confirmed = visit.status == 'confirmed'
         visit.agent = request.user
@@ -97,31 +116,3 @@ def agent_visit_decision(request, pk):
     else:
         messages.error(request, 'Action inconnue.')
     return redirect('admin_dashboard')
-
-
-@login_required
-@user_passes_test(_staff)
-def mark_visit_done(request, pk):
-    """Clôture une visite uniquement après sa réalisation effective par FASTHOME."""
-    visit = get_object_or_404(Visit.objects.select_related('property', 'requester'), pk=pk)
-
-    if request.method != 'POST':
-        return redirect('manage_visit', pk=visit.pk)
-
-    if visit.status != 'confirmed':
-        messages.error(request, 'Seule une visite confirmée peut être marquée comme effectuée.')
-        return redirect('manage_visit', pk=visit.pk)
-
-    visit.status = 'done'
-    observation = request.POST.get('observation', '').strip()
-    if observation:
-        visit.observation = observation
-    visit.save(update_fields=['status', 'observation'])
-
-    Notification.objects.create(
-        user=visit.requester,
-        title='Visite effectuée',
-        message='Votre visite a été effectuée.',
-    )
-    messages.success(request, 'La visite a été enregistrée comme effectuée.')
-    return redirect('manage_visit', pk=visit.pk)
