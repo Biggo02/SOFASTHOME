@@ -41,8 +41,6 @@ class Migration(migrations.Migration):
                 ('visit', models.OneToOneField(on_delete=django.db.models.deletion.PROTECT, related_name='rental_case', to='core.visit')),
             ],
         ),
-        migrations.AddField(model_name='rentalcontract', name='rental_case', field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='contracts', to='core.rentalcase')),
-        migrations.AddField(model_name='rentalcontract', name='rental_case', field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='contracts', to='core.rentalcase')),
         migrations.CreateModel(
             name='RentalDocument',
             fields=[
@@ -57,6 +55,7 @@ class Migration(migrations.Migration):
                 ('rental_case', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='documents', to='core.rentalcase')),
             ],
         ),
+        migrations.AddField(model_name='rentalcontract', name='rental_case', field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='contracts', to='core.rentalcase')),
         migrations.AddField(model_name='rentalcase', name='owner_contract', field=models.OneToOneField(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='owner_case', to='core.rentalcontract')),
         migrations.AddField(model_name='rentalcase', name='tenant_contract', field=models.OneToOneField(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='tenant_case', to='core.rentalcontract')),
     ]
