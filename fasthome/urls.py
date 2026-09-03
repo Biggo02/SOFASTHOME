@@ -14,6 +14,7 @@ from core import profile_views
 from core import verification_views
 from core import visit_views
 from core import visitor_decision_views
+from core import rental_views
 
 urlpatterns = [
     path('admin/', admin.site.urls), path('', views.home, name='home'), path('rechercher/', search_views.search, name='search'),
@@ -30,9 +31,11 @@ urlpatterns = [
     path('mes-publications/', views.publications, name='publications'), path('ajouter-un-bien/', views.add_property, name='add_property'), path('mes-visites/', views.visits, name='visits'),
     path('mes-demandes-visite/', visit_views.owner_visit_requests, name='owner_visit_requests'), path('mes-demandes-visite/<int:pk>/decision/', visit_views.owner_visit_decision, name='owner_visit_decision'),
     path('mes-visites/<int:pk>/decision-finale/', visitor_decision_views.visitor_final_decision, name='visitor_final_decision'),
+    path('mes-dossiers-location/', rental_views.rental_cases, name='rental_cases'), path('mes-dossiers-location/<int:pk>/', rental_views.rental_case_detail, name='rental_case_detail'),
     path('mes-contrats/', views.contracts, name='contracts'), path('mes-paiements/', views.payments, name='payments'), path('paiement/<int:pk>/preuve/', views.payment_proof, name='payment_proof'),
     path('mes-echeances/', views.due_dates, name='due_dates'), path('notifications/', views.notifications, name='notifications'), path('messages/', views.messages_page, name='messages'),
     path('verification-documents/', verification_views.verification_upload, name='verification_upload'), path('contrat/<str:reference>/pdf/', contract_views.contract_pdf, name='contract_pdf'),
+    path('location/contrat/<int:pk>/pdf/', rental_views.rental_contract_pdf, name='rental_contract_pdf'),
     path('a-propos/', about_views.about, name='about'), path('comment-ca-marche/', how_it_works_views.how_it_works, name='how_it_works'), path('contact/', contact_views.contact, name='contact'),
     path('verification-contrat/<str:reference>/', views.contract_verify, name='contract_verify'), path('gestion/', views.admin_dashboard, name='admin_dashboard'),
     path('gestion/publication/<int:pk>/', views.review_publication, name='review_publication'), path('gestion/visite/<int:pk>/', visit_views.agent_visit_decision, name='manage_visit'),
