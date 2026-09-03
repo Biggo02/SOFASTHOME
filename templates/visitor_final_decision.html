@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% block title %}Votre décision — FASTHOME{% endblock %}
+{% block content %}
+<section class="form-page">
+  <div class="page-head">
+    <small>FASTHOME · APRÈS LA VISITE</small>
+    <h1>Que pensez-vous de ce bien&nbsp;?</h1>
+    <p>Votre visite est terminée. Indiquez simplement à FASTHOME ce que vous souhaitez faire ensuite.</p>
+  </div>
+  <div class="form-card">
+    <div class="notice" style="margin-bottom:22px">
+      <b>{{ visit.property.title }}</b>
+      <span>Référence : {{ visit.property.reference }}</span>
+    </div>
+    <form method="post">
+      {% csrf_token %}
+      <div class="field">
+        <label>Votre décision finale</label>
+        <div style="display:grid;gap:12px">
+          <label style="display:flex;align-items:center;gap:10px;padding:15px;border:1px solid var(--border,#ddd);border-radius:14px;cursor:pointer">
+            <input type="radio" name="final_decision" value="interested" required>
+            <strong>🟢 Je suis intéressé</strong>
+          </label>
+          <label style="display:flex;align-items:center;gap:10px;padding:15px;border:1px solid var(--border,#ddd);border-radius:14px;cursor:pointer">
+            <input type="radio" name="final_decision" value="thinking">
+            <strong>🟠 Je souhaite réfléchir</strong>
+          </label>
+          <label style="display:flex;align-items:center;gap:10px;padding:15px;border:1px solid var(--border,#ddd);border-radius:14px;cursor:pointer">
+            <input type="radio" name="final_decision" value="not_interested">
+            <strong>🔴 Je ne suis pas intéressé</strong>
+          </label>
+        </div>
+      </div>
+      <div class="field">
+        <label for="final_decision_comment">Commentaire (facultatif)</label>
+        <textarea id="final_decision_comment" name="final_decision_comment" rows="4" maxlength="2000" placeholder="Vous pouvez ajouter une précision pour FASTHOME..."></textarea>
+      </div>
+      <div class="form-actions">
+        <a class="btn btn-light" href="{% url 'visits' %}">Plus tard</a>
+        <button class="btn btn-primary" type="submit">Envoyer ma décision</button>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}
