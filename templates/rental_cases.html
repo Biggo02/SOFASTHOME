@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block title %}Dossiers de location — FASTHOME{% endblock %}
+{% block content %}
+<section class="form-page">
+  <div class="page-head"><small>FASTHOME · GESTION</small><h1>Dossiers de location</h1><p>Chaque dossier regroupe la décision du visiteur, les documents et les deux contrats distincts.</p></div>
+  <div class="panel list-panel">
+    {% for case in cases %}
+    <div class="list-row">
+      <div><b>{{ case.reference }} · {{ case.property.reference }}</b><small>{{ case.property.title }}</small><small>Locataire : {{ case.tenant.get_full_name|default:case.tenant.username }}</small></div>
+      <span class="status">{{ case.get_status_display }}</span>
+      <a class="btn btn-light" href="{% url 'rental_case_detail' case.pk %}">Ouvrir</a>
+    </div>
+    {% empty %}<div class="empty">Aucun dossier de location à traiter.</div>{% endfor %}
+  </div>
+</section>
+{% endblock %}
