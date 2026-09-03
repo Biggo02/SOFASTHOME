@@ -46,6 +46,16 @@ class PaymentProof(models.Model):
 class VerificationDocument(models.Model):
     KINDS=[('id_front','Pièce identité — recto'),('id_back','Pièce identité — verso'),('selfie','Selfie de vérification'),('other','Autre')]
     user=models.ForeignKey(User,on_delete=models.CASCADE,related_name='verification_documents'); kind=models.CharField(max_length=20); file=models.FileField(upload_to='verification/%Y/%m/'); status=models.CharField(max_length=20,default='pending'); note=models.TextField(blank=True); created_at=models.DateTimeField(auto_now_add=True)
+class VerificationDossier(models.Model):
+    STATUS=[('pending','En attente'),('review','En cours de vérification'),('approved','Vérification validée'),('rejected','Vérification refusée'),('needs_info','Informations supplémentaires requises')]
+    user=models.OneToOneField(User,on_delete=models.CASCADE,related_name='verification_dossier')
+    id_front=models.FileField(upload_to='verification/%Y/%m/',blank=True)
+    id_back=models.FileField(upload_to='verification/%Y/%m/',blank=True)
+    selfie=models.FileField(upload_to='verification/%Y/%m/',blank=True)
+    status=models.CharField(max_length=20,choices=STATUS,default='pending')
+    note=models.TextField(blank=True)
+    created_at=models.DateTimeField(auto_now_add=True)
+    updated_at=models.DateTimeField(auto_now=True)
 class AuditLog(models.Model):
     actor=models.ForeignKey(User,on_delete=models.SET_NULL,null=True,blank=True,related_name='audit_logs'); action=models.CharField(max_length=120); object_type=models.CharField(max_length=80,blank=True); object_id=models.CharField(max_length=80,blank=True); ip_address=models.GenericIPAddressField(null=True,blank=True); details=models.JSONField(default=dict,blank=True); created_at=models.DateTimeField(auto_now_add=True)
     class Meta: ordering=['-created_at']
