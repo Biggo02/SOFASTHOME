@@ -31,22 +31,30 @@ def owner_visit_decision(request, pk):
 
     action = request.POST.get('action')
     if action == 'approve':
+        was_confirmed = visit.status == 'confirmed'
         visit.owner_approved = True
-        if visit.agent_approved:
-            visit.status = 'confirmed'
-            message = 'La visite est confirmée : le propriétaire et FASTHOME ont validé la demande.'
-        else:
-            visit.status = 'pending'
-            message = 'Votre demande de visite a été validée par le propriétaire. FASTHOME doit encore la valider.'
+        visit.status = 'confirmed' if visit.agent_approved else 'pending'
         visit.save(update_fields=['owner_approved', 'status'])
-        Notification.objects.create(user=visit.requester, title='Validation du propriétaire', message=message)
+
+        # Le demandeur ne voit que le résultat final. La double validation
+        # reste une information interne à FASTHOME et au propriétaire.
+        if visit.status == 'confirmed' and not was_confirmed:
+            Notification.objects.create(
+                user=visit.requester,
+                title='Demande de visite validée',
+                message='Votre demande de visite est validée.',
+            )
         messages.success(request, 'Demande de visite validée par le propriétaire.')
     elif action == 'reject':
         visit.owner_approved = False
         visit.status = 'rejected'
         visit.observation = request.POST.get('observation', '').strip()
         visit.save(update_fields=['owner_approved', 'status', 'observation'])
-        Notification.objects.create(user=visit.requester, title='Demande de visite refusée', message='Le propriétaire n’a pas validé votre demande de visite.')
+        Notification.objects.create(
+            user=visit.requester,
+            title='Demande de visite refusée',
+            message='Votre demande de visite n’a pas été acceptée.',
+        )
         messages.success(request, 'Demande de visite refusée. Aucun contact direct n’est communiqué.')
     else:
         messages.error(request, 'Action inconnue.')
@@ -62,6 +70,7 @@ def agent_visit_decision(request, pk):
 
     action = request.POST.get('action')
     if action == 'approve':
+        was_confirmed = visit.status == 'confirmed'
         visit.agent = request.user
         visit.agent_approved = True
         visit.scheduled_date = request.POST.get('scheduled_date') or visit.scheduled_date
@@ -69,8 +78,15 @@ def agent_visit_decision(request, pk):
         visit.observation = request.POST.get('observation', '').strip()
         visit.status = 'confirmed' if visit.owner_approved else 'pending'
         visit.save(update_fields=['agent', 'agent_approved', 'scheduled_date', 'scheduled_time', 'observation', 'status'])
-        text = ('La demande de visite est confirmée : les deux validations sont obtenues.' if visit.owner_approved else 'FASTHOME a validé la demande. La validation du propriétaire est encore requise.')
-        Notification.objects.create(user=visit.requester, title='Validation FASTHOME', message=text)
+
+        # Ne notifier le client qu'au moment où la demande est réellement
+        # confirmée. Aucun détail sur les validations internes n'est exposé.
+        if visit.status == 'confirmed' and not was_confirmed:
+            Notification.objects.create(
+                user=visit.requester,
+                title='Demande de visite validée',
+                message='Votre demande de visite est validée.',
+            )
         messages.success(request, 'Décision FASTHOME enregistrée.')
     elif action == 'reject':
         visit.agent = request.user
@@ -78,7 +94,11 @@ def agent_visit_decision(request, pk):
         visit.observation = request.POST.get('observation', '').strip()
         visit.status = 'rejected'
         visit.save(update_fields=['agent', 'agent_approved', 'observation', 'status'])
-        Notification.objects.create(user=visit.requester, title='Demande de visite refusée', message='FASTHOME n’a pas validé votre demande de visite.')
+        Notification.objects.create(
+            user=visit.requester,
+            title='Demande de visite refusée',
+            message='Votre demande de visite n’a pas été acceptée.',
+        )
         messages.success(request, 'Demande de visite refusée par FASTHOME.')
     else:
         messages.error(request, 'Action inconnue.')
