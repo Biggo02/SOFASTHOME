@@ -27,7 +27,8 @@ class PropertyImage(models.Model):
     class Meta: ordering=['order','id']
 class Visit(models.Model):
     STATUS=[('pending','En attente'),('confirmed','Confirmée'),('rejected','Refusée'),('done','Effectuée'),('cancelled','Annulée')]
-    property=models.ForeignKey(Property,on_delete=models.CASCADE,related_name='visits'); requester=models.ForeignKey(User,on_delete=models.CASCADE,related_name='visits'); preferred_date=models.DateField(null=True,blank=True); preferred_time=models.TimeField(null=True,blank=True); scheduled_date=models.DateField(null=True,blank=True); scheduled_time=models.TimeField(null=True,blank=True); owner_approved=models.BooleanField(default=False); agent_approved=models.BooleanField(default=False); agent=models.ForeignKey(User,on_delete=models.SET_NULL,null=True,blank=True,related_name='assigned_visits'); observation=models.TextField(blank=True); status=models.CharField(max_length=20,default='pending'); comment=models.TextField(blank=True); created_at=models.DateTimeField(auto_now_add=True)
+    FINAL_DECISIONS=[('interested','Je suis intéressé'),('thinking','Je souhaite réfléchir'),('not_interested','Je ne suis pas intéressé')]
+    property=models.ForeignKey(Property,on_delete=models.CASCADE,related_name='visits'); requester=models.ForeignKey(User,on_delete=models.CASCADE,related_name='visits'); preferred_date=models.DateField(null=True,blank=True); preferred_time=models.TimeField(null=True,blank=True); scheduled_date=models.DateField(null=True,blank=True); scheduled_time=models.TimeField(null=True,blank=True); owner_approved=models.BooleanField(default=False); agent_approved=models.BooleanField(default=False); agent=models.ForeignKey(User,on_delete=models.SET_NULL,null=True,blank=True,related_name='assigned_visits'); observation=models.TextField(blank=True); status=models.CharField(max_length=20,default='pending'); comment=models.TextField(blank=True); final_decision=models.CharField(max_length=30,choices=FINAL_DECISIONS,blank=True); final_decision_comment=models.TextField(blank=True); final_decision_at=models.DateTimeField(null=True,blank=True); created_at=models.DateTimeField(auto_now_add=True)
 class VisitInspection(models.Model):
     visit=models.OneToOneField(Visit,on_delete=models.CASCADE,related_name='inspection'); condition=models.TextField(blank=True); meter_readings=models.TextField(blank=True); keys_received=models.PositiveIntegerField(default=0); notes=models.TextField(blank=True); signed_by_tenant=models.BooleanField(default=False); signed_by_agent=models.BooleanField(default=False); created_at=models.DateTimeField(auto_now_add=True); updated_at=models.DateTimeField(auto_now=True)
 class Contract(models.Model):
@@ -48,14 +49,7 @@ class VerificationDocument(models.Model):
     user=models.ForeignKey(User,on_delete=models.CASCADE,related_name='verification_documents'); kind=models.CharField(max_length=20); file=models.FileField(upload_to='verification/%Y/%m/'); status=models.CharField(max_length=20,default='pending'); note=models.TextField(blank=True); created_at=models.DateTimeField(auto_now_add=True)
 class VerificationDossier(models.Model):
     STATUS=[('pending','En attente'),('review','En cours de vérification'),('approved','Vérification validée'),('rejected','Vérification refusée'),('needs_info','Informations supplémentaires requises')]
-    user=models.OneToOneField(User,on_delete=models.CASCADE,related_name='verification_dossier')
-    id_front=models.FileField(upload_to='verification/%Y/%m/',blank=True)
-    id_back=models.FileField(upload_to='verification/%Y/%m/',blank=True)
-    selfie=models.FileField(upload_to='verification/%Y/%m/',blank=True)
-    status=models.CharField(max_length=20,choices=STATUS,default='pending')
-    note=models.TextField(blank=True)
-    created_at=models.DateTimeField(auto_now_add=True)
-    updated_at=models.DateTimeField(auto_now=True)
+    user=models.OneToOneField(User,on_delete=models.CASCADE,related_name='verification_dossier'); id_front=models.FileField(upload_to='verification/%Y/%m/',blank=True); id_back=models.FileField(upload_to='verification/%Y/%m/',blank=True); selfie=models.FileField(upload_to='verification/%Y/%m/',blank=True); status=models.CharField(max_length=20,choices=STATUS,default='pending'); note=models.TextField(blank=True); created_at=models.DateTimeField(auto_now_add=True); updated_at=models.DateTimeField(auto_now=True)
 class AuditLog(models.Model):
     actor=models.ForeignKey(User,on_delete=models.SET_NULL,null=True,blank=True,related_name='audit_logs'); action=models.CharField(max_length=120); object_type=models.CharField(max_length=80,blank=True); object_id=models.CharField(max_length=80,blank=True); ip_address=models.GenericIPAddressField(null=True,blank=True); details=models.JSONField(default=dict,blank=True); created_at=models.DateTimeField(auto_now_add=True)
     class Meta: ordering=['-created_at']
