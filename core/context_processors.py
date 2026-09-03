@@ -1,10 +1,14 @@
-from .models import Notification, VerificationDocument
+from .models import Notification, VerificationDossier
+
 
 def user_ui(request):
     if not request.user.is_authenticated:
         return {'unread_notifications_count': 0, 'profile_selfie': None}
-    selfie = VerificationDocument.objects.filter(user=request.user, kind='selfie', status='approved').order_by('-created_at').first()
+
+    dossier = VerificationDossier.objects.filter(user=request.user, status='approved').only('selfie').first()
+    selfie = dossier.selfie.url if dossier and dossier.selfie else None
+
     return {
         'unread_notifications_count': Notification.objects.filter(user=request.user, read=False).count(),
-        'profile_selfie': selfie.file.url if selfie and selfie.file else None,
+        'profile_selfie': selfie,
     }
