@@ -1,1 +1,49 @@
-{% extends 'base.html' %}{% block title %}Gestion FASTHOME — Dashboard{% endblock %}{% block content %}<div class='app-layout'><aside class='sidebar'><div class='side-brand'>FAST<span>HOME</span><small>BACK-OFFICE</small></div><a class='active' href='{% url "admin_dashboard" %}'>▦ Dashboard</a><a href='/admin/core/property/'>▣ Biens</a><a href='/admin/core/property/?status__exact=review'>✓ Publications à vérifier</a><a href='/admin/core/visit/'>◷ Visites</a><a href='/admin/core/contract/'>▤ Contrats</a><a href='/admin/core/payment/'>◉ Paiements</a><a href='/admin/core/notification/'>♢ Notifications</a><a href='/admin/'>⚙ Administration</a><a class='logout' href='{% url "logout" %}'>↪ Déconnexion</a></aside><section class='dashboard'><div class='dash-head'><div><small>OPERATIONS FASTHOME</small><h1>Tableau de bord</h1><p>Vue centralisée des activités de l'agence.</p></div><a class='btn btn-primary' href='/admin/core/property/add/'>＋ Ajouter un bien</a></div><div class='stats'><div><b>{{ users }}</b><span>Utilisateurs</span></div><div><b>{{ properties }}</b><span>Biens</span></div><div><b>{{ review }}</b><span>À vérifier</span></div><div><b>{{ published }}</b><span>Publiés</span></div><div><b>{{ visits }}</b><span>Demandes de visite</span></div><div><b>{{ today_visits }}</b><span>Visites aujourd'hui</span></div><div><b>{{ contracts }}</b><span>Contrats</span></div><div><b>{{ late }}</b><span>Impayés</span></div></div><div class='dash-grid'><section class='panel'><div class='panel-head'><h2>Publications à vérifier</h2><span class='status'>{{ review }} en attente</span></div>{% for p in properties_review %}<div class='line'><span class='iconbox'>⌂</span><div><b>{{ p.title }}</b><small>{{ p.reference }} · {{ p.owner.get_full_name|default:p.owner.username }} · {{ p.created_at|date:'d/m/Y' }}</small></div><a class='btn btn-light' href='{% url "review_publication" p.pk %}'>Vérifier</a></div>{% empty %}<div class='empty'>Aucune publication à vérifier.</div>{% endfor %}</section><section class='panel'><div class='panel-head'><h2>Demandes de visite</h2><span class='status'>En attente</span></div>{% for v in visits_pending %}<div class='line'><span class='datebox'>{{ v.preferred_date|date:'d M' }}</span><div><b>{{ v.property.title }}</b><small>{{ v.requester.get_full_name|default:v.requester.username }} · {{ v.preferred_time|time:'H:i' }}</small></div><a class='btn btn-light' href='{% url "manage_visit" v.pk %}'>Gérer</a></div>{% empty %}<div class='empty'>Aucune demande en attente.</div>{% endfor %}</section></div><section class='panel chart-panel'><div class='panel-head'><h2>Activité FASTHOME</h2><span>Vue synthétique</span></div><div class='bar-chart'><div style='height:45%'><span>Biens</span></div><div style='height:72%'><span>Visites</span></div><div style='height:58%'><span>Contrats</span></div><div style='height:85%'><span>Paiements</span></div><div style='height:64%'><span>Utilisateurs</span></div></div></section></section></div>{% endblock %}
+{% extends 'base.html' %}
+{% block title %}Gestion FASTHOME — Dashboard{% endblock %}
+{% block content %}
+<div class='app-layout'>
+<aside class='sidebar'>
+<div class='side-brand'>FAST<span>HOME</span><small>BACK-OFFICE</small></div>
+<a class='active' href='{% url "admin_dashboard" %}'>▦ Dashboard</a>
+<a href='/admin/core/property/'>▣ Biens</a>
+<a href='/admin/core/property/?status__exact=review'>✓ Publications à vérifier</a>
+<a href='/admin/core/visit/'>◷ Visites</a>
+<a href='/admin/core/contract/'>▤ Contrats</a>
+<a href='/admin/core/payment/'>◉ Paiements</a>
+<a href='/admin/core/notification/'>♢ Notifications</a>
+<a href='/admin/'>⚙ Administration</a>
+<a class='logout' href='{% url "logout" %}'>↪ Déconnexion</a>
+</aside>
+<section class='dashboard'>
+<div class='dash-head'><div><small>OPERATIONS FASTHOME</small><h1>Tableau de bord</h1><p>Vue centralisée des activités de l'agence.</p></div><a class='btn btn-primary' href='/admin/core/property/add/'>＋ Ajouter un bien</a></div>
+<div class='stats'>
+<div><b>{{ users }}</b><span>Utilisateurs</span></div><div><b>{{ properties }}</b><span>Biens</span></div><div><b>{{ review }}</b><span>À vérifier</span></div><div><b>{{ published }}</b><span>Publiés</span></div><div><b>{{ visits }}</b><span>Demandes de visite</span></div><div><b>{{ today_visits }}</b><span>Demandées aujourd'hui</span></div><div><b>{{ today_confirmed_count }}</b><span>Visites confirmées aujourd'hui</span></div><div><b>{{ contracts }}</b><span>Contrats</span></div><div><b>{{ late }}</b><span>Impayés</span></div>
+</div>
+<div class='dash-grid'>
+<section class='panel'>
+<div class='panel-head'><h2>Demandes de visite à traiter</h2><span class='status'>{{ visits_pending|length }} affichées</span></div>
+{% for v in visits_pending %}
+<div class='line'><span class='datebox'>{{ v.preferred_date|date:'d M' }}</span><div><b>{{ v.property.title }}</b><small>{{ v.requester.get_full_name|default:v.requester.username }} · {{ v.preferred_time|time:'H:i'|default:'Heure non précisée' }} · {% if v.owner_approved %}Propriétaire validé{% else %}Validation propriétaire en attente{% endif %}</small></div><a class='btn btn-light' href='{% url "manage_visit" v.pk %}'>Gérer</a></div>
+{% empty %}<div class='empty'>Aucune demande en attente.</div>{% endfor %}
+</section>
+<section class='panel'>
+<div class='panel-head'><h2>Visites confirmées</h2><span class='status'>{{ visits_confirmed|length }} à suivre</span></div>
+{% for v in visits_confirmed %}
+<div class='line'><span class='datebox'>{{ v.scheduled_date|date:'d M'|default:'—' }}</span><div><b>{{ v.property.title }}</b><small>{{ v.requester.get_full_name|default:v.requester.username }} · {% if v.scheduled_time %}{{ v.scheduled_time|time:'H:i' }}{% else %}Heure à programmer{% endif %}</small></div><a class='btn btn-light' href='{% url "manage_visit" v.pk %}'>Suivre</a></div>
+{% empty %}<div class='empty'>Aucune visite confirmée à suivre.</div>{% endfor %}
+</section>
+</div>
+<section class='panel'>
+<div class='panel-head'><h2>Visites confirmées aujourd'hui</h2><span>{{ today_confirmed_count }} prévue(s)</span></div>
+{% for v in visits_today_confirmed %}
+<div class='line'><span class='datebox'>{{ v.scheduled_time|time:'H:i'|default:'—' }}</span><div><b>{{ v.property.title }}</b><small>{{ v.requester.get_full_name|default:v.requester.username }} · Visite confirmée</small></div><a class='btn btn-light' href='{% url "manage_visit" v.pk %}'>Ouvrir</a></div>
+{% empty %}<div class='empty'>Aucune visite confirmée pour aujourd'hui.</div>{% endfor %}
+</section>
+<section class='panel'>
+<div class='panel-head'><h2>Publications à vérifier</h2><span class='status'>{{ review }} en attente</span></div>
+{% for p in properties_review %}<div class='line'><span class='iconbox'>⌂</span><div><b>{{ p.title }}</b><small>{{ p.reference }} · {{ p.owner.get_full_name|default:p.owner.username }} · {{ p.created_at|date:'d/m/Y' }}</small></div><a class='btn btn-light' href='{% url "review_publication" p.pk %}'>Vérifier</a></div>{% empty %}<div class='empty'>Aucune publication à vérifier.</div>{% endfor %}
+</section>
+<section class='panel chart-panel'><div class='panel-head'><h2>Activité FASTHOME</h2><span>Vue synthétique</span></div><div class='bar-chart'><div style='height:45%'><span>Biens</span></div><div style='height:72%'><span>Visites</span></div><div style='height:58%'><span>Contrats</span></div><div style='height:85%'><span>Paiements</span></div><div style='height:64%'><span>Utilisateurs</span></div></div></section>
+</section>
+</div>
+{% endblock %}
