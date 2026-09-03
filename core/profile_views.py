@@ -1,6 +1,7 @@
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
-from django.shortcuts import render
+from django.shortcuts import render, redirect
+from django.contrib import messages
 
 from .models import Contract, Notification, Payment, Property, VerificationDocument, Visit
 
@@ -8,6 +9,19 @@ from .models import Contract, Notification, Payment, Property, VerificationDocum
 @login_required
 def profile(request):
     user = request.user
+
+    if request.method == 'POST' and request.POST.get('action') == 'update_name':
+        first_name = request.POST.get('first_name', '').strip()
+        last_name = request.POST.get('last_name', '').strip()
+        if not first_name or not last_name:
+            messages.error(request, 'Veuillez renseigner votre prénom et votre nom.')
+        else:
+            user.first_name = first_name
+            user.last_name = last_name
+            user.save(update_fields=['first_name', 'last_name'])
+            messages.success(request, 'Votre nom complet a été enregistré.')
+            return redirect('profile')
+
     documents = list(VerificationDocument.objects.filter(user=user).order_by('-created_at'))
 
     latest = {}
@@ -47,7 +61,6 @@ def profile(request):
         'notifications': Notification.objects.filter(user=user, read=False).count(),
     }
 
-    profile_fields = [user.first_name, user.last_name, user.email]
     completion = 50 if user.email else 30
     if user.first_name:
         completion += 15
