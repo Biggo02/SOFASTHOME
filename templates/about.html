@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+{% block title %}À propos — FASTHOME{% endblock %}
+{% block content %}
+<style>
+.about-page{max-width:1180px;margin:0 auto;padding:32px 20px 72px;color:var(--text,#172033)}
+.about-hero{position:relative;overflow:hidden;border-radius:28px;padding:56px 52px;background:linear-gradient(135deg,#0f172a,#173b5f);color:#fff;box-shadow:0 18px 55px rgba(15,23,42,.18)}
+.about-hero:after{content:'';position:absolute;width:360px;height:360px;border-radius:50%;right:-130px;top:-170px;background:rgba(255,255,255,.08)}
+.about-kicker{display:inline-flex;padding:7px 12px;border:1px solid rgba(255,255,255,.2);border-radius:999px;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.about-hero h1{max-width:820px;margin:18px 0 14px;font-size:clamp(34px,5vw,58px);line-height:1.02;letter-spacing:-.04em}
+.about-hero p{max-width:760px;margin:0;color:rgba(255,255,255,.78);font-size:18px;line-height:1.7}
+.about-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:28px}.about-actions a{display:inline-flex;align-items:center;justify-content:center;padding:13px 18px;border-radius:12px;text-decoration:none;font-weight:800}.about-actions .primary{background:#fff;color:#10243c}.about-actions .secondary{border:1px solid rgba(255,255,255,.25);color:#fff}
+.about-section{padding:64px 0 0}.about-section h2{font-size:32px;margin:0 0 14px;letter-spacing:-.03em}.about-lead{max-width:820px;color:var(--muted,#657084);font-size:17px;line-height:1.8}
+.about-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:28px}.about-card{padding:25px;border:1px solid rgba(100,116,139,.16);border-radius:20px;background:var(--card,#fff);box-shadow:0 8px 28px rgba(15,23,42,.06)}.about-card .num{font-size:13px;font-weight:900;letter-spacing:.08em;opacity:.55}.about-card h3{margin:12px 0 8px;font-size:19px}.about-card p{margin:0;color:var(--muted,#657084);line-height:1.65}
+.about-story{display:grid;grid-template-columns:1.1fr .9fr;gap:22px;margin-top:30px}.about-panel{padding:30px;border-radius:22px;background:#f7f9fc;border:1px solid #e7ebf2}.about-panel p{color:#596579;line-height:1.8;margin:0 0 14px}.about-panel p:last-child{margin-bottom:0}.about-list{margin:0;padding:0;list-style:none;display:grid;gap:12px}.about-list li{padding:15px 16px;border-radius:14px;background:#fff;border:1px solid #e8ecf2;font-weight:700}.about-list span{display:block;font-size:13px;font-weight:500;color:#687387;margin-top:4px}
+.about-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:28px}.about-step{padding:22px;border-radius:18px;background:#fff;border:1px solid #e5e9f0}.about-step strong{font-size:13px;opacity:.55}.about-step h3{margin:10px 0 7px}.about-step p{margin:0;color:#687387;line-height:1.55;font-size:14px}
+.about-values{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:28px}.value{padding:22px;border-left:4px solid #193d63;background:#f7f9fc;border-radius:0 16px 16px 0}.value h3{margin:0 0 7px}.value p{margin:0;color:#687387;line-height:1.6}
+.about-cta{margin-top:64px;padding:38px;border-radius:24px;background:#eef4f9;text-align:center}.about-cta h2{margin-bottom:9px}.about-cta p{max-width:650px;margin:0 auto 22px;color:#657084;line-height:1.7}.about-cta a{display:inline-flex;padding:13px 20px;border-radius:12px;background:#173b5f;color:#fff;text-decoration:none;font-weight:800}
+@media(max-width:850px){.about-hero{padding:40px 26px}.about-grid,.about-steps{grid-template-columns:1fr 1fr}.about-story{grid-template-columns:1fr}}
+@media(max-width:560px){.about-page{padding:18px 14px 50px}.about-hero{border-radius:22px;padding:34px 21px}.about-hero p{font-size:16px}.about-section{padding-top:45px}.about-grid,.about-steps,.about-values{grid-template-columns:1fr}.about-section h2{font-size:27px}}
+</style>
+
+<div class="about-page">
+  <section class="about-hero">
+    <span class="about-kicker">À propos de FASTHOME</span>
+    <h1>Nous voulons rendre la location plus simple, plus claire et plus sûre.</h1>
+    <p>FASTHOME est une plateforme pensée pour faciliter la recherche de logements et organiser les étapes qui suivent : sélection d’un bien, demande de visite, accompagnement, formalisation et suivi de la location.</p>
+    <div class="about-actions">
+      <a class="primary" href="{% url 'search' %}">Rechercher un logement</a>
+      <a class="secondary" href="{% url 'how_it_works' %}">Découvrir comment ça marche</a>
+    </div>
+  </section>
+
+  <section class="about-section">
+    <h2>FASTHOME, c’est quoi exactement ?</h2>
+    <p class="about-lead">FASTHOME est conçue comme un intermédiaire de confiance entre les besoins des personnes à la recherche d’un logement et les propriétaires qui souhaitent proposer leurs biens. L’objectif n’est pas seulement d’afficher des annonces : nous voulons structurer le parcours locatif afin que chaque étape soit compréhensible, suivie et mieux encadrée.</p>
+    <div class="about-grid">
+      <article class="about-card"><div class="num">01 — RECHERCHE</div><h3>Trouver selon vos critères</h3><p>La recherche s’appuie sur la localisation administrative et sur les caractéristiques essentielles du logement afin de présenter des biens réellement pertinents.</p></article>
+      <article class="about-card"><div class="num">02 — ACCOMPAGNEMENT</div><h3>Organiser la visite</h3><p>La demande de visite passe par FASTHOME. Cela permet de conserver un parcours centralisé et de mieux suivre les demandes.</p></article>
+      <article class="about-card"><div class="num">03 — SUIVI</div><h3>Continuer après la visite</h3><p>Le compte personnel permet de retrouver ses favoris, publications, demandes, contrats, paiements et notifications au même endroit.</p></article>
+    </div>
+  </section>
+
+  <section class="about-section">
+    <h2>Pourquoi FASTHOME ?</h2>
+    <div class="about-story">
+      <div class="about-panel">
+        <p>La recherche d’un logement peut rapidement devenir compliquée : informations dispersées, critères difficiles à comparer, visites à organiser et nombreuses démarches à suivre.</p>
+        <p>FASTHOME cherche à transformer ce parcours en une expérience plus structurée. La plateforme met l’accent sur la clarté des informations, la pertinence de la recherche, la protection des coordonnées privées et le suivi des opérations depuis un compte unique.</p>
+        <p>Notre ambition est de construire un service adapté au contexte de la République démocratique du Congo, avec une approche progressive, pratique et centrée sur les besoins réels des utilisateurs.</p>
+      </div>
+      <div class="about-panel">
+        <ul class="about-list">
+          <li>Une recherche structurée<span>Province → Ville / Territoire → Commune / Commune rurale</span></li>
+          <li>Des critères de logement utiles<span>Salons, chambres, capacité d’occupation et budget</span></li>
+          <li>Un intermédiaire clairement identifié<span>FASTHOME accompagne les échanges liés au parcours de location</span></li>
+          <li>Un espace personnel<span>Favoris, publications, visites, contrats, paiements et notifications</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="about-section">
+    <h2>Notre manière de fonctionner</h2>
+    <p class="about-lead">FASTHOME ne se limite pas à une page d’annonces. Le service est organisé autour d’un parcours complet, depuis la recherche jusqu’au suivi de la relation locative.</p>
+    <div class="about-steps">
+      <article class="about-step"><strong>01</strong><h3>Comprendre</h3><p>Vous définissez le logement dont vous avez besoin.</p></article>
+      <article class="about-step"><strong>02</strong><h3>Correspondre</h3><p>FASTHOME compare vos critères avec les biens disponibles.</p></article>
+      <article class="about-step"><strong>03</strong><h3>Visiter</h3><p>Vous demandez une visite et suivez son traitement.</p></article>
+      <article class="about-step"><strong>04</strong><h3>Suivre</h3><p>Les informations importantes restent accessibles dans votre espace.</p></article>
+    </div>
+  </section>
+
+  <section class="about-section">
+    <h2>Nos engagements</h2>
+    <div class="about-values">
+      <article class="value"><h3>Clarté</h3><p>Présenter les informations utiles de manière compréhensible et éviter de compliquer inutilement le parcours.</p></article>
+      <article class="value"><h3>Pertinence</h3><p>Privilégier une recherche fondée sur les critères réellement importants pour la personne qui cherche un logement.</p></article>
+      <article class="value"><h3>Confidentialité</h3><p>Limiter l’exposition des coordonnées privées et faire passer les demandes par le cadre prévu par FASTHOME.</p></article>
+      <article class="value"><h3>Suivi</h3><p>Conserver un historique des actions importantes afin que l’utilisateur puisse mieux suivre son parcours.</p></article>
+    </div>
+  </section>
+
+  <section class="about-section">
+    <h2>Pour qui est FASTHOME ?</h2>
+    <div class="about-grid">
+      <article class="about-card"><div class="num">LOCATAIRES</div><h3>Pour ceux qui cherchent</h3><p>Vous cherchez un logement et souhaitez filtrer votre recherche, comparer les biens, demander une visite et retrouver vos démarches depuis un seul espace.</p></article>
+      <article class="about-card"><div class="num">PROPRIÉTAIRES</div><h3>Pour ceux qui proposent</h3><p>Vous disposez d’un bien et souhaitez le proposer dans un cadre structuré, avec un processus de publication et de vérification.</p></article>
+      <article class="about-card"><div class="num">FASTHOME</div><h3>Pour l’équipe</h3><p>La plateforme donne aux agents et administrateurs les outils nécessaires pour suivre les publications, visites et opérations du service.</p></article>
+    </div>
+  </section>
+
+  <section class="about-cta">
+    <h2>Vous voulez découvrir FASTHOME par vous-même ?</h2>
+    <p>Commencez par rechercher un logement ou consultez notre guide détaillé pour comprendre chaque étape du parcours.</p>
+    <a href="{% url 'search' %}">Commencer ma recherche</a>
+  </section>
+</div>
+{% endblock %}
