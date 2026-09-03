@@ -28,7 +28,36 @@
   .privacy{margin-top:18px;padding:14px 16px;border-radius:14px;background:#f3f7fa;color:#526171;font-size:13px;line-height:1.55}
   .form-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
   .kyc-actions-note{font-size:12px;color:#748190;align-self:center;margin-right:auto}
-  @media(max-width:700px){.kyc-page{padding:12px 10px 35px}.kyc-hero{padding:23px 19px;border-radius:20px}.kyc-grid{grid-template-columns:1fr}.kyc-card.selfie{grid-column:auto}.selfie-guide{grid-template-columns:1fr}.form-actions{display:grid;grid-template-columns:1fr 1.5fr}.kyc-actions-note{grid-column:1/-1;order:3;margin:0;text-align:center}.form-actions .btn{width:100%;text-align:center}}
+
+  .selfie-source{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .source-btn{border:1px solid #d8e2e8;border-radius:15px;background:#fff;padding:15px 12px;display:flex;align-items:center;gap:11px;text-align:left;cursor:pointer;font:inherit;color:#102a43;transition:.18s;box-shadow:0 4px 12px rgba(16,42,67,.04)}
+  .source-btn:hover,.source-btn:focus{border-color:#176b87;background:#f4fafb;outline:none;transform:translateY(-1px)}
+  .source-btn .source-icon{font-size:25px;flex:none}
+  .source-btn strong{display:block;font-size:14px}
+  .source-btn small{display:block;color:#748190;font-size:11px;margin-top:3px}
+  .selected-file{display:none;margin-top:11px;padding:10px 12px;border-radius:12px;background:#eaf8f2;color:#176b57;font-size:12px;font-weight:700}
+  .selected-file.show{display:block}
+
+  .camera-modal{display:none;position:fixed;inset:0;background:rgba(5,18,28,.78);z-index:9999;padding:18px;align-items:center;justify-content:center}
+  .camera-modal.open{display:flex}
+  .camera-box{width:min(520px,100%);background:#fff;border-radius:22px;padding:15px;box-shadow:0 24px 70px rgba(0,0,0,.35)}
+  .camera-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+  .camera-head strong{color:#102a43}
+  .camera-close{border:0;background:#edf2f5;width:38px;height:38px;border-radius:50%;cursor:pointer;font-size:20px}
+  .camera-video-wrap{position:relative;background:#07151e;border-radius:16px;overflow:hidden;aspect-ratio:3/4}
+  #selfie-video{width:100%;height:100%;display:block;object-fit:cover;transform:scaleX(-1)}
+  .camera-guide{position:absolute;inset:13% 15%;border:2px solid rgba(255,255,255,.8);border-radius:48% 48% 45% 45%;pointer-events:none}
+  .camera-tip{font-size:12px;color:#667685;margin:10px 2px;line-height:1.45}
+  .camera-actions{display:grid;grid-template-columns:1fr 1.5fr;gap:9px;margin-top:10px}
+  .camera-actions button{min-height:46px}
+  .camera-error{display:none;margin-top:10px;padding:11px 12px;border-radius:12px;background:#fff0f0;color:#a33b3b;font-size:12px;line-height:1.45}
+  .camera-error.show{display:block}
+  #selfie-capture-canvas{display:none}
+  .camera-loading{display:none;position:absolute;inset:0;place-items:center;background:rgba(0,0,0,.35);color:#fff;font-weight:700}
+  .camera-loading.show{display:grid}
+
+  @media(max-width:700px){
+    .kyc-page{padding:12px 10px 35px}.kyc-hero{padding:23px 19px;border-radius:20px}.kyc-grid{grid-template-columns:1fr}.kyc-card.selfie{grid-column:auto}.selfie-guide{grid-template-columns:1fr}.form-actions{display:grid;grid-template-columns:1fr 1.5fr}.kyc-actions-note{grid-column:1/-1;order:3;margin:0;text-align:center}.form-actions .btn{width:100%;text-align:center}.selfie-source{grid-template-columns:1fr}.camera-modal{padding:10px}.camera-box{padding:12px;border-radius:18px}}
 </style>
 
 <section class="kyc-page">
@@ -55,18 +84,30 @@
       <article class="kyc-card selfie">
         <div class="selfie-guide">
           <div>
-            <div class="kyc-step"><div class="kyc-icon">🤳</div><div><strong>Selfie de vérification</strong><span>Utilisez votre appareil photo ou choisissez une photo existante</span></div></div>
-            <label class="kyc-upload">
-              <input type="file" name="selfie" id="selfie-input" required accept="image/*">
-              <div class="kyc-help"><strong>Au clic, votre téléphone pourra proposer « Appareil photo » ou « Photos et vidéos ».</strong> Aucun mode caméra forcé : vous choisissez la source disponible sur votre appareil.</div>
-            </label>
+            <div class="kyc-step"><div class="kyc-icon">🤳</div><div><strong>Selfie de vérification</strong><span>Choisissez comment fournir votre selfie</span></div></div>
+
+            <div class="selfie-source">
+              <button type="button" class="source-btn" id="open-camera">
+                <span class="source-icon">📷</span>
+                <span><strong>Appareil photo</strong><small>Prendre le selfie maintenant</small></span>
+              </button>
+              <button type="button" class="source-btn" id="choose-photos">
+                <span class="source-icon">🖼️</span>
+                <span><strong>Photos et vidéos</strong><small>Choisir une photo existante</small></span>
+              </button>
+            </div>
+
+            <input type="file" name="selfie" id="selfie-input" required accept="image/*" style="display:none">
+            <div class="selected-file" id="selected-file"></div>
+            <div class="kyc-help">Vous choisissez explicitement la source. Le site ne force plus l'ouverture de l'appareil photo du téléphone.</div>
+
             <div class="selfie-points">
               <div><b>✓</b>Visage entièrement visible, sans lunettes de soleil ni masque.</div>
               <div><b>✓</b>Bonne lumière et visage centré.</div>
               <div><b>✓</b>Une seule photo est nécessaire.</div>
             </div>
           </div>
-          <div class="privacy">⚡ <strong>Optimisation automatique :</strong> si la photo prise par le téléphone est très lourde, FASTHOME la redimensionne dans le navigateur avant l'envoi afin de réduire les risques de mémoire insuffisante.</div>
+          <div class="privacy">⚡ <strong>Protection mémoire :</strong> la photo est redimensionnée et compressée dans le navigateur avant l'envoi. La caméra est également limitée à une résolution raisonnable pour éviter de charger une image géante en mémoire.</div>
         </div>
       </article>
     </div>
@@ -80,45 +121,160 @@
   </form>
 </section>
 
+<div class="camera-modal" id="camera-modal" aria-hidden="true">
+  <div class="camera-box" role="dialog" aria-modal="true" aria-labelledby="camera-title">
+    <div class="camera-head">
+      <strong id="camera-title">Prendre votre selfie</strong>
+      <button type="button" class="camera-close" id="close-camera" aria-label="Fermer">×</button>
+    </div>
+    <div class="camera-video-wrap">
+      <video id="selfie-video" autoplay playsinline muted></video>
+      <div class="camera-guide"></div>
+      <div class="camera-loading" id="camera-loading">Ouverture de la caméra…</div>
+    </div>
+    <div class="camera-tip">Placez votre visage dans le cadre. La photo sera capturée à une résolution optimisée pour éviter le problème de mémoire insuffisante.</div>
+    <div class="camera-error" id="camera-error"></div>
+    <div class="camera-actions">
+      <button type="button" class="btn btn-light" id="cancel-camera">Annuler</button>
+      <button type="button" class="btn btn-primary" id="capture-selfie">📷 Prendre la photo</button>
+    </div>
+  </div>
+</div>
+<canvas id="selfie-capture-canvas"></canvas>
+
 <script>
 (function(){
   const form=document.getElementById('kyc-form');
+  const selfieInput=document.getElementById('selfie-input');
+  const choosePhotos=document.getElementById('choose-photos');
+  const openCamera=document.getElementById('open-camera');
+  const modal=document.getElementById('camera-modal');
+  const video=document.getElementById('selfie-video');
+  const canvas=document.getElementById('selfie-capture-canvas');
+  const capture=document.getElementById('capture-selfie');
+  const closeCamera=document.getElementById('close-camera');
+  const cancelCamera=document.getElementById('cancel-camera');
+  const errorBox=document.getElementById('camera-error');
+  const loading=document.getElementById('camera-loading');
+  const selected=document.getElementById('selected-file');
+  let stream=null;
+
   if(!form) return;
 
-  async function compressImage(file, maxSide=1600, quality=.78){
+  function stopCamera(){
+    if(stream){stream.getTracks().forEach(track=>track.stop());stream=null;}
+    video.srcObject=null;
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden','true');
+    loading.classList.remove('show');
+  }
+
+  function showError(message){
+    errorBox.textContent=message;
+    errorBox.classList.add('show');
+  }
+
+  function setSelfieFile(file){
+    const dt=new DataTransfer();
+    dt.items.add(file);
+    selfieInput.files=dt.files;
+    selected.textContent='✓ Selfie sélectionné : '+file.name;
+    selected.classList.add('show');
+  }
+
+  async function openCameraModal(){
+    errorBox.classList.remove('show');
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden','false');
+    loading.classList.add('show');
+    try{
+      if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+        throw new Error('camera_unsupported');
+      }
+      stream=await navigator.mediaDevices.getUserMedia({
+        video:{facingMode:'user',width:{ideal:960,max:1280},height:{ideal:1280,max:1280}},
+        audio:false
+      });
+      video.srcObject=stream;
+      await video.play();
+      loading.classList.remove('show');
+    }catch(err){
+      loading.classList.remove('show');
+      showError('Impossible d’ouvrir la caméra. Vérifiez l’autorisation de la caméra dans votre navigateur, puis réessayez. Vous pouvez aussi utiliser « Photos et vidéos ».');
+    }
+  }
+
+  async function captureSelfie(){
+    if(!video.videoWidth || !video.videoHeight){showError('La caméra n’est pas encore prête.');return;}
+    capture.disabled=true;
+    capture.textContent='Traitement…';
+    try{
+      const maxSide=1280;
+      const ratio=Math.min(1,maxSide/Math.max(video.videoWidth,video.videoHeight));
+      canvas.width=Math.max(1,Math.round(video.videoWidth*ratio));
+      canvas.height=Math.max(1,Math.round(video.videoHeight*ratio));
+      const ctx=canvas.getContext('2d',{alpha:false});
+      ctx.drawImage(video,0,0,canvas.width,canvas.height);
+      const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',.78));
+      if(!blob) throw new Error('capture_failed');
+      setSelfieFile(new File([blob],'selfie-fasthome.jpg',{type:'image/jpeg',lastModified:Date.now()}));
+      stopCamera();
+    }catch(err){
+      showError('La photo n’a pas pu être préparée. Réessayez avec une autre prise de vue.');
+    }finally{
+      capture.disabled=false;
+      capture.textContent='📷 Prendre la photo';
+      canvas.width=1;canvas.height=1;
+    }
+  }
+
+  choosePhotos.addEventListener('click',()=>selfieInput.click());
+  selfieInput.addEventListener('change',()=>{
+    if(selfieInput.files && selfieInput.files[0]){
+      selected.textContent='✓ Photo sélectionnée : '+selfieInput.files[0].name;
+      selected.classList.add('show');
+    }
+  });
+  openCamera.addEventListener('click',openCameraModal);
+  capture.addEventListener('click',captureSelfie);
+  closeCamera.addEventListener('click',stopCamera);
+  cancelCamera.addEventListener('click',stopCamera);
+  modal.addEventListener('click',e=>{if(e.target===modal) stopCamera();});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape' && modal.classList.contains('open')) stopCamera();});
+
+  async function compressImage(file,maxSide=1600,quality=.78){
     if(!file || !file.type.startsWith('image/')) return file;
-    if(file.size <= 2.5*1024*1024) return file;
+    if(file.size<=2.5*1024*1024) return file;
     try{
       let bitmap;
-      if('createImageBitmap' in window){
-        bitmap=await createImageBitmap(file,{imageOrientation:'from-image'});
-      }else{
+      if('createImageBitmap' in window){bitmap=await createImageBitmap(file,{imageOrientation:'from-image'});}
+      else{
         bitmap=await new Promise((resolve,reject)=>{
-          const img=new Image(), url=URL.createObjectURL(file);
+          const img=new Image(),url=URL.createObjectURL(file);
           img.onload=()=>{URL.revokeObjectURL(url);resolve(img)};
           img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error('image'))};
           img.src=url;
         });
       }
       const ratio=Math.min(1,maxSide/Math.max(bitmap.width,bitmap.height));
-      const canvas=document.createElement('canvas');
-      canvas.width=Math.max(1,Math.round(bitmap.width*ratio));
-      canvas.height=Math.max(1,Math.round(bitmap.height*ratio));
-      const ctx=canvas.getContext('2d',{alpha:false});
-      ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);
+      const c=document.createElement('canvas');
+      c.width=Math.max(1,Math.round(bitmap.width*ratio));
+      c.height=Math.max(1,Math.round(bitmap.height*ratio));
+      const ctx=c.getContext('2d',{alpha:false});
+      ctx.drawImage(bitmap,0,0,c.width,c.height);
       if(bitmap.close) bitmap.close();
-      const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',quality));
-      canvas.width=1; canvas.height=1;
+      const blob=await new Promise(resolve=>c.toBlob(resolve,'image/jpeg',quality));
+      c.width=1;c.height=1;
       if(!blob || blob.size>=file.size) return file;
-      return new File([blob],(file.name||'selfie') .replace(/\.[^.]+$/i,'.jpg'),{type:'image/jpeg',lastModified:Date.now()});
-    }catch(e){ return file; }
+      return new File([blob],(file.name||'photo').replace(/\.[^.]+$/i,'.jpg'),{type:'image/jpeg',lastModified:Date.now()});
+    }catch(e){return file;}
   }
 
   form.addEventListener('submit',async function(event){
     if(form.dataset.optimized==='1') return;
     event.preventDefault();
     const submit=document.getElementById('kyc-submit');
-    const inputs=[...form.querySelectorAll('input[type=file][data-compress="true"]'),document.getElementById('selfie-input')].filter(Boolean);
+    const inputs=[...form.querySelectorAll('input[type=file][data-compress="true"]'),selfieInput].filter(Boolean);
     submit.disabled=true;
     submit.textContent='Préparation des images…';
     try{
@@ -126,19 +282,15 @@
         if(!input.files || !input.files[0] || !input.files[0].type.startsWith('image/')) continue;
         const compressed=await compressImage(input.files[0],input.name==='selfie'?1280:1600,.78);
         if(compressed!==input.files[0]){
-          const dt=new DataTransfer();
-          dt.items.add(compressed);
-          input.files=dt.files;
+          const dt=new DataTransfer();dt.items.add(compressed);input.files=dt.files;
         }
       }
       form.dataset.optimized='1';
       submit.textContent='Envoi…';
       form.submit();
     }catch(e){
-      submit.disabled=false;
-      submit.textContent='Envoyer pour vérification';
-      form.dataset.optimized='';
-      form.submit();
+      submit.disabled=false;submit.textContent='Envoyer pour vérification';form.dataset.optimized='';
+      alert('Impossible de préparer les images. Réessayez avec des photos moins lourdes.');
     }
   });
 })();
