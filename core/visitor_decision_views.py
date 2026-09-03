@@ -41,28 +41,17 @@ def visitor_final_decision(request, pk):
                     RentalDocument(rental_case=case, document_type='identity', label='Pièce d’identité du locataire'),
                     RentalDocument(rental_case=case, document_type='owner_contract', label='Contrat FASTHOME – Propriétaire'),
                     RentalDocument(rental_case=case, document_type='tenant_contract', label='Contrat FASTHOME – Locataire'),
-                    RentalDocument(rental_case=case, document_type='inspection', label='État des lieux'),
+                    RentalDocument(rental_case=case, document_type='inspection', label='Procès-verbal / état des lieux commun'),
                 ])
-            Notification.objects.create(
-                user=request.user,
-                title='Dossier de location ouvert',
-                message='Votre intérêt est enregistré. FASTHOME va préparer votre dossier et les documents nécessaires.',
-            )
-            Notification.objects.create(
-                user=visit.property.owner,
-                title='Dossier de location en préparation',
-                message=f'FASTHOME prépare un dossier de location pour votre bien {visit.property.reference}.',
-            )
+            Notification.objects.create(user=request.user, title='Dossier de location ouvert', message='Votre intérêt est enregistré. FASTHOME va préparer votre dossier et les documents nécessaires.')
+            Notification.objects.create(user=visit.property.owner, title='Dossier de location en préparation', message=f'FASTHOME prépare un dossier de location pour votre bien {visit.property.reference}.')
             messages.success(request, 'Votre intérêt a bien été enregistré. FASTHOME va préparer votre dossier de location.')
             return redirect('rental_case_detail', pk=case.pk)
 
         recipient = visit.agent
         if recipient:
             title = 'Décision du visiteur reçue'
-            if decision == 'thinking':
-                message = f'Le visiteur souhaite réfléchir pour le bien {visit.property.reference}.'
-            else:
-                message = f'Le visiteur n’est pas intéressé par le bien {visit.property.reference}.'
+            message = f'Le visiteur souhaite réfléchir pour le bien {visit.property.reference}.' if decision == 'thinking' else f'Le visiteur n’est pas intéressé par le bien {visit.property.reference}.'
             Notification.objects.create(user=recipient, title=title, message=message)
         messages.success(request, 'Votre décision a bien été transmise à FASTHOME.')
         return redirect('visits')
