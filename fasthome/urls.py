@@ -10,6 +10,7 @@ from core import how_it_works_views
 from core import about_views
 from core import contact_views
 from core import favorite_views
+from core import profile_views
 
 urlpatterns = [
     path('admin/', admin.site.urls), path('', views.home, name='home'), path('rechercher/', search_views.search, name='search'),
@@ -20,7 +21,7 @@ urlpatterns = [
     path('mot-de-passe-oublie/envoye/', auth_views.PasswordResetDoneView.as_view(template_name='password_reset_done.html'), name='password_reset_done'),
     path('reinitialisation/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(template_name='password_reset_confirm.html'), name='password_reset_confirm'),
     path('reinitialisation/terminee/', auth_views.PasswordResetCompleteView.as_view(template_name='password_reset_complete.html'), name='password_reset_complete'),
-    path('espace-personnel/', views.dashboard, name='dashboard'), path('mon-profil/', views.profile, name='profile'), path('mes-favoris/', views.favorites, name='favorites'),
+    path('espace-personnel/', views.dashboard, name='dashboard'), path('mon-profil/', profile_views.profile, name='profile'), path('mes-favoris/', views.favorites, name='favorites'),
     path('mes-publications/', views.publications, name='publications'), path('ajouter-un-bien/', views.add_property, name='add_property'), path('mes-visites/', views.visits, name='visits'),
     path('mes-contrats/', views.contracts, name='contracts'), path('mes-paiements/', views.payments, name='payments'), path('paiement/<int:pk>/preuve/', views.payment_proof, name='payment_proof'),
     path('mes-echeances/', views.due_dates, name='due_dates'), path('notifications/', views.notifications, name='notifications'), path('messages/', views.messages_page, name='messages'),
