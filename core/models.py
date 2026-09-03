@@ -55,3 +55,5 @@ class AuditLog(models.Model):
     class Meta: ordering=['-created_at']
 class Notification(models.Model):
     user=models.ForeignKey(User,on_delete=models.CASCADE,related_name='notifications'); title=models.CharField(max_length=180); message=models.TextField(); read=models.BooleanField(default=False); created_at=models.DateTimeField(auto_now_add=True)
+
+from .rental_models import RentalCase, RentalContract, RentalDocument
