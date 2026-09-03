@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% block title %}Demandes de visite reçues — FASTHOME{% endblock %}
+{% block content %}
+<section class='form-page'>
+  <div class='page-head'>
+    <small>ESPACE PROPRIÉTAIRE · VISITES</small>
+    <h1>Demandes de visite reçues</h1>
+    <p>Vous validez la demande sans jamais recevoir ni communiquer les coordonnées du demandeur.</p>
+  </div>
+  <div class='panel form-card'>
+    {% for v in visits %}
+      <article style='padding:18px 0;border-bottom:1px solid var(--line)'>
+        <div style='display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap'>
+          <div>
+            <small>{{ v.property.reference }}</small>
+            <h2 style='margin:5px 0'>{{ v.property.title }}</h2>
+            <p style='margin:0;color:var(--muted)'>Demande reçue le {{ v.created_at|date:'d/m/Y à H:i' }}</p>
+          </div>
+          <strong>{{ v.get_status_display }}</strong>
+        </div>
+        <div class='profile-grid' style='margin-top:14px'>
+          <div><span>Date souhaitée</span><b>{{ v.preferred_date|date:'d/m/Y'|default:'Non précisée' }}</b></div>
+          <div><span>Heure souhaitée</span><b>{{ v.preferred_time|time:'H:i'|default:'Non précisée' }}</b></div>
+          <div><span>Validation propriétaire</span><b>{% if v.owner_approved %}✓ Validée{% else %}En attente{% endif %}</b></div>
+          <div><span>Validation FASTHOME</span><b>{% if v.agent_approved %}✓ Validée{% else %}En attente{% endif %}</b></div>
+        </div>
+        {% if v.status == 'pending' and not v.owner_approved %}
+        <div style='display:flex;gap:10px;flex-wrap:wrap;margin-top:16px'>
+          <form method='post' action='{% url "owner_visit_decision" v.pk %}'>{% csrf_token %}<input type='hidden' name='action' value='approve'><button class='btn btn-primary'>✓ Valider la visite</button></form>
+          <form method='post' action='{% url "owner_visit_decision" v.pk %}'>{% csrf_token %}<input type='hidden' name='action' value='reject'><button class='btn btn-light'>Refuser</button></form>
+        </div>
+        {% elif v.status == 'confirmed' %}
+          <p style='margin-top:15px'><b>✓ Visite confirmée.</b> La double validation propriétaire + FASTHOME est obtenue.</p>
+        {% endif %}
+      </article>
+    {% empty %}
+      <div class='empty'>Aucune demande de visite reçue pour vos biens.</div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}
