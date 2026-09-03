@@ -35,9 +35,6 @@ def owner_visit_decision(request, pk):
         visit.owner_approved = True
         visit.status = 'confirmed' if visit.agent_approved else 'pending'
         visit.save(update_fields=['owner_approved', 'status'])
-
-        # Le demandeur ne voit que le résultat final. La double validation
-        # reste une information interne à FASTHOME et au propriétaire.
         if visit.status == 'confirmed' and not was_confirmed:
             Notification.objects.create(
                 user=visit.requester,
@@ -78,9 +75,6 @@ def agent_visit_decision(request, pk):
         visit.observation = request.POST.get('observation', '').strip()
         visit.status = 'confirmed' if visit.owner_approved else 'pending'
         visit.save(update_fields=['agent', 'agent_approved', 'scheduled_date', 'scheduled_time', 'observation', 'status'])
-
-        # Ne notifier le client qu'au moment où la demande est réellement
-        # confirmée. Aucun détail sur les validations internes n'est exposé.
         if visit.status == 'confirmed' and not was_confirmed:
             Notification.objects.create(
                 user=visit.requester,
@@ -103,3 +97,31 @@ def agent_visit_decision(request, pk):
     else:
         messages.error(request, 'Action inconnue.')
     return redirect('admin_dashboard')
+
+
+@login_required
+@user_passes_test(_staff)
+def mark_visit_done(request, pk):
+    """Clôture une visite uniquement après sa réalisation effective par FASTHOME."""
+    visit = get_object_or_404(Visit.objects.select_related('property', 'requester'), pk=pk)
+
+    if request.method != 'POST':
+        return redirect('manage_visit', pk=visit.pk)
+
+    if visit.status != 'confirmed':
+        messages.error(request, 'Seule une visite confirmée peut être marquée comme effectuée.')
+        return redirect('manage_visit', pk=visit.pk)
+
+    visit.status = 'done'
+    observation = request.POST.get('observation', '').strip()
+    if observation:
+        visit.observation = observation
+    visit.save(update_fields=['status', 'observation'])
+
+    Notification.objects.create(
+        user=visit.requester,
+        title='Visite effectuée',
+        message='Votre visite a été effectuée.',
+    )
+    messages.success(request, 'La visite a été enregistrée comme effectuée.')
+    return redirect('manage_visit', pk=visit.pk)
