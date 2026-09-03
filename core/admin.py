@@ -4,6 +4,7 @@ from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
 from .models import Property, PropertyImage, Visit, VisitInspection, Contract, ContractDocument, Payment, PaymentProof, VerificationDocument, VerificationDossier, AuditLog, Notification
+from .rental_models import RentalCase, RentalContract, RentalDocument
 
 admin.site.site_header='FASTHOME — Administration'; admin.site.site_title='FASTHOME Admin'; admin.site.index_title='Centre de gestion immobilière'
 
@@ -67,7 +68,7 @@ class PropertyImageAdmin(admin.ModelAdmin):
     list_display=('property','image','is_cover','order','created_at'); list_filter=('is_cover',); search_fields=('property__reference','property__title')
 @admin.register(Visit)
 class VisitAdmin(admin.ModelAdmin):
-    list_display=('id','property','requester','preferred_date','preferred_time','scheduled_date','status','owner_approved','agent_approved'); list_filter=('status','owner_approved','agent_approved','preferred_date'); search_fields=('property__reference','property__title','requester__username','requester__first_name','requester__last_name')
+    list_display=('id','property','requester','preferred_date','preferred_time','scheduled_date','status','owner_approved','agent_approved','final_decision'); list_filter=('status','owner_approved','agent_approved','final_decision','preferred_date'); search_fields=('property__reference','property__title','requester__username','requester__first_name','requester__last_name')
 @admin.register(VisitInspection)
 class VisitInspectionAdmin(admin.ModelAdmin):
     list_display=('visit','keys_received','signed_by_tenant','signed_by_agent','updated_at'); list_filter=('signed_by_tenant','signed_by_agent')
@@ -89,42 +90,38 @@ class VerificationDocumentAdmin(admin.ModelAdmin):
 
 @admin.register(VerificationDossier)
 class VerificationDossierAdmin(admin.ModelAdmin):
-    list_display = (
-        'user',
-        'status',
-        'has_front',
-        'has_back',
-        'has_selfie',
-        'created_at',
-        'updated_at',
-    )
-    list_filter = ('status', 'created_at', 'updated_at')
-    search_fields = (
-        'user__username',
-        'user__first_name',
-        'user__last_name',
-        'user__email',
-    )
-    readonly_fields = ('created_at', 'updated_at')
-    fieldsets = (
-        ('Utilisateur', {'fields': ('user',)}),
-        ('Pièce d’identité', {'fields': ('id_front', 'id_back')}),
-        ('Selfie de vérification', {'fields': ('selfie',)}),
-        ('Vérification', {'fields': ('status', 'note')}),
-        ('Suivi', {'fields': ('created_at', 'updated_at')}),
-    )
-
+    list_display=('user','status','has_front','has_back','has_selfie','created_at','updated_at')
+    list_filter=('status','created_at','updated_at')
+    search_fields=('user__username','user__first_name','user__last_name','user__email')
+    readonly_fields=('created_at','updated_at')
+    fieldsets=(('Utilisateur',{'fields':('user',)}),('Pièce d’identité',{'fields':('id_front','id_back')}),('Selfie de vérification',{'fields':('selfie',)}),('Vérification',{'fields':('status','note')}),('Suivi',{'fields':('created_at','updated_at')}))
     @admin.display(description='Recto')
-    def has_front(self, obj):
-        return '✓ Présent' if obj.id_front else 'Manquant'
-
+    def has_front(self,obj): return '✓ Présent' if obj.id_front else 'Manquant'
     @admin.display(description='Verso')
-    def has_back(self, obj):
-        return '✓ Présent' if obj.id_back else 'Manquant'
-
+    def has_back(self,obj): return '✓ Présent' if obj.id_back else 'Manquant'
     @admin.display(description='Selfie')
-    def has_selfie(self, obj):
-        return '✓ Présent' if obj.selfie else 'Manquant'
+    def has_selfie(self,obj): return '✓ Présent' if obj.selfie else 'Manquant'
+
+@admin.register(RentalCase)
+class RentalCaseAdmin(admin.ModelAdmin):
+    list_display=('reference','property','tenant','owner','status','created_at','updated_at')
+    list_filter=('status','created_at','updated_at')
+    search_fields=('reference','property__reference','property__title','tenant__username','tenant__first_name','tenant__last_name','owner__username','owner__first_name','owner__last_name')
+    readonly_fields=('reference','created_at','updated_at')
+    fieldsets=(('Dossier',{'fields':('reference','visit','property','tenant','owner','status','notes')}),('Contrats',{'fields':('owner_contract','tenant_contract')}),('Suivi',{'fields':('created_at','updated_at')}))
+
+@admin.register(RentalContract)
+class RentalContractAdmin(admin.ModelAdmin):
+    list_display=('reference','rental_case','contract_type','party','amount','deposit','status','start_date','end_date')
+    list_filter=('contract_type','status')
+    search_fields=('reference','rental_case__reference','property__reference','party__username','party__first_name','party__last_name')
+    readonly_fields=('reference','created_at','updated_at')
+
+@admin.register(RentalDocument)
+class RentalDocumentAdmin(admin.ModelAdmin):
+    list_display=('rental_case','document_type','label','status','file','updated_at')
+    list_filter=('document_type','status')
+    search_fields=('rental_case__reference','label')
 
 @admin.register(AuditLog)
 class AuditLogAdmin(admin.ModelAdmin):
