@@ -8,6 +8,7 @@ from core import search_views
 from core import contract_views
 from core import how_it_works_views
 from core import about_views
+from core import contact_views
 
 urlpatterns = [
     path('admin/', admin.site.urls), path('', views.home, name='home'), path('rechercher/', search_views.search, name='search'),
@@ -23,7 +24,7 @@ urlpatterns = [
     path('mes-contrats/', views.contracts, name='contracts'), path('mes-paiements/', views.payments, name='payments'), path('paiement/<int:pk>/preuve/', views.payment_proof, name='payment_proof'),
     path('mes-echeances/', views.due_dates, name='due_dates'), path('notifications/', views.notifications, name='notifications'), path('messages/', views.messages_page, name='messages'),
     path('verification-documents/', views.verification_upload, name='verification_upload'), path('contrat/<str:reference>/pdf/', contract_views.contract_pdf, name='contract_pdf'),
-    path('a-propos/', about_views.about, name='about'), path('comment-ca-marche/', how_it_works_views.how_it_works, name='how_it_works'), path('contact/', views.contact, name='contact'),
+    path('a-propos/', about_views.about, name='about'), path('comment-ca-marche/', how_it_works_views.how_it_works, name='how_it_works'), path('contact/', contact_views.contact, name='contact'),
     path('verification-contrat/<str:reference>/', views.contract_verify, name='contract_verify'), path('gestion/', views.admin_dashboard, name='admin_dashboard'),
     path('gestion/publication/<int:pk>/', views.review_publication, name='review_publication'), path('gestion/visite/<int:pk>/', views.manage_visit, name='manage_visit'),
     path('gestion/visite/<int:pk>/etat-des-lieux/', views.inspection, name='inspection'),
