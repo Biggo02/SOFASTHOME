@@ -12,6 +12,7 @@ from core import contact_views
 from core import favorite_views
 from core import profile_views
 from core import verification_views
+from core import visit_views
 
 urlpatterns = [
     path('admin/', admin.site.urls), path('', views.home, name='home'), path('rechercher/', search_views.search, name='search'),
@@ -26,12 +27,13 @@ urlpatterns = [
     path('mot-de-passe/modifie/', auth_views.PasswordChangeDoneView.as_view(template_name='password_change_done.html'), name='password_change_done'),
     path('espace-personnel/', views.dashboard, name='dashboard'), path('mon-profil/', profile_views.profile, name='profile'), path('mes-favoris/', views.favorites, name='favorites'),
     path('mes-publications/', views.publications, name='publications'), path('ajouter-un-bien/', views.add_property, name='add_property'), path('mes-visites/', views.visits, name='visits'),
+    path('mes-demandes-visite/', visit_views.owner_visit_requests, name='owner_visit_requests'), path('mes-demandes-visite/<int:pk>/decision/', visit_views.owner_visit_decision, name='owner_visit_decision'),
     path('mes-contrats/', views.contracts, name='contracts'), path('mes-paiements/', views.payments, name='payments'), path('paiement/<int:pk>/preuve/', views.payment_proof, name='payment_proof'),
     path('mes-echeances/', views.due_dates, name='due_dates'), path('notifications/', views.notifications, name='notifications'), path('messages/', views.messages_page, name='messages'),
     path('verification-documents/', verification_views.verification_upload, name='verification_upload'), path('contrat/<str:reference>/pdf/', contract_views.contract_pdf, name='contract_pdf'),
     path('a-propos/', about_views.about, name='about'), path('comment-ca-marche/', how_it_works_views.how_it_works, name='how_it_works'), path('contact/', contact_views.contact, name='contact'),
     path('verification-contrat/<str:reference>/', views.contract_verify, name='contract_verify'), path('gestion/', views.admin_dashboard, name='admin_dashboard'),
-    path('gestion/publication/<int:pk>/', views.review_publication, name='review_publication'), path('gestion/visite/<int:pk>/', views.manage_visit, name='manage_visit'),
+    path('gestion/publication/<int:pk>/', views.review_publication, name='review_publication'), path('gestion/visite/<int:pk>/', visit_views.agent_visit_decision, name='manage_visit'),
     path('gestion/visite/<int:pk>/etat-des-lieux/', views.inspection, name='inspection'),
 ]
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT) if settings.DEBUG else []
