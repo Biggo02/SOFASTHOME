@@ -3,7 +3,7 @@ import json
 from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
-from .models import Property, PropertyImage, Visit, VisitInspection, Contract, ContractDocument, Payment, PaymentProof, VerificationDocument, AuditLog, Notification
+from .models import Property, PropertyImage, Visit, VisitInspection, Contract, ContractDocument, Payment, PaymentProof, VerificationDocument, VerificationDossier, AuditLog, Notification
 
 admin.site.site_header='FASTHOME — Administration'; admin.site.site_title='FASTHOME Admin'; admin.site.index_title='Centre de gestion immobilière'
 
@@ -86,6 +86,46 @@ class PaymentProofAdmin(admin.ModelAdmin):
 @admin.register(VerificationDocument)
 class VerificationDocumentAdmin(admin.ModelAdmin):
     list_display=('user','kind','status','created_at'); list_filter=('kind','status'); search_fields=('user__username','user__first_name','user__last_name','user__email')
+
+@admin.register(VerificationDossier)
+class VerificationDossierAdmin(admin.ModelAdmin):
+    list_display = (
+        'user',
+        'status',
+        'has_front',
+        'has_back',
+        'has_selfie',
+        'created_at',
+        'updated_at',
+    )
+    list_filter = ('status', 'created_at', 'updated_at')
+    search_fields = (
+        'user__username',
+        'user__first_name',
+        'user__last_name',
+        'user__email',
+    )
+    readonly_fields = ('created_at', 'updated_at')
+    fieldsets = (
+        ('Utilisateur', {'fields': ('user',)}),
+        ('Pièce d’identité', {'fields': ('id_front', 'id_back')}),
+        ('Selfie de vérification', {'fields': ('selfie',)}),
+        ('Vérification', {'fields': ('status', 'note')}),
+        ('Suivi', {'fields': ('created_at', 'updated_at')}),
+    )
+
+    @admin.display(description='Recto')
+    def has_front(self, obj):
+        return '✓ Présent' if obj.id_front else 'Manquant'
+
+    @admin.display(description='Verso')
+    def has_back(self, obj):
+        return '✓ Présent' if obj.id_back else 'Manquant'
+
+    @admin.display(description='Selfie')
+    def has_selfie(self, obj):
+        return '✓ Présent' if obj.selfie else 'Manquant'
+
 @admin.register(AuditLog)
 class AuditLogAdmin(admin.ModelAdmin):
     list_display=('created_at','actor','action','object_type','object_id','ip_address'); list_filter=('action','object_type','created_at'); search_fields=('actor__username','action','object_type','object_id'); readonly_fields=('created_at',)
