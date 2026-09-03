@@ -237,7 +237,26 @@ def staff_required(user): return user.is_staff
 @user_passes_test(staff_required)
 def admin_dashboard(request):
     today = timezone.localdate()
-    return render(request, 'admin_dashboard.html', {'users': User.objects.count(), 'properties': Property.objects.count(), 'review': Property.objects.filter(status='review').count(), 'published': Property.objects.filter(status='published').count(), 'visits': Visit.objects.count(), 'today_visits': Visit.objects.filter(preferred_date=today).count(), 'contracts': Contract.objects.count(), 'late': Payment.objects.filter(status='late').count(), 'payments': Payment.objects.count(), 'properties_review': Property.objects.filter(status='review').order_by('-created_at')[:10], 'visits_pending': Visit.objects.filter(status='pending').select_related('property', 'requester').order_by('preferred_date')[:10], 'audit_logs': AuditLog.objects.select_related('actor')[:12]})
+    pending_visits = Visit.objects.filter(status='pending').select_related('property', 'requester', 'agent').order_by('preferred_date', 'preferred_time')[:10]
+    confirmed_visits = Visit.objects.filter(status='confirmed').select_related('property', 'requester', 'agent').order_by('scheduled_date', 'scheduled_time', '-created_at')[:15]
+    today_confirmed = Visit.objects.filter(status='confirmed', scheduled_date=today).select_related('property', 'requester').order_by('scheduled_time')
+    return render(request, 'admin_dashboard.html', {
+        'users': User.objects.count(),
+        'properties': Property.objects.count(),
+        'review': Property.objects.filter(status='review').count(),
+        'published': Property.objects.filter(status='published').count(),
+        'visits': Visit.objects.count(),
+        'today_visits': Visit.objects.filter(preferred_date=today).count(),
+        'today_confirmed_count': today_confirmed.count(),
+        'contracts': Contract.objects.count(),
+        'late': Payment.objects.filter(status='late').count(),
+        'payments': Payment.objects.count(),
+        'properties_review': Property.objects.filter(status='review').order_by('-created_at')[:10],
+        'visits_pending': pending_visits,
+        'visits_confirmed': confirmed_visits,
+        'visits_today_confirmed': today_confirmed[:10],
+        'audit_logs': AuditLog.objects.select_related('actor')[:12],
+    })
 
 
 @login_required
@@ -260,10 +279,7 @@ def review_publication(request, pk):
 @login_required
 @user_passes_test(staff_required)
 def manage_visit(request, pk):
-    visit = get_object_or_404(Visit, pk=pk)
-    if request.method == 'POST':
-        visit.agent = request.user; visit.agent_approved = request.POST.get('agent_approved') == 'on'; visit.owner_approved = request.POST.get('owner_approved') == 'on'; visit.scheduled_date = request.POST.get('scheduled_date') or None; visit.scheduled_time = request.POST.get('scheduled_time') or None; visit.status = 'confirmed' if visit.agent_approved and visit.owner_approved else 'pending'; visit.save(); audit(request, 'visit.updated', visit); messages.success(request, 'Visite mise à jour.'); return redirect('admin_dashboard')
-    return render(request, 'manage_visit.html', {'visit': visit})
+    return redirect('manage_visit', pk=pk)
 
 
 @login_required
@@ -279,8 +295,8 @@ def verification_review(request, pk):
 @user_passes_test(staff_required)
 def inspection(request, pk):
     visit = get_object_or_404(Visit.objects.select_related('property', 'requester'), pk=pk); inspection_obj, _ = VisitInspection.objects.get_or_create(visit=visit)
+    if request.method == 'POST': inspection_obj.condition = request.POST.get('condition', '').strip(); inspection_obj.meter_readings = request.POST.get('meter_readings', '').strip()
     if request.method == 'POST':
-        inspection_obj.condition = request.POST.get('condition', '').strip(); inspection_obj.meter_readings = request.POST.get('meter_readings', '').strip()
         try: inspection_obj.keys_received = max(0, int(request.POST.get('keys_received') or 0))
         except (TypeError, ValueError): inspection_obj.keys_received = 0
         inspection_obj.notes = request.POST.get('notes', '').strip(); inspection_obj.signed_by_tenant = request.POST.get('signed_by_tenant') == 'on'; inspection_obj.signed_by_agent = request.POST.get('signed_by_agent') == 'on'; inspection_obj.save(); audit(request, 'visit.inspection_updated', inspection_obj, {'visit_id': visit.pk}); messages.success(request, 'État des lieux enregistré.'); return redirect('manage_visit', pk=visit.pk)
