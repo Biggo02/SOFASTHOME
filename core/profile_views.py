@@ -1,9 +1,8 @@
 from django.contrib.auth.decorators import login_required
-from django.db.models import Q
 from django.shortcuts import render, redirect
 from django.contrib import messages
 
-from .models import Contract, Notification, Payment, Property, VerificationDocument, Visit
+from .models import Contract, Notification, Property, VerificationDossier, Visit, Payment
 
 
 @login_required
@@ -22,33 +21,17 @@ def profile(request):
             messages.success(request, 'Votre nom complet a été enregistré.')
             return redirect('profile')
 
-    documents = list(VerificationDocument.objects.filter(user=user).order_by('-created_at'))
-
-    latest = {}
-    for document in documents:
-        latest.setdefault(document.kind, document)
-
-    required = ('id_front', 'id_back', 'selfie')
-    approved = all(latest.get(kind) and latest[kind].status == 'approved' for kind in required)
-    rejected = any(document.status == 'rejected' for document in documents)
-    pending = any(document.status == 'pending' for document in documents)
-
-    if approved:
-        verification_status = 'verified'
-        verification_label = 'Identité certifiée'
-        verification_message = 'Votre identité a été validée par FASTHOME.'
-    elif rejected:
-        verification_status = 'rejected'
-        verification_label = 'Vérification à reprendre'
-        verification_message = 'Un ou plusieurs documents doivent être remplacés ou renvoyés.'
-    elif pending or documents:
-        verification_status = 'pending'
-        verification_label = 'Vérification en cours'
-        verification_message = 'FASTHOME examine actuellement vos documents.'
-    else:
-        verification_status = 'not_started'
-        verification_label = 'Identité non certifiée'
-        verification_message = 'Complétez votre vérification pour renforcer la confiance de votre compte.'
+    dossier = VerificationDossier.objects.filter(user=user).first()
+    status = dossier.status if dossier else 'not_started'
+    status_map = {
+        'not_started': ('Identité non certifiée', 'Complétez votre vérification pour renforcer la confiance de votre compte.'),
+        'pending': ('Dossier envoyé', 'Votre dossier complet est en attente de traitement par FASTHOME.'),
+        'review': ('Vérification en cours', 'FASTHOME examine actuellement votre dossier d’identité.'),
+        'approved': ('Identité certifiée', 'Votre dossier d’identité a été validé par FASTHOME.'),
+        'rejected': ('Vérification refusée', 'Votre dossier doit être corrigé ou renvoyé.'),
+        'needs_info': ('Informations requises', 'FASTHOME demande des informations ou documents supplémentaires.'),
+    }
+    verification_label, verification_message = status_map.get(status, status_map['not_started'])
 
     favorite_ids = request.session.get('favorites', [])
     stats = {
@@ -66,16 +49,17 @@ def profile(request):
         completion += 15
     if user.last_name:
         completion += 15
-    if approved:
+    if status == 'approved':
         completion += 20
-    elif documents:
+    elif dossier:
         completion += 10
     completion = min(completion, 100)
 
     return render(request, 'profile.html', {
-        'documents': documents,
-        'latest_documents': latest,
-        'verification_status': verification_status,
+        'dossier': dossier,
+        'documents': [],
+        'latest_documents': {},
+        'verification_status': status,
         'verification_label': verification_label,
         'verification_message': verification_message,
         'stats': stats,
