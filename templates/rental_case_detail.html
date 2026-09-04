@@ -2,7 +2,7 @@
 {% block title %}Dossier {{ case.reference }} — FASTHOME{% endblock %}
 {% block content %}
 <section class="form-page">
-  <div class="page-head"><small>FASTHOME · DOSSIER DE LOCATION</small><h1>{{ case.reference }}</h1><p>FASTHOME génère les contrats et le procès-verbal à partir du bien et des parties concernées. Imprimez, signez puis téléversez les PDF signés.</p></div>
+  <div class="page-head"><small>FASTHOME · DOSSIER DE LOCATION</small><h1>{{ case.reference }}</h1><p>Les documents sont générés pour ce bien et les parties concernées. Téléchargez-les, faites-les signer puis déposez les versions signées.</p></div>
   <div class="form-card">
     <div class="profile-grid">
       <div><span>Bien</span><b>{{ case.property.title }}</b></div><div><span>Référence</span><b>{{ case.property.reference }}</b></div>
@@ -10,26 +10,32 @@
       <div><span>Localisation</span><b>{{ case.property.commune }} — {{ case.property.city }} — {{ case.property.province }}</b></div><div><span>Statut</span><b>{{ case.get_status_display }}</b></div>
     </div>
 
-    <div class="notice" style="margin-top:22px"><b>Finalisation</b><span>1. Génération FASTHOME · 2. téléchargement · 3. signatures · 4. téléversement des PDF signés · 5. contrôle · 6. activation automatique.</span></div>
+    <div class="notice" style="margin-top:22px"><b>Documents de cette location</b><span>Chaque document possède sa propre référence et reprend automatiquement les informations du bien, du dossier et de la partie concernée.</span></div>
 
-    <h2 style="margin-top:30px">Mes documents</h2>
+    <h2 style="margin-top:30px">Documents générés</h2>
     <div class="profile-grid" style="margin-top:14px">
       {% for document in case.documents.all %}
-      {% if document.document_type == 'inspection' or document.document_type == 'owner_contract' and request.user.pk == case.owner_id or document.document_type == 'tenant_contract' and request.user.pk == case.tenant_id or request.user.is_staff %}
+      {% if document.document_type == 'owner_contract' and request.user.pk == case.owner_id or document.document_type == 'tenant_contract' and request.user.pk == case.tenant_id or document.document_type == 'inspection' or request.user.is_staff %}
       <div class="notice">
-        <b>{{ document.label }}</b><span>Statut : {{ document.get_status_display }}</span>
-        {% if document.file %}<a class="btn btn-light" href="{{ document.file.url }}" target="_blank" rel="noopener">Télécharger / consulter le PDF</a>{% endif %}
+        <b>{{ document.label }}</b>
+        <span>Statut : {{ document.get_status_display }}</span>
+        {% if document.document_type == 'owner_contract' and case.owner_contract %}<span>Référence : {{ case.owner_contract.reference }}</span>{% endif %}
+        {% if document.document_type == 'tenant_contract' and case.tenant_contract %}<span>Référence : {{ case.tenant_contract.reference }}</span>{% endif %}
+        {% if document.document_type == 'inspection' %}<span>Référence : PV-{{ case.reference }}</span>{% endif %}
+        {% if document.document_type == 'owner_contract' and case.owner_contract %}<a class="btn btn-primary" href="{% url 'rental_contract_pdf' case.owner_contract.pk %}" target="_blank" rel="noopener">📄 Télécharger le contrat</a>{% endif %}
+        {% if document.document_type == 'tenant_contract' and case.tenant_contract %}<a class="btn btn-primary" href="{% url 'rental_contract_pdf' case.tenant_contract.pk %}" target="_blank" rel="noopener">📄 Télécharger le contrat</a>{% endif %}
+        {% if document.document_type == 'inspection' and document.file %}<a class="btn btn-primary" href="{{ document.file.url }}" target="_blank" rel="noopener">📄 Télécharger le PV</a>{% endif %}
         {% if document.document_type == 'owner_contract' and request.user.pk == case.owner_id and case.status != 'active' %}
-        <form method="post" enctype="multipart/form-data" action="{% url 'rental_document_upload' case.pk %}" style="margin-top:12px"><input type="hidden" name="document_type" value="owner_contract"><label class="field"><span>PDF signé par le propriétaire</span><input type="file" name="file" accept="application/pdf" required></label><button class="btn btn-primary">Téléverser le PDF signé</button></form>
+        <form method="post" enctype="multipart/form-data" action="{% url 'rental_document_upload' case.pk %}" style="margin-top:12px"><input type="hidden" name="document_type" value="owner_contract"><label class="field"><span>PDF signé par le propriétaire</span><input type="file" name="file" accept="application/pdf" required></label><button class="btn btn-light">⬆ Téléverser le PDF signé</button></form>
         {% elif document.document_type == 'tenant_contract' and request.user.pk == case.tenant_id and case.status != 'active' %}
-        <form method="post" enctype="multipart/form-data" action="{% url 'rental_document_upload' case.pk %}" style="margin-top:12px"><input type="hidden" name="document_type" value="tenant_contract"><label class="field"><span>PDF signé par le locataire</span><input type="file" name="file" accept="application/pdf" required></label><button class="btn btn-primary">Téléverser le PDF signé</button></form>
+        <form method="post" enctype="multipart/form-data" action="{% url 'rental_document_upload' case.pk %}" style="margin-top:12px"><input type="hidden" name="document_type" value="tenant_contract"><label class="field"><span>PDF signé par le locataire</span><input type="file" name="file" accept="application/pdf" required></label><button class="btn btn-light">⬆ Téléverser le PDF signé</button></form>
         {% endif %}
       </div>
       {% endif %}
       {% empty %}<div class="empty">Les documents seront générés automatiquement lorsque le locataire choisira de prendre le bien.</div>{% endfor %}
     </div>
 
-    <h2 style="margin-top:30px">Documents signés</h2>
+    <h2 style="margin-top:30px">Documents signés reçus</h2>
     <div class="panel list-panel" style="margin-top:12px">
       {% for document in case.documents.all %}
       {% if document.status == 'validated' and document.file %}
