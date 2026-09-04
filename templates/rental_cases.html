@@ -2,15 +2,31 @@
 {% block title %}Dossiers de location — FASTHOME{% endblock %}
 {% block content %}
 <section class="form-page">
-  <div class="page-head"><small>FASTHOME · GESTION</small><h1>Dossiers de location</h1><p>Chaque dossier regroupe la décision du visiteur, les documents et les deux contrats distincts.</p></div>
+  <div class="page-head">
+    <small>{% if user.is_staff %}FASTHOME · GESTION{% else %}ESPACE PERSONNEL · LOCATION{% endif %}</small>
+    <h1>{% if user.is_staff %}Dossiers de location{% elif cases.0.owner_id == user.id %}Mes dossiers propriétaires{% else %}Mes dossiers de location{% endif %}</h1>
+    <p>{% if user.is_staff %}Tous les dossiers nécessitant une intervention de FASTHOME.{% else %}Suivez uniquement les dossiers auxquels votre compte participe.{% endif %}</p>
+  </div>
   <div class="panel list-panel">
     {% for case in cases %}
     <div class="list-row">
-      <div><b>{{ case.reference }} · {{ case.property.reference }}</b><small>{{ case.property.title }}</small><small>Locataire : {{ case.tenant.get_full_name|default:case.tenant.username }}</small></div>
+      <div>
+        <b>{{ case.reference }} · {{ case.property.reference }}</b>
+        <small>{{ case.property.title }}</small>
+        {% if user.is_staff %}
+          <small>Locataire : {{ case.tenant.get_full_name|default:case.tenant.username }} · Propriétaire : {{ case.owner.get_full_name|default:case.owner.username }}</small>
+        {% elif case.tenant_id == user.id %}
+          <small>Votre dossier locataire</small>
+        {% else %}
+          <small>Votre dossier propriétaire</small>
+        {% endif %}
+      </div>
       <span class="status">{{ case.get_status_display }}</span>
       <a class="btn btn-light" href="{% url 'rental_case_detail' case.pk %}">Ouvrir</a>
     </div>
-    {% empty %}<div class="empty">Aucun dossier de location à traiter.</div>{% endfor %}
+    {% empty %}
+      <div class="empty">{% if user.is_staff %}Aucun dossier de location à traiter.{% else %}Aucun dossier de location n’est encore associé à votre compte.{% endif %}</div>
+    {% endfor %}
   </div>
 </section>
 {% endblock %}
