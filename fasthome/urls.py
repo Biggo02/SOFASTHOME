@@ -3,43 +3,20 @@ from django.contrib.auth import views as auth_views
 from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
-from core import views
-from core import search_views
-from core import contract_views
-from core import how_it_works_views
-from core import about_views
-from core import contact_views
-from core import favorite_views
-from core import profile_views
-from core import verification_views
-from core import visit_views
-from core import visitor_decision_views
-from core import rental_views
+from core import views, search_views, contract_views, how_it_works_views, about_views, contact_views, favorite_views, profile_views, verification_views, visit_views, visitor_decision_views, rental_views
 
 urlpatterns = [
     path('admin/', admin.site.urls), path('', views.home, name='home'), path('rechercher/', search_views.search, name='search'),
     path('bien/<int:pk>/', search_views.property_detail, name='property_detail'), path('bien/<int:pk>/visite/', views.request_visit, name='request_visit'),
     path('bien/<int:pk>/favori/', views.toggle_favorite, name='toggle_favorite'), path('bien/<int:pk>/favori-ajax/', favorite_views.toggle_favorite, name='toggle_favorite_ajax'), path('bien/<int:pk>/photos/', views.upload_property_images, name='upload_property_images'),
     path('inscription/', views.register, name='register'), path('connexion/', views.login_view, name='login'), path('deconnexion/', views.logout_view, name='logout'),
-    path('mot-de-passe-oublie/', auth_views.PasswordResetView.as_view(template_name='password_reset.html'), name='password_reset'),
-    path('mot-de-passe-oublie/envoye/', auth_views.PasswordResetDoneView.as_view(template_name='password_reset_done.html'), name='password_reset_done'),
-    path('reinitialisation/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(template_name='password_reset_confirm.html'), name='password_reset_confirm'),
-    path('reinitialisation/terminee/', auth_views.PasswordResetCompleteView.as_view(template_name='password_reset_complete.html'), name='password_reset_complete'),
-    path('mot-de-passe/', auth_views.PasswordChangeView.as_view(template_name='password_change.html', success_url='/mot-de-passe/modifie/'), name='password_change'),
-    path('mot-de-passe/modifie/', auth_views.PasswordChangeDoneView.as_view(template_name='password_change_done.html'), name='password_change_done'),
-    path('espace-personnel/', views.dashboard, name='dashboard'), path('mon-profil/', profile_views.profile, name='profile'), path('mes-favoris/', views.favorites, name='favorites'),
-    path('mes-publications/', views.publications, name='publications'), path('ajouter-un-bien/', views.add_property, name='add_property'), path('mes-visites/', views.visits, name='visits'),
-    path('mes-demandes-visite/', visit_views.owner_visit_requests, name='owner_visit_requests'), path('mes-demandes-visite/<int:pk>/decision/', visit_views.owner_visit_decision, name='owner_visit_decision'),
-    path('mes-visites/<int:pk>/decision-finale/', visitor_decision_views.visitor_final_decision, name='visitor_final_decision'),
-    path('mes-dossiers-location/', rental_views.rental_cases, name='rental_cases'), path('mes-dossiers-location/<int:pk>/', rental_views.rental_case_detail, name='rental_case_detail'),
-    path('mes-contrats/', views.contracts, name='contracts'), path('mes-paiements/', views.payments, name='payments'), path('paiement/<int:pk>/preuve/', views.payment_proof, name='payment_proof'),
-    path('mes-echeances/', views.due_dates, name='due_dates'), path('notifications/', views.notifications, name='notifications'), path('messages/', views.messages_page, name='messages'),
-    path('verification-documents/', verification_views.verification_upload, name='verification_upload'), path('contrat/<str:reference>/pdf/', contract_views.contract_pdf, name='contract_pdf'),
-    path('location/contrat/<int:pk>/pdf/', rental_views.rental_contract_pdf, name='rental_contract_pdf'),
-    path('a-propos/', about_views.about, name='about'), path('comment-ca-marche/', how_it_works_views.how_it_works, name='how_it_works'), path('contact/', contact_views.contact, name='contact'),
-    path('verification-contrat/<str:reference>/', views.contract_verify, name='contract_verify'), path('gestion/', views.admin_dashboard, name='admin_dashboard'),
-    path('gestion/publication/<int:pk>/', views.review_publication, name='review_publication'), path('gestion/visite/<int:pk>/', visit_views.agent_visit_decision, name='manage_visit'),
-    path('gestion/visite/<int:pk>/etat-des-lieux/', views.inspection, name='inspection'),
+    path('mot-de-passe-oublie/', auth_views.PasswordResetView.as_view(template_name='password_reset.html'), name='password_reset'), path('mot-de-passe-oublie/envoye/', auth_views.PasswordResetDoneView.as_view(template_name='password_reset_done.html'), name='password_reset_done'), path('reinitialisation/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(template_name='password_reset_confirm.html'), name='password_reset_confirm'), path('reinitialisation/terminee/', auth_views.PasswordResetCompleteView.as_view(template_name='password_reset_complete.html'), name='password_reset_complete'), path('mot-de-passe/', auth_views.PasswordChangeView.as_view(template_name='password_change.html', success_url='/mot-de-passe/modifie/'), name='password_change'), path('mot-de-passe/modifie/', auth_views.PasswordChangeDoneView.as_view(template_name='password_change_done.html'), name='password_change_done'),
+    path('espace-personnel/', views.dashboard, name='dashboard'), path('mon-profil/', profile_views.profile, name='profile'), path('mes-favoris/', views.favorites, name='favorites'), path('mes-publications/', views.publications, name='publications'), path('ajouter-un-bien/', views.add_property, name='add_property'), path('mes-visites/', views.visits, name='visits'),
+    path('mes-demandes-visite/', visit_views.owner_visit_requests, name='owner_visit_requests'), path('mes-demandes-visite/<int:pk>/decision/', visit_views.owner_visit_decision, name='owner_visit_decision'), path('mes-visites/<int:pk>/decision-finale/', visitor_decision_views.visitor_final_decision, name='visitor_final_decision'),
+    path('mes-dossiers-location/', rental_views.rental_cases, name='rental_cases'), path('mes-dossiers-location/<int:pk>/', rental_views.rental_case_detail, name='rental_case_detail'), path('mes-dossiers-location/<int:pk>/document-signe/', rental_views.rental_document_upload, name='rental_document_upload'),
+    path('mes-contrats/', views.contracts, name='contracts'), path('mes-paiements/', views.payments, name='payments'), path('paiement/<int:pk>/preuve/', views.payment_proof, name='payment_proof'), path('mes-echeances/', views.due_dates, name='due_dates'), path('notifications/', views.notifications, name='notifications'), path('messages/', views.messages_page, name='messages'),
+    path('verification-documents/', verification_views.verification_upload, name='verification_upload'), path('contrat/<str:reference>/pdf/', contract_views.contract_pdf, name='contract_pdf'), path('location/contrat/<int:pk>/pdf/', rental_views.rental_contract_pdf, name='rental_contract_pdf'),
+    path('a-propos/', about_views.about, name='about'), path('comment-ca-marche/', how_it_works_views.how_it_works, name='how_it_works'), path('contact/', contact_views.contact, name='contact'), path('verification-contrat/<str:reference>/', views.contract_verify, name='contract_verify'), path('gestion/', views.admin_dashboard, name='admin_dashboard'), path('gestion/publication/<int:pk>/', views.review_publication, name='review_publication'), path('gestion/visite/<int:pk>/', visit_views.agent_visit_decision, name='manage_visit'), path('gestion/visite/<int:pk>/etat-des-lieux/', views.inspection, name='inspection'),
 ]
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT) if settings.DEBUG else []
-handler403 = 'core.views.error_403'; handler404 = 'core.views.error_404'; handler500 = 'core.views.error_500';
+handler403 = 'core.views.error_403'; handler404 = 'core.views.error_404'; handler500 = 'core.views.error_500'
