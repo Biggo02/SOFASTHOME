@@ -5,15 +5,10 @@ from django.contrib.auth.models import User
 class RentalCase(models.Model):
     STATUS = [
         ('preparing', 'Dossier à préparer'),
-        ('owner_contract', 'Contrat propriétaire à valider'),
-        ('tenant_contract', 'Contrat locataire à valider'),
-        ('signing', 'En attente des signatures'),
-        ('payment', 'En attente du paiement'),
-        ('inspection', 'État des lieux'),
+        ('signing', 'Contrats et PV à signer'),
         ('active', 'Location active'),
         ('cancelled', 'Dossier annulé'),
     ]
-
     reference = models.CharField(max_length=40, unique=True, blank=True)
     visit = models.OneToOneField('core.Visit', on_delete=models.PROTECT, related_name='rental_case')
     property = models.ForeignKey('core.Property', on_delete=models.PROTECT, related_name='rental_cases')
@@ -35,19 +30,8 @@ class RentalCase(models.Model):
 
 
 class RentalContract(models.Model):
-    TYPES = [
-        ('owner_agreement', 'FASTHOME ↔ Propriétaire'),
-        ('tenant_sublease', 'FASTHOME ↔ Locataire'),
-    ]
-    STATUS = [
-        ('draft', 'Brouillon'),
-        ('prepared', 'Préparé'),
-        ('pending_signature', 'À signer'),
-        ('signed', 'Signé'),
-        ('validated', 'Validé'),
-        ('cancelled', 'Annulé'),
-    ]
-
+    TYPES = [('owner_agreement', 'FASTHOME ↔ Propriétaire'), ('tenant_sublease', 'FASTHOME ↔ Locataire')]
+    STATUS = [('draft', 'Brouillon'), ('prepared', 'Préparé'), ('pending_signature', 'À signer'), ('signed', 'Signé'), ('validated', 'Validé'), ('cancelled', 'Annulé')]
     reference = models.CharField(max_length=40, unique=True, blank=True)
     rental_case = models.ForeignKey(RentalCase, on_delete=models.CASCADE, related_name='contracts')
     property = models.ForeignKey('core.Property', on_delete=models.PROTECT, related_name='rental_contracts')
@@ -74,21 +58,8 @@ class RentalContract(models.Model):
 
 
 class RentalDocument(models.Model):
-    TYPES = [
-        ('identity', 'Pièce d’identité'),
-        ('owner_contract', 'Contrat FASTHOME – Propriétaire'),
-        ('tenant_contract', 'Contrat FASTHOME – Locataire'),
-        ('inspection', 'État des lieux'),
-        ('payment_proof', 'Preuve de paiement'),
-        ('other', 'Autre document'),
-    ]
-    STATUS = [
-        ('required', 'À préparer'),
-        ('prepared', 'Préparé'),
-        ('validated', 'Validé'),
-        ('rejected', 'À corriger'),
-    ]
-
+    TYPES = [('identity', 'Pièce d’identité'), ('owner_contract', 'Contrat FASTHOME – Propriétaire'), ('tenant_contract', 'Contrat FASTHOME – Locataire'), ('inspection', 'État des lieux'), ('payment_proof', 'Preuve de paiement'), ('other', 'Autre document')]
+    STATUS = [('required', 'À préparer'), ('prepared', 'Préparé'), ('validated', 'Signé / validé'), ('rejected', 'À corriger')]
     rental_case = models.ForeignKey(RentalCase, on_delete=models.CASCADE, related_name='documents')
     document_type = models.CharField(max_length=30, choices=TYPES)
     label = models.CharField(max_length=180)
