@@ -12,10 +12,10 @@
 
     <div class="notice" style="margin-top:22px"><b>Finalisation</b><span>1. Génération FASTHOME · 2. téléchargement · 3. signatures · 4. téléversement des PDF signés · 5. contrôle · 6. activation automatique.</span></div>
 
-    <h2 style="margin-top:30px">Contrats et procès-verbal</h2>
+    <h2 style="margin-top:30px">Mes documents</h2>
     <div class="profile-grid" style="margin-top:14px">
       {% for document in case.documents.all %}
-      {% if document.document_type == 'owner_contract' or document.document_type == 'tenant_contract' or document.document_type == 'inspection' %}
+      {% if document.document_type == 'inspection' or document.document_type == 'owner_contract' and request.user.pk == case.owner_id or document.document_type == 'tenant_contract' and request.user.pk == case.tenant_id or request.user.is_staff %}
       <div class="notice">
         <b>{{ document.label }}</b><span>Statut : {{ document.get_status_display }}</span>
         {% if document.file %}<a class="btn btn-light" href="{{ document.file.url }}" target="_blank" rel="noopener">Télécharger / consulter le PDF</a>{% endif %}
@@ -33,12 +33,13 @@
     <div class="panel list-panel" style="margin-top:12px">
       {% for document in case.documents.all %}
       {% if document.status == 'validated' and document.file %}
+      {% if document.document_type == 'inspection' or document.document_type == 'owner_contract' and request.user.pk == case.owner_id or document.document_type == 'tenant_contract' and request.user.pk == case.tenant_id or request.user.is_staff %}
       <div class="list-row"><div><b>{{ document.label }}</b><small>Document signé / reçu par FASTHOME</small></div><a class="btn btn-light" href="{{ document.file.url }}" target="_blank" rel="noopener">Voir le PDF signé</a></div>
-      {% endif %}
+      {% endif %}{% endif %}
       {% empty %}<div class="empty">Aucun document signé reçu.</div>{% endfor %}
     </div>
 
-    {% if case.status == 'active' %}<div class="notice" style="margin-top:22px"><b>Location active</b><span>Les documents signés sont conservés dans ce dossier et restent visibles dans l’espace du propriétaire et du locataire concernés.</span></div>
+    {% if case.status == 'active' %}<div class="notice" style="margin-top:22px"><b>Location active</b><span>Les documents signés sont conservés dans le dossier et restent visibles dans l’espace des personnes concernées.</span></div>
     {% else %}<div class="notice" style="margin-top:22px"><b>Activation automatique</b><span>La location devient active lorsque les deux contrats signés et le procès-verbal signé sont reçus par FASTHOME.</span></div>{% endif %}
     <a class="btn btn-light" style="margin-top:20px" href="{% url 'rental_cases' %}">Retour aux dossiers</a>
   </div>
