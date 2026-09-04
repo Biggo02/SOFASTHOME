@@ -4,7 +4,7 @@
 <section class="form-page">
   <div class="page-head">
     <small>{% if user.is_staff %}FASTHOME · GESTION{% else %}ESPACE PERSONNEL · LOCATION{% endif %}</small>
-    <h1>{% if user.is_staff %}Dossiers de location{% elif cases.0.owner_id == user.id %}Mes dossiers propriétaires{% else %}Mes dossiers de location{% endif %}</h1>
+    <h1>{% if user.is_staff %}Dossiers de location{% else %}Mes dossiers de location{% endif %}</h1>
     <p>{% if user.is_staff %}Tous les dossiers nécessitant une intervention de FASTHOME.{% else %}Suivez uniquement les dossiers auxquels votre compte participe.{% endif %}</p>
   </div>
   <div class="panel list-panel">
