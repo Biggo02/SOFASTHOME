@@ -22,7 +22,7 @@
       <div>
         <small>ESPACE PERSONNEL · LOCATION</small>
         <h1>Mes contrats</h1>
-        <p>Votre espace ne montre que les documents dont vous êtes personnellement partie. Le dossier complet reste exclusivement réservé à FASTHOME.</p>
+        <p>FASTHOME prépare et fait signer les documents. Vous consultez ici uniquement les documents qui vous concernent.</p>
       </div>
     </div>
 
@@ -44,41 +44,32 @@
           <small>Loyer contractuel : {{ contract.amount }} CDF · Garantie : {{ contract.deposit }} CDF</small>
           {% if contract.start_date %}<small>Début : {{ contract.start_date }}{% if contract.end_date %} · Fin : {{ contract.end_date }}{% endif %}</small>{% endif %}
         </div>
-        <a class="btn btn-primary" href="{% url 'rental_contract_pdf' contract.pk %}" target="_blank" rel="noopener">Voir / télécharger</a>
       </div>
 
       <div style="margin-top:14px">
-        <h3>Vos documents à transmettre</h3>
-        <small>Vous ne pouvez déposer que vos propres documents. FASTHOME vérifie chaque fichier avant de rendre la location effective.</small>
+        <h3>Vos documents signés</h3>
+        <small>Ces documents sont déposés par FASTHOME après signature en présence de l'agence. Vous n'avez aucun document à téléverser.</small>
         <div class="dash-grid" style="margin-top:10px">
           {% for doc in contract.rental_case.documents.all %}
             {% if contract.contract_type == 'owner_agreement' and doc.document_type == 'owner_contract' or contract.contract_type == 'tenant_sublease' and doc.document_type == 'tenant_contract' %}
             <div class="panel" style="padding:14px">
               <b>{{ doc.label }}</b>
-              <small>Statut : {{ doc.get_status_display }}</small>
-              {% if doc.file %}<a href="{{ doc.file.url }}" target="_blank" rel="noopener">Voir le fichier préparé</a>{% endif %}
-              {% if contract.rental_case.status != 'active' %}
-              <form method="post" enctype="multipart/form-data" action="{% url 'upload_signed_rental_document' contract.rental_case.pk %}" style="margin-top:10px">
-                {% csrf_token %}
-                <input type="hidden" name="document_type" value="{{ doc.document_type }}">
-                <input type="file" name="file" accept="application/pdf" required>
-                <button class="btn btn-light" type="submit">Déposer le signé</button>
-              </form>
+              {% if doc.status == 'validated' and doc.file %}
+                <small>✓ Document signé et vérifié par FASTHOME</small>
+                <a class="btn btn-primary" href="{{ doc.file.url }}" target="_blank" rel="noopener">Voir le document signé</a>
+              {% else %}
+                <small>Le document signé sera disponible après vérification par FASTHOME.</small>
               {% endif %}
             </div>
             {% endif %}
             {% if contract.contract_type == 'owner_agreement' and doc.document_type == 'owner_inspection' or contract.contract_type == 'tenant_sublease' and doc.document_type == 'tenant_inspection' %}
             <div class="panel" style="padding:14px">
               <b>{{ doc.label }}</b>
-              <small>Statut : {{ doc.get_status_display }}</small>
-              {% if doc.file %}<a href="{{ doc.file.url }}" target="_blank" rel="noopener">Voir le fichier préparé</a>{% endif %}
-              {% if contract.rental_case.status != 'active' %}
-              <form method="post" enctype="multipart/form-data" action="{% url 'upload_signed_rental_document' contract.rental_case.pk %}" style="margin-top:10px">
-                {% csrf_token %}
-                <input type="hidden" name="document_type" value="{{ doc.document_type }}">
-                <input type="file" name="file" accept="application/pdf" required>
-                <button class="btn btn-light" type="submit">Déposer le signé</button>
-              </form>
+              {% if doc.status == 'validated' and doc.file %}
+                <small>✓ État des lieux signé et vérifié par FASTHOME</small>
+                <a class="btn btn-primary" href="{{ doc.file.url }}" target="_blank" rel="noopener">Voir l'état des lieux signé</a>
+              {% else %}
+                <small>L'état des lieux signé sera disponible après vérification par FASTHOME.</small>
               {% endif %}
             </div>
             {% endif %}
@@ -89,7 +80,7 @@
     {% empty %}
       <div class="panel empty">
         <strong>Aucun contrat FASTHOME n'est encore associé à votre compte.</strong>
-        <br><small>Lorsqu'un contrat vous sera attribué, il apparaîtra automatiquement ici.</small>
+        <br><small>Lorsqu'une location vous sera attribuée, FASTHOME préparera les documents et les fera signer.</small>
       </div>
     {% endfor %}
   </section>
