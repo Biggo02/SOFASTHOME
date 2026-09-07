@@ -8,11 +8,7 @@ from .models import Property, UserProfile
 
 class RegisterForm(forms.ModelForm):
     postnom = forms.CharField(label='Postnom', max_length=100, required=False)
-    profession = forms.ChoiceField(
-        label='Profession',
-        choices=[('', 'Sélectionnez votre profession')] + UserProfile.PROFESSIONS,
-        required=True,
-    )
+    profession = forms.ChoiceField(label='Profession', choices=[('', 'Sélectionnez votre profession')] + UserProfile.PROFESSIONS, required=True)
     password=forms.CharField(widget=forms.PasswordInput(attrs={'autocomplete':'new-password'}), label='Mot de passe')
     password2=forms.CharField(widget=forms.PasswordInput(attrs={'autocomplete':'new-password'}),label='Confirmation du mot de passe')
     class Meta:
@@ -31,8 +27,11 @@ class RegisterForm(forms.ModelForm):
         return data
     def save(self, commit=True):
         user=super().save(commit=commit)
+        profile_data={'postnom': self.cleaned_data.get('postnom','').strip(), 'profession': self.cleaned_data.get('profession','')}
         if commit:
-            UserProfile.objects.update_or_create(user=user, defaults={'postnom': self.cleaned_data.get('postnom','').strip(), 'profession': self.cleaned_data.get('profession','')})
+            UserProfile.objects.update_or_create(user=user, defaults=profile_data)
+        else:
+            user._registration_profile_data = profile_data
         return user
 
 
