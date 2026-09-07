@@ -1,5 +1,7 @@
 from io import BytesIO
+from pathlib import Path
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, HttpResponseForbidden
@@ -143,10 +145,18 @@ def _contract_pdf(contract):
     party_name = owner_name if contract.contract_type == 'owner_agreement' else tenant_name
     amount = contract.amount
     location = f'{prop.commune} — {prop.city} — {prop.province}'
+    logo_path = Path(settings.BASE_DIR) / 'static' / 'images' / 'logo.png'
 
     def header(page_title, page_no):
-        c.setFont('Helvetica-Bold', 15)
-        c.drawString(45, height - 48, 'FASTHOME')
+        if logo_path.exists():
+            try:
+                c.drawImage(ImageReader(str(logo_path)), 45, height - 63, width=105, height=42, preserveAspectRatio=True, mask='auto', anchor='sw')
+            except Exception:
+                c.setFont('Helvetica-Bold', 15)
+                c.drawString(45, height - 48, 'FASTHOME')
+        else:
+            c.setFont('Helvetica-Bold', 15)
+            c.drawString(45, height - 48, 'FASTHOME')
         c.setFont('Helvetica-Bold', 12)
         c.drawRightString(width - 45, height - 48, page_title)
         c.setFont('Helvetica', 8)
@@ -160,7 +170,6 @@ def _contract_pdf(contract):
         c.setFont('Helvetica', 9)
         c.drawString(45, height - 100, f'Référence : {contract.reference}')
 
-    # Page 1
     title('IDENTIFICATION ET OBJET', 1)
     y = height - 135
     intro = [
@@ -184,7 +193,6 @@ def _contract_pdf(contract):
     y = _draw_wrapped(c, f'Le logement est désigné par la référence {prop.reference}, situé dans la commune de {prop.commune}, ville/territoire de {prop.city}, province de {prop.province}. Il comprend notamment {prop.salons} salon(s), {prop.bedrooms} chambre(s), {prop.kitchens} cuisine(s), {prop.bathrooms} salle(s) de bain et {prop.toilets} toilette(s). Capacité maximale enregistrée : {prop.max_occupants} occupant(s).', 50, y, width - 100)
     c.showPage()
 
-    # Page 2
     title('CONDITIONS DE LA LOCATION', 2)
     y = height - 135
     sections = [
@@ -204,7 +212,6 @@ def _contract_pdf(contract):
         y = _draw_wrapped(c, body, 50, y, width - 100, 13, size=9.2); y -= 9
     c.showPage()
 
-    # Page 3
     title('OBLIGATIONS ET RÈGLES D’OCCUPATION', 3)
     y = height - 135
     sections = [
@@ -223,7 +230,6 @@ def _contract_pdf(contract):
         y = _draw_wrapped(c, body, 50, y, width - 100, 13, size=9.2); y -= 9
     c.showPage()
 
-    # Page 4 — clauses fournies comme référence
     title('SÉCURITÉ, IMPAYÉS, PRÉAVIS ET RÉSILIATION', 4)
     y = height - 135
     sections = [
@@ -242,7 +248,6 @@ def _contract_pdf(contract):
         y = _draw_wrapped(c, body, 50, y, width - 100, 12.5, size=8.8); y -= 7
     c.showPage()
 
-    # Page 5 — clauses/signatures fournies comme référence
     title('FIN DU CONTRAT, GARANTIE, LITIGES ET SIGNATURES', 5)
     y = height - 135
     sections = [
