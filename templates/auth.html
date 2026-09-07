@@ -1,1 +1,44 @@
-{% extends 'base.html' %}{% block title %}{% if mode == 'register' %}Inscription{% else %}Connexion{% endif %} — FASTHOME{% endblock %}{% block content %}<section class='auth-wrap'><div class='auth-card'><div class='eyebrow'>FASTHOME · COMPTE UNIQUE</div><h1>{% if mode == 'register' %}Créer votre compte{% else %}Bienvenue !{% endif %}</h1><p>{% if mode == 'register' %}Un seul compte pour rechercher, publier, louer et gérer vos biens.{% else %}Connectez-vous à votre espace personnel sécurisé.{% endif %}</p>{% if form.errors %}<div class='errorbox'>Veuillez vérifier les informations saisies.</div>{% endif %}<form method='post'>{% csrf_token %}{% if mode == 'register' %}<label>Nom complet</label>{{ form.first_name }}<label>Téléphone</label>{{ form.username }}<label>Email</label>{{ form.email }}<label>Mot de passe</label>{{ form.password }}<label>Confirmation</label>{{ form.password2 }}<button class='btn btn-primary wide'>Créer mon compte</button><p class='center'>Déjà un compte ? <a href='{% url "login" %}'>Se connecter</a></p>{% else %}<label>Email ou téléphone</label><input name='username' autocomplete='username' required><label>Mot de passe</label><input type='password' name='password' autocomplete='current-password' required><div class='row-between'><label><input type='checkbox'> Se souvenir de moi</label><a href='{% url "password_reset" %}'>Mot de passe oublié ?</a></div><button class='btn btn-primary wide'>Se connecter</button><p class='center'>Pas encore de compte ? <a href='{% url "register" %}'>S'inscrire</a></p>{% endif %}</form></div></section>{% endblock %}
+{% extends 'base.html' %}
+{% block title %}{% if mode == 'register' %}Inscription{% else %}Connexion{% endif %} — FASTHOME{% endblock %}
+{% block content %}
+<section class='auth-wrap'>
+  <div class='auth-card'>
+    <div class='eyebrow'>FASTHOME · COMPTE UNIQUE</div>
+    <h1>{% if mode == 'register' %}Créer votre compte{% else %}Bienvenue !{% endif %}</h1>
+    <p>{% if mode == 'register' %}Un seul compte pour rechercher, publier, louer et gérer vos biens.{% else %}Connectez-vous à votre espace personnel sécurisé.{% endif %}</p>
+
+    {% if form.errors %}<div class='errorbox'>Veuillez vérifier les informations saisies.</div>{% endif %}
+
+    <form method='post'>
+      {% csrf_token %}
+      {% if mode == 'register' %}
+        <div class='register-grid'>
+          <div class='field'><label for='id_last_name'>Nom</label>{{ form.last_name }}{{ form.last_name.errors }}</div>
+          <div class='field'><label for='id_postnom'>Postnom</label>{{ form.postnom }}{{ form.postnom.errors }}</div>
+          <div class='field'><label for='id_first_name'>Prénom</label>{{ form.first_name }}{{ form.first_name.errors }}</div>
+          <div class='field'><label for='id_profession'>Profession</label>{{ form.profession }}{{ form.profession.errors }}</div>
+          <div class='field'><label for='id_username'>Téléphone</label>{{ form.username }}{{ form.username.errors }}</div>
+          <div class='field'><label for='id_email'>Email</label>{{ form.email }}{{ form.email.errors }}</div>
+          <div class='field'><label for='id_password'>Mot de passe</label>{{ form.password }}{{ form.password.errors }}</div>
+          <div class='field'><label for='id_password2'>Confirmation</label>{{ form.password2 }}{{ form.password2.errors }}</div>
+        </div>
+        <button class='btn btn-primary wide' type='submit'>Créer mon compte</button>
+        <p class='center'>Déjà un compte ? <a href='{% url "login" %}'>Se connecter</a></p>
+      {% else %}
+        <label>Email ou téléphone</label><input name='username' autocomplete='username' required>
+        <label>Mot de passe</label><input type='password' name='password' autocomplete='current-password' required>
+        <div class='row-between'><label><input type='checkbox'> Se souvenir de moi</label><a href='{% url "password_reset" %}'>Mot de passe oublié ?</a></div>
+        <button class='btn btn-primary wide'>Se connecter</button>
+        <p class='center'>Pas encore de compte ? <a href='{% url "register" %}'>S'inscrire</a></p>
+      {% endif %}
+    </form>
+  </div>
+</section>
+<style>
+  .register-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+  .register-grid .field{min-width:0}
+  .register-grid select,.register-grid input{width:100%;box-sizing:border-box}
+  .field ul.errorlist{margin:4px 0 0;padding:0;list-style:none;color:#b42318;font-size:.78rem}
+  @media(max-width:640px){.register-grid{grid-template-columns:1fr}}
+</style>
+{% endblock %}
