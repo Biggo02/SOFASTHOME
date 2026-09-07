@@ -151,7 +151,7 @@ def generate_contract_pdf(contract):
     ]
     for h,b in legal:_section(story,h,b,styles)
     story.append(PageBreak())
-    story += [_p('V. ÉTAT DES PIÈCES, DÉCLARATIONS ET SIGNATURES',styles)]
+    story += [_p('V. ÉTAT DES PIÈCES, DÉCLARATIONS ET SIGNATURES',styles['section'])]
     story.append(_table([('Documents du dossier','Pièce d’identité · contrat · état des lieux · photographies · preuves de paiement · reçus · notifications · annexes'),('Déclaration','Les parties déclarent avoir lu le présent contrat, compris les obligations qui leur incombent et avoir eu la possibilité de demander toute clarification avant signature.'),('Exactitude','Toute correction manuscrite doit être paraphée par les parties. Toute page peut être paraphée afin d’éviter toute substitution.'),('Annexes','Les annexes signées ou référencées font partie intégrante du dossier contractuel lorsqu’elles sont identifiées par leur référence.')],styles))
     story.append(Spacer(1,10)); story.append(Paragraph('SIGNATURES — FAIT EN EXEMPLAIRES NÉCESSAIRES',styles['section']))
     sign_party='LE PROPRIÉTAIRE' if is_owner else 'LE LOCATAIRE'
