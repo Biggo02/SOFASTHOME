@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+{% block title %}Détail du contrat — FASTHOME{% endblock %}
+{% block content %}
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="side-brand">FAST<span>HOME</span><small>ESPACE PERSONNEL</small></div>
+    <a href="{% url 'dashboard' %}">⌂ Tableau de bord</a>
+    <a href="{% url 'search' %}">⌕ Rechercher</a>
+    <a href="{% url 'favorites' %}">♡ Mes favoris</a>
+    <a href="{% url 'publications' %}">▣ Mes publications</a>
+    <a href="{% url 'visits' %}">◷ Mes demandes de visite</a>
+    <a class="active" href="{% url 'contracts' %}">▤ Mes contrats</a>
+    <a href="{% url 'payments' %}">◉ Mes paiements</a>
+    <a href="{% url 'due_dates' %}">◴ Mes échéances</a>
+    <a href="{% url 'notifications' %}">● Notifications</a>
+    <a href="{% url 'profile' %}">⚙ Mon profil</a>
+    <a href="{% url 'logout' %}" class="logout">↪ Déconnexion</a>
+  </aside>
+
+  <section class="dashboard">
+    <div class="dash-head">
+      <div>
+        <a href="{% url 'contracts' %}" style="text-decoration:none">← Retour à mes contrats</a>
+        <small style="display:block;margin-top:12px">ESPACE PERSONNEL · DOSSIER CONTRACTUEL</small>
+        <h1>{% if is_owner_contract %}Contrat de mise en location{% else %}Contrat de sous-location{% endif %}</h1>
+        <p>{{ contract.reference }} · Dossier {{ case.reference }}</p>
+      </div>
+      <div>
+        {% if case.status == 'active' %}<span class="status">LOCATION ACTIVE</span>{% elif case.status == 'signing' %}<span class="status">SIGNATURE EN COURS</span>{% else %}<span class="status">{{ case.get_status_display }}</span>{% endif %}
+      </div>
+    </div>
+
+    <div class="dash-grid">
+      <section class="panel">
+        <div class="panel-head"><h2>1. Identification du contrat</h2><span>{{ contract.get_status_display }}</span></div>
+        <div class="detail-grid">
+          <div><small>Référence contrat</small><strong>{{ contract.reference }}</strong></div>
+          <div><small>Référence dossier</small><strong>{{ case.reference }}</strong></div>
+          <div><small>Type</small><strong>{% if is_owner_contract %}Mise en location{% else %}Sous-location{% endif %}</strong></div>
+          <div><small>Relation contractuelle</small><strong>FASTHOME ↔ {% if is_owner_contract %}Propriétaire{% else %}Locataire{% endif %}</strong></div>
+          <div><small>Statut du contrat</small><strong>{{ contract.get_status_display }}</strong></div>
+          <div><small>Statut de la location</small><strong>{{ case.get_status_display }}</strong></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h2>2. Parties concernées</h2></div>
+        <div class="detail-grid">
+          <div><small>Votre identité</small><strong>{{ request.user.get_full_name|default:request.user.username }}</strong><small>{{ request.user.username }}</small></div>
+          <div><small>Votre rôle</small><strong>{% if is_owner_contract %}Propriétaire{% else %}Locataire{% endif %}</strong></div>
+          <div><small>Autre partie du dossier</small><strong>{{ counterpart.get_full_name|default:counterpart.username }}</strong><small>{{ counterpart.username }}</small></div>
+          <div><small>Intermédiaire</small><strong>FASTHOME</strong><small>Agence contractante et gestionnaire du dossier</small></div>
+        </div>
+      </section>
+    </div>
+
+    <section class="panel" style="margin-top:16px">
+      <div class="panel-head"><h2>3. Bien concerné</h2><span>{{ property.reference }}</span></div>
+      <div class="detail-grid">
+        <div><small>Désignation</small><strong>{{ property.title }}</strong></div>
+        <div><small>Type</small><strong>{{ property.get_property_type_display }}</strong></div>
+        <div><small>Province</small><strong>{{ property.province|default:'—' }}</strong></div>
+        <div><small>Ville</small><strong>{{ property.city|default:'—' }}</strong></div>
+        <div><small>Commune</small><strong>{{ property.commune|default:'—' }}</strong></div>
+        <div><small>Adresse</small><strong>{{ property.full_address|default:'Non renseignée' }}</strong></div>
+        <div><small>Composition</small><strong>{{ property.bedrooms }} chambre(s) · {{ property.salons }} salon(s) · {{ property.kitchens }} cuisine(s)</strong></div>
+        <div><small>Sanitaires</small><strong>{{ property.bathrooms }} salle(s) d'eau · {{ property.toilets }} toilette(s)</strong></div>
+        <div><small>Étage</small><strong>{{ property.floor_number }}</strong></div>
+        <div><small>Parking</small><strong>{% if property.parking %}Oui{% else %}Non{% endif %}{% if property.parking_spaces %} · {{ property.parking_spaces }} place(s){% endif %}</strong></div>
+        <div><small>Eau</small><strong>{% if property.water %}Oui{% else %}Non{% endif %}{% if property.water_source %} · {{ property.get_water_source_display }}{% endif %}</strong></div>
+        <div><small>Électricité</small><strong>{% if property.electricity %}Oui{% else %}Non{% endif %}{% if property.electricity_source %} · {{ property.get_electricity_source_display }}{% endif %}</strong></div>
+      </div>
+      {% if property.description %}<div style="margin-top:16px"><small>Description</small><p>{{ property.description }}</p></div>{% endif %}
+    </section>
+
+    <div class="dash-grid" style="margin-top:16px">
+      <section class="panel">
+        <div class="panel-head"><h2>4. Conditions financières</h2></div>
+        <div class="finance-box">
+          <div><small>Loyer contractuel</small><strong>{{ contract.amount|floatformat:2 }} CDF</strong></div>
+          <div><small>Garantie</small><strong>{{ contract.deposit|floatformat:2 }} CDF</strong></div>
+          <div><small>Devise</small><strong>Franc congolais (CDF)</strong></div>
+        </div>
+        <p class="muted" style="margin-top:12px">Les montants affichés ici sont ceux enregistrés dans le contrat FASTHOME.</p>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h2>5. Durée</h2></div>
+        <div class="detail-grid">
+          <div><small>Date de début</small><strong>{{ contract.start_date|default:'Non définie' }}</strong></div>
+          <div><small>Date de fin</small><strong>{{ contract.end_date|default:'Non définie' }}</strong></div>
+          <div><small>Créé le</small><strong>{{ contract.created_at|date:'d/m/Y H:i' }}</strong></div>
+          <div><small>Dernière mise à jour</small><strong>{{ contract.updated_at|date:'d/m/Y H:i' }}</strong></div>
+          {% if contract.signed_at %}<div><small>Signé le</small><strong>{{ contract.signed_at|date:'d/m/Y H:i' }}</strong></div>{% endif %}
+          {% if contract.validated_at %}<div><small>Validé le</small><strong>{{ contract.validated_at|date:'d/m/Y H:i' }}</strong></div>{% endif %}
+        </div>
+      </section>
+    </div>
+
+    <section class="panel" style="margin-top:16px">
+      <div class="panel-head"><h2>6. Documents liés à votre contrat</h2><span>FASTHOME</span></div>
+      <p>Les documents sont préparés et téléversés exclusivement par FASTHOME après signature physique. Vous ne téléversez aucun document.</p>
+      <div class="dash-grid" style="margin-top:12px">
+        {% for doc in documents %}
+        <div class="panel" style="padding:16px">
+          <b>{{ doc.label }}</b>
+          <small style="display:block;margin-top:6px">{{ doc.get_status_display }}</small>
+          {% if doc.status == 'validated' and doc.file %}
+            <small style="display:block;margin-top:4px">✓ Signé et vérifié par FASTHOME</small>
+            <a class="btn btn-primary" style="margin-top:12px" href="{% url 'signed_rental_document_file' doc.id %}" target="_blank" rel="noopener">Voir le document signé</a>
+          {% elif doc.status == 'pending_review' %}
+            <small style="display:block;margin-top:8px">Document reçu par FASTHOME et en cours de vérification.</small>
+          {% elif doc.status == 'rejected' %}
+            <small style="display:block;margin-top:8px">FASTHOME doit corriger ou refaire vérifier ce document.</small>
+          {% else %}
+            <small style="display:block;margin-top:8px">Le document signé sera accessible après dépôt et validation par FASTHOME.</small>
+          {% endif %}
+        </div>
+        {% empty %}
+        <div class="panel" style="padding:16px">Aucun document lié n'est encore disponible.</div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="panel" style="margin-top:16px">
+      <div class="panel-head"><h2>7. Visite et suivi du dossier</h2></div>
+      <div class="detail-grid">
+        <div><small>Statut de la visite</small><strong>{{ visit.get_status_display }}</strong></div>
+        <div><small>Date souhaitée</small><strong>{{ visit.preferred_date|default:'—' }}</strong></div>
+        <div><small>Heure souhaitée</small><strong>{{ visit.preferred_time|default:'—' }}</strong></div>
+        <div><small>Date confirmée</small><strong>{{ visit.scheduled_date|default:'—' }}</strong></div>
+        <div><small>Heure confirmée</small><strong>{{ visit.scheduled_time|default:'—' }}</strong></div>
+        <div><small>Décision finale</small><strong>{{ visit.get_final_decision_display|default:'—' }}</strong></div>
+      </div>
+      {% if visit.observation %}<div style="margin-top:14px"><small>Observation</small><p>{{ visit.observation }}</p></div>{% endif %}
+      {% if visit.final_decision_comment %}<div style="margin-top:14px"><small>Commentaire de décision</small><p>{{ visit.final_decision_comment }}</p></div>{% endif %}
+    </section>
+
+    {% if contract.notes or case.notes %}
+    <section class="panel" style="margin-top:16px">
+      <div class="panel-head"><h2>8. Notes du dossier</h2></div>
+      {% if contract.notes %}<p><strong>Contrat :</strong> {{ contract.notes }}</p>{% endif %}
+      {% if case.notes %}<p><strong>Dossier :</strong> {{ case.notes }}</p>{% endif %}
+    </section>
+    {% endif %}
+
+    <section class="panel" style="margin-top:16px">
+      <div class="panel-head"><h2>Accès et confidentialité</h2></div>
+      <p>Cette page est personnelle. Vous pouvez consulter uniquement le contrat qui vous concerne et les documents qui vous sont attribués. Les documents signés ne deviennent accessibles qu'après leur dépôt et leur validation par FASTHOME.</p>
+    </section>
+  </section>
+</div>
+
+<style>
+.detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.detail-grid>div{padding:12px;border:1px solid rgba(0,0,0,.08);border-radius:10px}.detail-grid small,.finance-box small{display:block;color:#6b7280;margin-bottom:5px}.detail-grid strong{display:block;line-height:1.4}.finance-box{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.finance-box>div{padding:15px;border-radius:10px;background:rgba(0,0,0,.035)}.finance-box strong{display:block;font-size:1.1rem}.muted{color:#6b7280}@media(max-width:760px){.detail-grid,.finance-box{grid-template-columns:1fr}}
+</style>
+{% endblock %}
