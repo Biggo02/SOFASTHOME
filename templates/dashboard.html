@@ -4,76 +4,27 @@
 <div class="app-layout">
   <aside class="sidebar" id="dashboard-sidebar">
     <div class="side-brand"><span>FAST</span>HOME<small>MON ESPACE</small></div>
-    <div class="side-group">
-      <div class="side-title">GÉNÉRAL</div>
-      {% for icon,label,url in primary_links %}<a href="{% url url %}" class="{% if request.resolver_match.url_name == url %}active{% endif %}"><i>{{ icon }}</i><span>{{ label }}</span></a>{% endfor %}
-    </div>
-    {% if owner_links %}
-    <div class="side-group role-owner">
-      <div class="side-title"><span>PROPRIÉTAIRE</span></div>
-      {% for icon,label,url in owner_links %}<a href="{% url url %}" class="{% if request.resolver_match.url_name == url %}active{% endif %}"><i>{{ icon }}</i><span>{{ label }}</span></a>{% endfor %}
-    </div>
-    {% endif %}
-    <div class="side-group role-tenant">
-      <div class="side-title"><span>LOCATAIRE</span></div>
-      {% for icon,label,url in tenant_links %}<a href="{% url url %}" class="{% if request.resolver_match.url_name == url %}active{% endif %}"><i>{{ icon }}</i><span>{{ label }}</span></a>{% endfor %}
-    </div>
-    <div class="side-group side-bottom">
-      {% for icon,label,url in common_links %}<a href="{% url url %}" class="{% if request.resolver_match.url_name == url %}active{% endif %}"><i>{{ icon }}</i><span>{{ label }}</span></a>{% endfor %}
-      <a class="logout" href="{% url 'logout' %}"><i>↪</i><span>Déconnexion</span></a>
-    </div>
+    <div class="side-group"><div class="side-title">GÉNÉRAL</div>{% for icon,label,url in primary_links %}<a href="{% url url %}" class="{% if request.resolver_match.url_name == url %}active{% endif %}"><i>{{ icon }}</i><span>{{ label }}</span></a>{% endfor %}</div>
+    {% if owner_links %}<div class="side-group role-owner"><div class="side-title">PROPRIÉTAIRE</div>{% for icon,label,url in owner_links %}<a href="{% url url %}" class="{% if request.resolver_match.url_name == url %}active{% endif %}"><i>{{ icon }}</i><span>{{ label }}</span></a>{% endfor %}</div>{% endif %}
+    <div class="side-group role-tenant"><div class="side-title">LOCATAIRE</div>{% for icon,label,url in tenant_links %}<a href="{% url url %}" class="{% if request.resolver_match.url_name == url %}active{% endif %}"><i>{{ icon }}</i><span>{{ label }}</span></a>{% endfor %}</div>
+    <div class="side-group side-bottom">{% for icon,label,url in common_links %}<a href="{% url url %}" class="{% if request.resolver_match.url_name == url %}active{% endif %}"><i>{{ icon }}</i><span>{{ label }}</span></a>{% endfor %}<a class="logout" href="{% url 'logout' %}"><i>↪</i><span>Déconnexion</span></a></div>
   </aside>
 
-  <section class="dashboard">
-    <div class="dash-head redesigned-head">
-      <div><small>ESPACE PERSONNEL</small><h1>Bonjour {{ user.first_name|default:user.username }} 👋</h1><p>Retrouvez ici vos activités de <b>locataire</b> et de <b>propriétaire</b>, clairement séparées.</p></div>
-      {% if has_owner_activity %}<a class="btn btn-primary" href="{% url 'add_property' %}">＋ Ajouter un bien</a>{% endif %}
-    </div>
+  <section class="dashboard redesigned-dashboard">
+    <div class="dash-head redesigned-head"><div><small>ESPACE PERSONNEL</small><h1>Bonjour {{ user.first_name|default:user.username }} 👋</h1><p>Un espace unique, avec vos activités <b>locataire</b> et <b>propriétaire</b> séparées.</p></div>{% if has_owner_activity %}<a class="btn btn-primary" href="{% url 'add_property' %}">＋ Ajouter un bien</a>{% endif %}</div>
 
-    {% if active_rentals %}
-    <section class="panel active-rental-panel">
-      <div class="panel-head"><div><span class="section-kicker">LOCATION EN COURS</span><h2>Votre situation locative</h2></div><span class="status">ACTIVE</span></div>
-      {% for rental in active_rentals %}
-      <div class="rental-summary">
-        <div class="rental-icon">⌂</div><div class="rental-main"><h3>{{ rental.property.title }}</h3><small>{{ rental.property.reference }} · {{ rental.property.commune }}, {{ rental.property.city }}</small>
-        {% if rental.tenant_id == user.id %}<span class="role-pill tenant-pill">LOCATAIRE · SOUS-LOCATION</span>{% else %}<span class="role-pill owner-pill">PROPRIÉTAIRE · MISE EN LOCATION</span>{% endif %}</div>
-        <div class="rental-money">{% if rental.tenant_id == user.id and rental.tenant_contract %}<strong>{{ rental.tenant_contract.amount }} CDF</strong><small>Loyer mensuel</small>{% elif rental.owner_contract %}<strong>{{ rental.owner_contract.amount }} CDF</strong><small>Loyer convenu</small>{% endif %}</div>
-        <a class="btn btn-light" href="{% url 'contracts' %}">Voir mes contrats</a>
-      </div>
-      {% endfor %}
-    </section>
-    {% endif %}
+    {% if active_rentals %}<section class="panel active-rental-panel"><div class="panel-head"><div><span class="section-kicker">LOCATION EN COURS</span><h2>Votre situation locative</h2></div><span class="status">ACTIVE</span></div>{% for rental in active_rentals %}<div class="rental-summary"><div class="rental-icon">⌂</div><div class="rental-main"><h3>{{ rental.property.title }}</h3><small>{{ rental.property.reference }} · {{ rental.property.commune }}, {{ rental.property.city }}</small>{% if rental.tenant_id == user.id %}<span class="role-pill tenant-pill">LOCATAIRE · SOUS-LOCATION</span>{% else %}<span class="role-pill owner-pill">PROPRIÉTAIRE · MISE EN LOCATION</span>{% endif %}</div><div class="rental-money">{% if rental.tenant_id == user.id and rental.tenant_contract %}<strong>{{ rental.tenant_contract.amount }} CDF</strong><small>Loyer mensuel</small>{% elif rental.owner_contract %}<strong>{{ rental.owner_contract.amount }} CDF</strong><small>Loyer convenu</small>{% endif %}</div><a class="btn btn-light" href="{% url 'contracts' %}">Voir mes contrats</a></div>{% endfor %}</section>{% endif %}
 
-    {% if has_tenant_activity %}
-    <section class="activity-section tenant-section">
-      <div class="activity-heading"><div><span class="section-kicker">VOTRE LOCATION</span><h2>Espace locataire</h2><p>Tout ce qui concerne votre logement et votre relation avec FASTHOME.</p></div><a href="{% url 'contracts' %}">Ouvrir l'espace locataire →</a></div>
-      <div class="role-cards">
-        <a class="role-card" href="{% url 'contracts' %}"><span class="role-card-icon">▤</span><strong>Mes contrats</strong><small>Contrat de sous-location et documents signés</small></a>
-        <a class="role-card" href="{% url 'payments' %}"><span class="role-card-icon">◉</span><strong>Mes paiements</strong><small>Loyers, paiements et preuves enregistrées</small></a>
-        <a class="role-card" href="{% url 'due_dates' %}"><span class="role-card-icon">◴</span><strong>Mes échéances</strong><small>Prochaines échéances et suivi</small></a>
-      </div>
-    </section>
-    {% endif %}
+    {% if has_tenant_activity %}<section class="activity-section tenant-section"><div class="activity-heading"><div><span class="section-kicker">VOTRE LOCATION</span><h2>Espace locataire</h2><p>Votre logement, vos contrats et votre suivi financier.</p></div></div><div class="role-cards"><a class="role-card" href="{% url 'contracts' %}"><span class="role-card-icon">▤</span><strong>Mes contrats</strong><small>Contrat de sous-location et documents signés</small><b>Ouvrir →</b></a><a class="role-card" href="{% url 'payments' %}"><span class="role-card-icon">◉</span><strong>Mes paiements</strong><small>Loyers, paiements et preuves enregistrées</small><b>Ouvrir →</b></a><a class="role-card" href="{% url 'due_dates' %}"><span class="role-card-icon">◴</span><strong>Mes échéances</strong><small>Prochaines échéances et suivi</small><b>Ouvrir →</b></a></div></section>{% endif %}
 
-    {% if has_owner_activity %}
-    <section class="activity-section owner-section">
-      <div class="activity-heading"><div><span class="section-kicker">VOS BIENS</span><h2>Espace propriétaire</h2><p>Gérez vos biens confiés à FASTHOME et les demandes reçues.</p></div><a href="{% url 'publications' %}">Gérer mes biens →</a></div>
-      <div class="role-cards">
-        <a class="role-card" href="{% url 'publications' %}"><span class="role-card-icon">▣</span><strong>Mes biens</strong><small>Publications, état et informations de vos logements</small></a>
-        <a class="role-card" href="{% url 'owner_visit_requests' %}"><span class="role-card-icon">✓</span><strong>Demandes reçues</strong><small>Demandes de visite concernant vos biens</small></a>
-        <a class="role-card" href="{% url 'add_property' %}"><span class="role-card-icon">＋</span><strong>Ajouter un bien</strong><small>Confier un nouveau logement à FASTHOME</small></a>
-      </div>
-    </section>
-    {% endif %}
+    {% if has_owner_activity %}<section class="activity-section owner-section"><div class="activity-heading"><div><span class="section-kicker">VOS BIENS</span><h2>Espace propriétaire</h2><p>Vos logements confiés à FASTHOME et les demandes de visite.</p></div></div><div class="role-cards"><a class="role-card" href="{% url 'publications' %}"><span class="role-card-icon">▣</span><strong>Mes biens</strong><small>Publications, état et informations de vos logements</small><b>Gérer →</b></a><a class="role-card" href="{% url 'owner_visit_requests' %}"><span class="role-card-icon">✓</span><strong>Demandes reçues</strong><small>Demandes de visite concernant vos biens</small><b>Consulter →</b></a><a class="role-card" href="{% url 'add_property' %}"><span class="role-card-icon">＋</span><strong>Ajouter un bien</strong><small>Confier un nouveau logement à FASTHOME</small><b>Ajouter →</b></a></div></section>{% endif %}
 
-    <div class="stats compact-stats">
-      <div><b>{{ visits|length }}</b><span>Mes visites</span></div><div><b>{{ contracts|length }}</b><span>Mes contrats</span></div><div><b>{{ properties|length }}</b><span>Mes biens</span></div><div><b>{{ notifications|length }}</b><span>Notifications</span></div>
-    </div>
-
-    <div class="dash-grid">
-      <section class="panel"><div class="panel-head"><h2>Dernières visites</h2><a href="{% url 'visits' %}">Voir tout →</a></div>{% for v in visits %}<div class="line"><span class="datebox">{{ v.preferred_date|date:'d M' }}</span><div><b>{{ v.property.title }}</b><small>{{ v.preferred_time|time:'H:i' }} · {{ v.property.commune }}</small></div><span class="status">{{ v.get_status_display }}</span></div>{% empty %}<div class="empty">Aucune demande de visite.</div>{% endfor %}</section>
-      <section class="panel"><div class="panel-head"><h2>Notifications</h2><a href="{% url 'notifications' %}">Voir tout →</a></div>{% for n in notifications %}<div class="notice"><b>{{ n.title }}</b><span>{{ n.message }}</span></div>{% empty %}<div class="empty">Vous êtes à jour ✓</div>{% endfor %}</section>
-    </div>
+    <div class="stats compact-stats"><div><b>{{ visits|length }}</b><span>Mes visites</span></div><div><b>{{ contracts|length }}</b><span>Mes contrats</span></div><div><b>{{ properties|length }}</b><span>Mes biens</span></div><div><b>{{ notifications|length }}</b><span>Notifications</span></div></div>
+    <div class="dash-grid"><section class="panel"><div class="panel-head"><h2>Dernières visites</h2><a href="{% url 'visits' %}">Voir tout →</a></div>{% for v in visits %}<div class="line"><span class="datebox">{{ v.preferred_date|date:'d M' }}</span><div><b>{{ v.property.title }}</b><small>{{ v.preferred_time|time:'H:i' }} · {{ v.property.commune }}</small></div><span class="status">{{ v.get_status_display }}</span></div>{% empty %}<div class="empty">Aucune demande de visite.</div>{% endfor %}</section><section class="panel"><div class="panel-head"><h2>Notifications</h2><a href="{% url 'notifications' %}">Voir tout →</a></div>{% for n in notifications %}<div class="notice"><b>{{ n.title }}</b><span>{{ n.message }}</span></div>{% empty %}<div class="empty">Vous êtes à jour ✓</div>{% endfor %}</section></div>
   </section>
 </div>
+<style>
+.app-layout .sidebar{padding:20px 12px;background:linear-gradient(180deg,#10243e 0%,#0d1d32 100%);border-right:1px solid rgba(255,255,255,.06)}.side-brand{letter-spacing:-.3px}.side-brand small{margin-top:4px;letter-spacing:1.2px}.side-group{padding:8px 0;border-top:1px solid rgba(255,255,255,.07)}.side-title{padding:8px 12px 6px;color:#7f93a8;font-size:8px;font-weight:900;letter-spacing:1.4px}.sidebar a{display:flex;align-items:center;gap:11px;padding:10px 12px;margin:2px 0;border-radius:9px;color:#b8c5d4;transition:.18s}.sidebar a i{width:18px;text-align:center;font-style:normal;font-size:14px}.sidebar a span{font-size:11px}.sidebar a:hover{background:rgba(255,255,255,.07);color:#fff}.sidebar a.active{background:rgba(247,183,24,.13);color:#fff;box-shadow:inset 3px 0 0 var(--gold)}.role-owner .side-title{color:#f7b718}.role-tenant .side-title{color:#8eb7dd}.side-bottom{margin-top:auto}.redesigned-dashboard{padding-top:38px}.redesigned-head{margin-bottom:22px}.redesigned-head h1{font-size:32px;letter-spacing:-.7px}.section-kicker{font-size:9px;font-weight:900;letter-spacing:1.5px;color:var(--muted)}.active-rental-panel{border-radius:16px;box-shadow:0 5px 22px rgba(16,36,62,.05);margin-bottom:30px}.rental-summary{display:flex;align-items:center;gap:16px;padding:17px 0}.rental-icon{width:45px;height:45px;border-radius:12px;background:#edf4fb;display:grid;place-items:center;color:var(--blue);font-size:20px}.rental-main{flex:1}.rental-main h3{margin:0 0 3px;font-size:15px}.rental-main small,.rental-money small{display:block;color:var(--muted);font-size:10px}.rental-money{min-width:125px}.rental-money strong{font-size:14px}.role-pill{display:inline-block;margin-top:7px;padding:4px 7px;border-radius:99px;font-size:8px;font-weight:900}.tenant-pill{background:#eaf3fb;color:#25618f}.owner-pill{background:#fff6da;color:#8b6800}.activity-section{margin:28px 0}.activity-heading{display:flex;justify-content:space-between;align-items:end;margin-bottom:12px}.activity-heading h2{margin:3px 0;font-size:20px}.activity-heading p{margin:0;color:var(--muted);font-size:11px}.role-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.role-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;min-height:145px;display:flex;flex-direction:column;transition:.18s;box-shadow:0 3px 12px rgba(16,36,62,.025)}.role-card:hover{transform:translateY(-2px);border-color:#cfd8e3;box-shadow:0 8px 25px rgba(16,36,62,.07)}.role-card-icon{width:34px;height:34px;border-radius:10px;background:#f1f4f8;display:grid;place-items:center;margin-bottom:12px;color:var(--blue)}.role-card strong{font-size:13px}.role-card small{font-size:10px;color:var(--muted);margin-top:4px;line-height:1.5}.role-card b{margin-top:auto;font-size:10px;color:var(--blue)}.tenant-section{border-left:3px solid #8eb7dd;padding-left:17px}.owner-section{border-left:3px solid var(--gold);padding-left:17px}.compact-stats{margin:28px 0 18px}.compact-stats>div{padding:14px 16px}
+@media(max-width:700px){.redesigned-dashboard{padding-top:22px}.redesigned-head{align-items:flex-start;flex-direction:column}.redesigned-head h1{font-size:26px}.rental-summary{flex-wrap:wrap}.rental-money{margin-left:61px}.rental-summary>.btn{width:100%}.activity-heading{align-items:flex-start;flex-direction:column;gap:5px}.role-cards{grid-template-columns:1fr}.tenant-section,.owner-section{padding-left:12px}.side-group{padding-top:6px}}
+</style>
 {% endblock %}
