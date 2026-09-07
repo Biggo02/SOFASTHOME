@@ -74,8 +74,8 @@ def _prepare_rental_documents(visit, case):
         f'Reférence : {owner_contract.reference}', f'Dossier : {case.reference}',
         f'Bien : {prop.title} ({prop.reference})', f'Localisation : {location}',
         f'Propriétaire : {owner_name}', f'Locataire concerné : {tenant_name}',
-        'Nature : Convention FASTHOME – Propriétaire', f'Loyer convenu avec le propriétaire : {prop.rent} USD',
-        f'Dépôt : {prop.deposit} USD', f'Début prévu : {prop.availability_date or "À définir"}',
+        'Nature : Contrat de mise en location FASTHOME – Propriétaire', f'Loyer convenu avec le propriétaire : {prop.rent} CDF',
+        f'Dépôt : {prop.deposit} CDF', f'Début prévu : {prop.availability_date or "À définir"}',
         'Signature du propriétaire : ______________________________',
         'Signature / visa FASTHOME : ______________________________',
     ])
@@ -83,8 +83,8 @@ def _prepare_rental_documents(visit, case):
         f'Reférence : {tenant_contract.reference}', f'Dossier : {case.reference}',
         f'Bien : {prop.title} ({prop.reference})', f'Localisation : {location}',
         f'Locataire : {tenant_name}', f'Propriétaire du bien : {owner_name}',
-        'Nature : Contrat FASTHOME – Locataire / sous-location', f'Loyer mensuel : {prop.rent + prop.margin} USD',
-        f'Dépôt : {prop.deposit} USD', f'Début prévu : {prop.availability_date or "À définir"}',
+        'Nature : Contrat FASTHOME – Locataire / sous-location', f'Loyer mensuel : {prop.rent + prop.margin} CDF',
+        f'Dépôt : {prop.deposit} CDF', f'Début prévu : {prop.availability_date or "À définir"}',
         'Signature du locataire : ______________________________',
         'Signature / visa FASTHOME : ______________________________',
     ])
@@ -118,19 +118,6 @@ def _prepare_rental_documents(visit, case):
     return owner_contract, tenant_contract, pv_doc
 
 
-def _activate_if_signed(case):
-    owner = case.owner_contract
-    tenant = case.tenant_contract
-    pv = case.documents.filter(document_type='inspection', file__isnull=False).exclude(file='').first()
-    if owner and tenant and owner.status == 'signed' and tenant.status == 'signed' and pv:
-        case.status = 'active'
-        case.save(update_fields=['status', 'updated_at'])
-        case.property.status = 'rented'
-        case.property.save(update_fields=['status', 'updated_at'])
-        return True
-    return False
-
-
 @login_required
 def visitor_final_decision(request, pk):
     visit = get_object_or_404(Visit.objects.select_related('property', 'property__owner', 'agent'), pk=pk, requester=request.user)
@@ -161,8 +148,8 @@ def visitor_final_decision(request, pk):
             Notification.objects.create(user=visit.property.owner, title='Le locataire souhaite prendre le bien', message=f'Le dossier {case.reference} concernant votre bien {visit.property.reference} est prêt pour signature.')
             if visit.agent:
                 Notification.objects.create(user=visit.agent, title='Dossier de location à suivre', message=f'Le dossier {case.reference} est prêt. Les documents ont été générés.')
-            messages.success(request, 'Votre décision est enregistrée. Les contrats et le procès-verbal sont maintenant disponibles.')
-            return redirect('rental_case_detail', pk=case.pk)
+            messages.success(request, 'Votre décision est enregistrée. Retrouvez votre contrat dans « Mes contrats ».')
+            return redirect('contracts')
 
         if visit.agent:
             message = f'Le visiteur souhaite réfléchir pour le bien {visit.property.reference}.' if decision == 'thinking' else f'Le visiteur n’est pas intéressé par le bien {visit.property.reference}.'
