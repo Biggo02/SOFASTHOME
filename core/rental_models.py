@@ -5,7 +5,7 @@ from django.contrib.auth.models import User
 class RentalCase(models.Model):
     STATUS = [
         ('preparing', 'Dossier à préparer'),
-        ('signing', 'Contrats et PV à signer'),
+        ('signing', 'Contrats et états des lieux à signer'),
         ('active', 'Location active'),
         ('cancelled', 'Dossier annulé'),
     ]
@@ -58,8 +58,23 @@ class RentalContract(models.Model):
 
 
 class RentalDocument(models.Model):
-    TYPES = [('identity', 'Pièce d’identité'), ('owner_contract', 'Contrat FASTHOME – Propriétaire'), ('tenant_contract', 'Contrat FASTHOME – Locataire'), ('inspection', 'État des lieux'), ('payment_proof', 'Preuve de paiement'), ('other', 'Autre document')]
-    STATUS = [('required', 'À préparer'), ('prepared', 'Préparé'), ('validated', 'Signé / validé'), ('rejected', 'À corriger')]
+    TYPES = [
+        ('identity', 'Pièce d’identité'),
+        ('owner_contract', 'Contrat FASTHOME – Propriétaire'),
+        ('tenant_contract', 'Contrat FASTHOME – Locataire'),
+        ('owner_inspection', 'État des lieux FASTHOME – Propriétaire'),
+        ('tenant_inspection', 'État des lieux FASTHOME – Locataire'),
+        ('inspection', 'État des lieux — ancien format'),
+        ('payment_proof', 'Preuve de paiement'),
+        ('other', 'Autre document'),
+    ]
+    STATUS = [
+        ('required', 'À préparer'),
+        ('prepared', 'Préparé'),
+        ('pending_review', 'À vérifier'),
+        ('validated', 'Signé / vérifié'),
+        ('rejected', 'À corriger'),
+    ]
     rental_case = models.ForeignKey(RentalCase, on_delete=models.CASCADE, related_name='documents')
     document_type = models.CharField(max_length=30, choices=TYPES)
     label = models.CharField(max_length=180)
