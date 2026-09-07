@@ -4,7 +4,7 @@ from django.http import HttpResponseForbidden, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
 from .models import Notification
-from .rental_models import RentalCase, RentalContract, RentalDocument
+from .rental_models import RentalCase, RentalContract
 from .rental_document_views import prepare_four_rental_documents
 from .rental_contract_generator import generate_contract_pdf
 
@@ -34,11 +34,15 @@ def rental_case_detail(request, pk):
         case.refresh_from_db()
 
     documents = {d.document_type: d for d in case.documents.all()}
+    uploaded_count = sum(1 for kind in REQUIRED if documents.get(kind) and documents[kind].file)
+    validated_count = sum(1 for kind in REQUIRED if documents.get(kind) and documents[kind].status == 'validated' and documents[kind].file)
     context = {
         'case': case,
         'documents': documents,
         'required_document_types': REQUIRED,
         'document_statuses': {kind: _status_for(case, kind) for kind in REQUIRED},
+        'uploaded_count': uploaded_count,
+        'validated_count': validated_count,
     }
 
     if request.method == 'POST':
