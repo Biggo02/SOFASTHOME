@@ -10,7 +10,10 @@ from .rental_contract_generator import generate_contract_pdf
 def refresh_generated_contract_document(sender, instance, created, **kwargs):
     if getattr(instance, '_contract_pdf_refreshing', False):
         return
-    if instance.document_type not in {'owner_contract', 'tenant_contract'} or not instance.file:
+    if instance.document_type not in {'owner_contract', 'tenant_contract'}:
+        return
+    # Never replace a document that a party has uploaded for verification.
+    if instance.status not in {'required', 'prepared'} or not instance.file:
         return
     case = instance.rental_case
     contract_type = 'owner_agreement' if instance.document_type == 'owner_contract' else 'tenant_sublease'
@@ -21,8 +24,7 @@ def refresh_generated_contract_document(sender, instance, created, **kwargs):
     try:
         pdf = generate_contract_pdf(contract)
         instance.file.save(f'{contract.reference}.pdf', ContentFile(pdf), save=False)
-        if instance.status in {'required', 'prepared'}:
-            instance.status = 'prepared'
+        instance.status = 'prepared'
         instance.save(update_fields=['file', 'status', 'updated_at'])
     finally:
         instance._contract_pdf_refreshing = False
