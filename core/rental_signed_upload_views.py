@@ -18,6 +18,11 @@ LABELS = {
 }
 
 
+def _notify(user, title, message):
+    if user:
+        Notification.objects.create(user=user, title=title, message=message)
+
+
 def _activate_if_complete(case):
     docs = case.documents.filter(document_type__in=REQUIRED_DOCUMENTS)
     complete = all(docs.filter(document_type=kind, status='validated').exclude(file='').exists() for kind in REQUIRED_DOCUMENTS)
@@ -38,8 +43,8 @@ def _activate_if_complete(case):
         case.save(update_fields=['status', 'updated_at'])
         case.property.status = 'rented'
         case.property.save(update_fields=['status', 'updated_at'])
-        Notification.objects.create(user=case.tenant, title='Contrat effectif — location active', message='Les 4 documents signés ont été vérifiés par FASTHOME. Votre contrat est maintenant effectif. Votre contrat et votre état des lieux signés sont disponibles dans votre espace.')
-        Notification.objects.create(user=case.owner, title='Contrat effectif — location active', message=f'Les 4 documents signés du dossier {case.reference} ont été vérifiés par FASTHOME. Votre convention et votre état des lieux signés sont disponibles dans votre espace.')
+        _notify(case.tenant, 'Contrat effectif — location active', 'Les 4 documents signés ont été vérifiés par FASTHOME. Votre contrat est maintenant effectif. Votre contrat et votre état des lieux signés sont disponibles dans votre espace.')
+        _notify(case.owner, 'Contrat effectif — location active', f'Les 4 documents signés du dossier {case.reference} ont été vérifiés par FASTHOME. Votre convention et votre état des lieux signés sont disponibles dans votre espace.')
     return True
 
 
@@ -89,11 +94,16 @@ def upload_signed_rental_document(request, pk):
 
     case.status = 'signing'
     case.save(update_fields=['status', 'updated_at'])
-    Notification.objects.create(user=request.user, title='Document reçu', message=f'{LABELS[doc_type]} reçu et transmis à FASTHOME pour vérification.')
-    if request.user.pk != case.owner_id:
-        Notification.objects.create(user=case.owner, title='Document reçu', message=f'{LABELS[doc_type]} a été téléversé dans le dossier {case.reference}.')
-    if request.user.pk != case.tenant_id:
-        Notification.objects.create(user=case.tenant, title='Document reçu', message=f'{LABELS[doc_type]} a été téléversé dans le dossier {case.reference}.')
+
+    # Notification uniquement aux personnes qui ont réellement besoin de cette information.
+    # Le déposant est informé de la réception de son propre document.
+    _notify(request.user, 'Document reçu', f'{LABELS[doc_type]} reçu et transmis à FASTHOME pour vérification.')
+
+    # L'autre partie n'est jamais informée du document signé de son interlocuteur.
+    # FASTHOME/staff reçoit uniquement les notifications opérationnelles nécessaires.
+    for staff_user in request.user.__class__.objects.filter(is_staff=True).exclude(pk=request.user.pk):
+        _notify(staff_user, 'Document signé à vérifier', f'{LABELS[doc_type]} a été téléversé dans le dossier {case.reference} et attend une vérification FASTHOME.')
+
     messages.success(request, 'Document signé reçu. Il doit maintenant être vérifié par FASTHOME avant de rendre le contrat effectif.')
     return redirect('rental_case_detail', pk=case.pk)
 
@@ -118,10 +128,12 @@ def verify_signed_rental_document(request, pk, document_id):
             case.owner_contract.status = 'signed'
             case.owner_contract.validated_at = timezone.now()
             case.owner_contract.save(update_fields=['status', 'validated_at', 'updated_at'])
+            _notify(case.owner, 'Document validé', f'{document.label} du dossier {case.reference} a été vérifié et validé par FASTHOME.')
         elif document.document_type == 'tenant_contract' and case.tenant_contract:
             case.tenant_contract.status = 'signed'
             case.tenant_contract.validated_at = timezone.now()
             case.tenant_contract.save(update_fields=['status', 'validated_at', 'updated_at'])
+            _notify(case.tenant, 'Document validé', f'{document.label} du dossier {case.reference} a été vérifié et validé par FASTHOME.')
         messages.success(request, f'{document.label} validé.')
         if _activate_if_complete(case):
             messages.success(request, 'Les 4 documents signés sont vérifiés : le contrat devient effectif et la location est active.')
@@ -131,7 +143,7 @@ def verify_signed_rental_document(request, pk, document_id):
         document.save(update_fields=['status', 'notes', 'updated_at'])
         messages.warning(request, f'{document.label} doit être corrigé puis téléversé à nouveau.')
         target = case.owner if document.document_type in OWNER_DOCUMENTS else case.tenant
-        Notification.objects.create(user=target, title='Document à corriger', message=f'{document.label} du dossier {case.reference} doit être corrigé. Motif : {document.notes}')
+        _notify(target, 'Document à corriger', f'{document.label} du dossier {case.reference} doit être corrigé. Motif : {document.notes}')
     else:
         messages.error(request, 'Décision de vérification invalide.')
     return redirect('rental_case_detail', pk=case.pk)
