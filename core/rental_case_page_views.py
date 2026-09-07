@@ -14,12 +14,7 @@ TENANT_DOCUMENTS = {'tenant_contract', 'tenant_inspection'}
 
 
 def _allowed(request, case):
-    return request.user.is_staff or request.user.pk in {case.owner_id, case.tenant_id}
-
-
-def _status_for(case, doc_type):
-    doc = case.documents.filter(document_type=doc_type).first()
-    return doc.status if doc else 'required'
+    return request.user.is_staff
 
 
 @login_required
@@ -30,24 +25,17 @@ def rental_case_detail(request, pk):
         ).prefetch_related('documents'),
         pk=pk,
     )
+    # The complete rental dossier is an internal FASTHOME workspace.
+    # Owners and tenants must use their personal space and their own contract/document views.
     if not _allowed(request, case):
-        return HttpResponseForbidden('Accès refusé.')
+        return HttpResponseForbidden('Ce dossier est réservé à FASTHOME.')
 
     if case.owner_contract and case.tenant_contract:
         prepare_four_rental_documents(case)
         case.refresh_from_db()
 
     documents = {d.document_type: d for d in case.documents.all()}
-
-    # Un propriétaire ne reçoit que le suivi de ses 2 documents.
-    # Un locataire ne reçoit que le suivi de ses 2 documents.
-    # FASTHOME voit le dossier complet et les 4 documents.
-    if request.user.is_staff:
-        visible_types = REQUIRED
-    elif request.user.pk == case.owner_id:
-        visible_types = OWNER_DOCUMENTS
-    else:
-        visible_types = TENANT_DOCUMENTS
+    visible_types = REQUIRED
 
     uploaded_count = sum(
         1 for kind in visible_types if documents.get(kind) and documents[kind].file
@@ -64,10 +52,10 @@ def rental_case_detail(request, pk):
         'visible_document_types': visible_types,
         'uploaded_count': uploaded_count,
         'validated_count': validated_count,
-        'is_owner_view': request.user.pk == case.owner_id and not request.user.is_staff,
-        'is_tenant_view': request.user.pk == case.tenant_id and not request.user.is_staff,
-        'is_staff_view': request.user.is_staff,
-        'document_statuses': {kind: _status_for(case, kind) for kind in REQUIRED},
+        'is_owner_view': False,
+        'is_tenant_view': False,
+        'is_staff_view': True,
+        'document_statuses': {kind: (documents.get(kind).status if documents.get(kind) else 'required') for kind in REQUIRED},
     }
 
     if request.method == 'POST':
@@ -93,7 +81,6 @@ def rental_case_detail(request, pk):
 
 @login_required
 def rental_contract_pdf(request, pk):
-    """Génère le nouveau contrat détaillé depuis RentalContract, sans passer par l'ancien PDF."""
     contract = get_object_or_404(
         RentalContract.objects.select_related(
             'rental_case', 'rental_case__property', 'rental_case__owner',
@@ -102,8 +89,6 @@ def rental_contract_pdf(request, pk):
         pk=pk,
     )
     case = contract.rental_case
-    if not _allowed(request, case):
-        return HttpResponseForbidden('Accès refusé.')
     if not request.user.is_staff and request.user.pk != contract.party_id:
         return HttpResponseForbidden('Ce contrat est réservé à la partie concernée.')
 
