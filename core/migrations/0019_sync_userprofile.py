@@ -1,4 +1,4 @@
-from django.db import migrations
+from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
@@ -6,4 +6,15 @@ class Migration(migrations.Migration):
         ('core', '0018_userprofile'),
     ]
 
-    operations = []
+    operations = [
+        migrations.SeparateDatabaseAndState(
+            database_operations=[],
+            state_operations=[
+                migrations.AddField(
+                    model_name='userprofile',
+                    name='date_of_birth',
+                    field=models.DateField(blank=True, null=True),
+                ),
+            ],
+        ),
+    ]
