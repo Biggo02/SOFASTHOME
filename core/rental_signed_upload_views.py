@@ -27,13 +27,9 @@ def _notify(user, title, message):
 
 def _activate_if_complete(case):
     docs = case.documents.filter(document_type__in=REQUIRED_DOCUMENTS)
-    complete = all(
-        docs.filter(document_type=kind, status='validated').exclude(file='').exists()
-        for kind in REQUIRED_DOCUMENTS
-    )
+    complete = all(docs.filter(document_type=kind, status='validated').exclude(file='').exists() for kind in REQUIRED_DOCUMENTS)
     if not complete:
         return False
-
     owner = case.owner_contract
     tenant = case.tenant_contract
     if owner:
@@ -44,7 +40,6 @@ def _activate_if_complete(case):
         tenant.status = 'validated'
         tenant.validated_at = timezone.now()
         tenant.save(update_fields=['status', 'validated_at', 'updated_at'])
-
     if case.status != 'active':
         case.status = 'active'
         case.save(update_fields=['status', 'updated_at'])
@@ -103,7 +98,7 @@ def upload_signed_rental_document(request, pk):
         messages.info(request, 'Ce dossier est déjà actif : les documents signés sont verrouillés.')
         return redirect('rental_case_detail', pk=case.pk)
 
-    # Les informations financières sont saisies manuellement par l'agent.
+    # Ces trois valeurs sont obligatoires et saisies manuellement par l'agent.
     try:
         rent_payment_amount = _parse_amount(request.POST.get('rent_payment_amount'), 'montant du versement du loyer')
         guarantee_amount = _parse_amount(request.POST.get('guarantee_amount'), 'montant de la garantie')
@@ -117,7 +112,7 @@ def upload_signed_rental_document(request, pk):
     case.guarantee_amount = guarantee_amount
     case.save(update_fields=['rent_payment_amount', 'rent_payment_date', 'guarantee_amount', 'updated_at'])
 
-    # Le montant de garantie saisi manuellement devient aussi la garantie contractuelle.
+    # La garantie saisie devient la garantie contractuelle des deux conventions.
     if case.owner_contract:
         case.owner_contract.deposit = guarantee_amount
         case.owner_contract.save(update_fields=['deposit', 'updated_at'])
@@ -125,11 +120,7 @@ def upload_signed_rental_document(request, pk):
         case.tenant_contract.deposit = guarantee_amount
         case.tenant_contract.save(update_fields=['deposit', 'updated_at'])
 
-    document, _ = RentalDocument.objects.get_or_create(
-        rental_case=case,
-        document_type=doc_type,
-        defaults={'label': LABELS[doc_type]},
-    )
+    document, _ = RentalDocument.objects.get_or_create(rental_case=case, document_type=doc_type, defaults={'label': LABELS[doc_type]})
     document.file = uploaded
     document.status = 'pending_review'
     document.notes = (
@@ -150,7 +141,6 @@ def upload_signed_rental_document(request, pk):
 
     case.status = 'signing'
     case.save(update_fields=['status', 'updated_at'])
-
     target = case.owner if doc_type in OWNER_DOCUMENTS else case.tenant
     _notify(target, 'Document signé reçu par FASTHOME', f'{LABELS[doc_type]} a été signé et téléversé par FASTHOME. Il est en cours de vérification.')
     messages.success(request, 'Document signé, montant du versement, date et garantie enregistrés dans le dossier.')
@@ -161,14 +151,10 @@ def upload_signed_rental_document(request, pk):
 def verify_signed_rental_document(request, pk, document_id):
     if not request.user.is_staff:
         return HttpResponseForbidden('Seul FASTHOME peut vérifier les documents signés.')
-    case = get_object_or_404(
-        RentalCase.objects.select_related('owner', 'tenant', 'property', 'owner_contract', 'tenant_contract'),
-        pk=pk,
-    )
+    case = get_object_or_404(RentalCase.objects.select_related('owner', 'tenant', 'property', 'owner_contract', 'tenant_contract'), pk=pk)
     document = get_object_or_404(RentalDocument, pk=document_id, rental_case=case, document_type__in=REQUIRED_DOCUMENTS)
     if request.method != 'POST':
         return redirect('rental_case_detail', pk=case.pk)
-
     decision = request.POST.get('decision')
     if decision == 'validate':
         if not document.file:
@@ -177,10 +163,8 @@ def verify_signed_rental_document(request, pk, document_id):
         document.status = 'validated'
         document.notes = f'Document vérifié et validé par FASTHOME ({request.user.get_full_name() or request.user.username}).'
         document.save(update_fields=['status', 'notes', 'updated_at'])
-
         target = case.owner if document.document_type in OWNER_DOCUMENTS else case.tenant
         _notify(target, 'Votre document signé est validé', f'{document.label} du dossier {case.reference} a été vérifié et validé par FASTHOME. Il sera accessible dans votre espace personnel.')
-
         if document.document_type == 'owner_contract' and case.owner_contract:
             case.owner_contract.status = 'signed'
             case.owner_contract.validated_at = timezone.now()
@@ -189,11 +173,9 @@ def verify_signed_rental_document(request, pk, document_id):
             case.tenant_contract.status = 'signed'
             case.tenant_contract.validated_at = timezone.now()
             case.tenant_contract.save(update_fields=['status', 'validated_at', 'updated_at'])
-
         messages.success(request, f'{document.label} validé.')
         if _activate_if_complete(case):
             messages.success(request, 'Les 4 documents signés sont vérifiés : le contrat devient effectif et la location est active.')
-
     elif decision == 'reject':
         document.status = 'rejected'
         document.notes = request.POST.get('note', '').strip() or 'Document à corriger — vérification FASTHOME.'
@@ -203,5 +185,4 @@ def verify_signed_rental_document(request, pk, document_id):
         messages.warning(request, f'{document.label} doit être corrigé puis remplacé par FASTHOME.')
     else:
         messages.error(request, 'Décision de vérification invalide.')
-
     return redirect('rental_case_detail', pk=case.pk)
