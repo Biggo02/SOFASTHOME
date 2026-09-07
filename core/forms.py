@@ -3,18 +3,37 @@ import json
 from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import AuthenticationForm
-from .models import Property
+from .models import Property, UserProfile
 
 
 class RegisterForm(forms.ModelForm):
-    password=forms.CharField(widget=forms.PasswordInput)
-    password2=forms.CharField(widget=forms.PasswordInput,label='Confirmation du mot de passe')
+    postnom = forms.CharField(label='Postnom', max_length=100, required=False)
+    profession = forms.ChoiceField(
+        label='Profession',
+        choices=[('', 'Sélectionnez votre profession')] + UserProfile.PROFESSIONS,
+        required=True,
+    )
+    password=forms.CharField(widget=forms.PasswordInput(attrs={'autocomplete':'new-password'}), label='Mot de passe')
+    password2=forms.CharField(widget=forms.PasswordInput(attrs={'autocomplete':'new-password'}),label='Confirmation du mot de passe')
     class Meta:
-        model=User; fields=['first_name','username','email','password']; labels={'first_name':'Nom complet','username':'Téléphone'}
+        model=User
+        fields=['last_name','postnom','first_name','username','email','password']
+        labels={'last_name':'Nom','first_name':'Prénom','username':'Téléphone','email':'Email'}
+        widgets={
+            'last_name': forms.TextInput(attrs={'placeholder':'Votre nom'}),
+            'first_name': forms.TextInput(attrs={'placeholder':'Votre prénom'}),
+            'username': forms.TextInput(attrs={'placeholder':'Ex. 0812345678','autocomplete':'tel'}),
+            'email': forms.EmailInput(attrs={'placeholder':'exemple@email.com','autocomplete':'email'}),
+        }
     def clean(self):
         data=super().clean()
-        if data.get('password')!=data.get('password2'): raise forms.ValidationError('Les mots de passe ne correspondent pas.')
+        if data.get('password')!=data.get('password2'): self.add_error('password2','Les mots de passe ne correspondent pas.')
         return data
+    def save(self, commit=True):
+        user=super().save(commit=commit)
+        if commit:
+            UserProfile.objects.update_or_create(user=user, defaults={'postnom': self.cleaned_data.get('postnom','').strip(), 'profession': self.cleaned_data.get('profession','')})
+        return user
 
 
 class PropertyForm(forms.ModelForm):
