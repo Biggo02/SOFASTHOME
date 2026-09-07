@@ -1,6 +1,28 @@
 from django.db import models
 from django.contrib.auth.models import User
 
+class UserProfile(models.Model):
+    PROFESSIONS = [
+        ('agent_immobilier', 'Agent immobilier'),
+        ('agriculteur', 'Agriculteur'),
+        ('artisan', 'Artisan'),
+        ('commercant', 'Commerçant'),
+        ('enseignant', 'Enseignant'),
+        ('fonctionnaire', 'Fonctionnaire'),
+        ('medecin', 'Médecin / professionnel de santé'),
+        ('ingenieur', 'Ingénieur'),
+        ('juriste', 'Juriste / avocat'),
+        ('comptable', 'Comptable / financier'),
+        ('entrepreneur', 'Entrepreneur'),
+        ('etudiant', 'Étudiant'),
+        ('sans_emploi', 'Sans emploi'),
+        ('retraite', 'Retraité'),
+        ('autre', 'Autre'),
+    ]
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    postnom = models.CharField(max_length=100, blank=True)
+    profession = models.CharField(max_length=40, choices=PROFESSIONS, blank=True)
+
 class Property(models.Model):
     TYPES=[('Appartement','Appartement'),('Maison','Maison'),('Studio','Studio'),('Villa','Villa')]
     STATUSES=[('draft','Brouillon'),('review','En vérification'),('published','Publiée'),('rented','Louée'),('archived','Archivée'),('rejected','Refusée')]
