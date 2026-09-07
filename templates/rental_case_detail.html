@@ -2,51 +2,150 @@
 {% block title %}Dossier {{ case.reference }} — FASTHOME{% endblock %}
 {% block content %}
 <section class="form-page">
-  <div class="page-head"><small>FASTHOME · DOSSIER DE LOCATION</small><h1>{{ case.reference }}</h1><p>Les documents sont générés pour ce bien et les parties concernées. Téléchargez-les, faites-les signer puis déposez les versions signées.</p></div>
+  <div class="page-head">
+    <small>FASTHOME · DOSSIER DE LOCATION</small>
+    <h1>{{ case.reference }}</h1>
+    <p>Les trois documents de la location sont disponibles ici. Téléchargez chaque document, faites-le signer par les personnes concernées, puis téléversez chaque PDF signé dans son emplacement dédié.</p>
+  </div>
+
   <div class="form-card">
     <div class="profile-grid">
-      <div><span>Bien</span><b>{{ case.property.title }}</b></div><div><span>Référence</span><b>{{ case.property.reference }}</b></div>
-      <div><span>Propriétaire</span><b>{{ case.owner.get_full_name|default:case.owner.username }}</b></div><div><span>Locataire</span><b>{{ case.tenant.get_full_name|default:case.tenant.username }}</b></div>
-      <div><span>Localisation</span><b>{{ case.property.commune }} — {{ case.property.city }} — {{ case.property.province }}</b></div><div><span>Statut</span><b>{{ case.get_status_display }}</b></div>
+      <div><span>Bien</span><b>{{ case.property.title }}</b></div>
+      <div><span>Référence</span><b>{{ case.property.reference }}</b></div>
+      <div><span>Propriétaire</span><b>{{ case.owner.get_full_name|default:case.owner.username }}</b></div>
+      <div><span>Locataire</span><b>{{ case.tenant.get_full_name|default:case.tenant.username }}</b></div>
+      <div><span>Localisation</span><b>{{ case.property.commune }} — {{ case.property.city }} — {{ case.property.province }}</b></div>
+      <div><span>Statut</span><b>{{ case.get_status_display }}</b></div>
     </div>
 
-    <div class="notice" style="margin-top:22px"><b>Documents de cette location</b><span>Chaque document possède sa propre référence et reprend automatiquement les informations du bien, du dossier et de la partie concernée.</span></div>
+    <div class="notice" style="margin-top:22px">
+      <b>3 documents obligatoires</b>
+      <span>Deux contrats distincts et un document annexe doivent être signés puis transmis à FASTHOME. La location devient active lorsque les trois versions signées sont reçues.</span>
+    </div>
 
-    <h2 style="margin-top:30px">Documents générés</h2>
+    <h2 style="margin-top:30px">1. Documents à télécharger</h2>
     <div class="profile-grid" style="margin-top:14px">
-      {% for document in case.documents.all %}
-      {% if document.document_type == 'owner_contract' and request.user.pk == case.owner_id or document.document_type == 'tenant_contract' and request.user.pk == case.tenant_id or document.document_type == 'inspection' or request.user.is_staff %}
       <div class="notice">
-        <b>{{ document.label }}</b>
-        <span>Statut : {{ document.get_status_display }}</span>
-        {% if document.document_type == 'owner_contract' and case.owner_contract %}<span>Référence : {{ case.owner_contract.reference }}</span>{% endif %}
-        {% if document.document_type == 'tenant_contract' and case.tenant_contract %}<span>Référence : {{ case.tenant_contract.reference }}</span>{% endif %}
-        {% if document.document_type == 'inspection' %}<span>Référence : PV-{{ case.reference }}</span>{% endif %}
-        {% if document.document_type == 'owner_contract' and case.owner_contract %}<a class="btn btn-primary" href="{% url 'rental_contract_pdf' case.owner_contract.pk %}" target="_blank" rel="noopener">📄 Télécharger le contrat</a>{% endif %}
-        {% if document.document_type == 'tenant_contract' and case.tenant_contract %}<a class="btn btn-primary" href="{% url 'rental_contract_pdf' case.tenant_contract.pk %}" target="_blank" rel="noopener">📄 Télécharger le contrat</a>{% endif %}
-        {% if document.document_type == 'inspection' and document.file %}<a class="btn btn-primary" href="{{ document.file.url }}" target="_blank" rel="noopener">📄 Télécharger le PV</a>{% endif %}
-        {% if document.document_type == 'owner_contract' and request.user.pk == case.owner_id and case.status != 'active' %}
-        <form method="post" enctype="multipart/form-data" action="{% url 'rental_document_upload' case.pk %}" style="margin-top:12px"><input type="hidden" name="document_type" value="owner_contract"><label class="field"><span>PDF signé par le propriétaire</span><input type="file" name="file" accept="application/pdf" required></label><button class="btn btn-light">⬆ Téléverser le PDF signé</button></form>
-        {% elif document.document_type == 'tenant_contract' and request.user.pk == case.tenant_id and case.status != 'active' %}
-        <form method="post" enctype="multipart/form-data" action="{% url 'rental_document_upload' case.pk %}" style="margin-top:12px"><input type="hidden" name="document_type" value="tenant_contract"><label class="field"><span>PDF signé par le locataire</span><input type="file" name="file" accept="application/pdf" required></label><button class="btn btn-light">⬆ Téléverser le PDF signé</button></form>
+        <b>📄 Contrat FASTHOME ↔ Propriétaire</b>
+        <span>Contrat entre FASTHOME et le propriétaire du bien.</span>
+        {% if case.owner_contract %}
+          <span>Référence : {{ case.owner_contract.reference }}</span>
+          <span>Statut : {{ case.owner_contract.get_status_display }}</span>
+          <a class="btn btn-primary" href="{% url 'rental_contract_pdf' case.owner_contract.pk %}" target="_blank" rel="noopener">⬇ Télécharger le contrat propriétaire</a>
+        {% else %}
+          <span>Le contrat n'est pas encore généré.</span>
         {% endif %}
       </div>
-      {% endif %}
-      {% empty %}<div class="empty">Les documents seront générés automatiquement lorsque le locataire choisira de prendre le bien.</div>{% endfor %}
+
+      <div class="notice">
+        <b>📄 Contrat FASTHOME ↔ Locataire</b>
+        <span>Contrat de sous-location entre FASTHOME et le locataire.</span>
+        {% if case.tenant_contract %}
+          <span>Référence : {{ case.tenant_contract.reference }}</span>
+          <span>Statut : {{ case.tenant_contract.get_status_display }}</span>
+          <a class="btn btn-primary" href="{% url 'rental_contract_pdf' case.tenant_contract.pk %}" target="_blank" rel="noopener">⬇ Télécharger le contrat locataire</a>
+        {% else %}
+          <span>Le contrat n'est pas encore généré.</span>
+        {% endif %}
+      </div>
+
+      <div class="notice">
+        <b>📎 Document annexe — Procès-verbal / état des lieux</b>
+        <span>Document annexe reprenant les informations de la visite et les signatures des parties.</span>
+        {% with annex=case.documents.all %}
+          {% for document in annex %}
+            {% if document.document_type == 'inspection' %}
+              <span>Référence : PV-{{ case.reference }}</span>
+              <span>Statut : {{ document.get_status_display }}</span>
+              {% if document.file %}<a class="btn btn-primary" href="{{ document.file.url }}" target="_blank" rel="noopener">⬇ Télécharger le document annexe</a>{% endif %}
+            {% endif %}
+          {% endfor %}
+        {% endwith %}
+      </div>
     </div>
 
-    <h2 style="margin-top:30px">Documents signés reçus</h2>
+    <h2 style="margin-top:34px">2. Téléverser les documents signés</h2>
+    <p style="margin-top:8px">Utilisez un emplacement différent pour chaque document. Seuls les PDF sont acceptés.</p>
+
+    <div class="profile-grid" style="margin-top:14px">
+      <div class="notice">
+        <b>⬆ Contrat propriétaire signé</b>
+        <span>À téléverser par le propriétaire ou FASTHOME.</span>
+        {% for document in case.documents.all %}
+          {% if document.document_type == 'owner_contract' and document.file and document.status == 'validated' %}<span>✅ Document signé déjà reçu.</span>{% endif %}
+        {% endfor %}
+        {% if request.user.is_staff or request.user.pk == case.owner_id %}
+          {% if case.status != 'active' %}
+          <form method="post" enctype="multipart/form-data" action="{% url 'upload_signed_rental_document' case.pk %}" style="margin-top:12px">
+            {% csrf_token %}
+            <input type="hidden" name="document_type" value="owner_contract">
+            <label class="field"><span>PDF signé par le propriétaire</span><input type="file" name="file" accept="application/pdf,.pdf" required></label>
+            <button class="btn btn-light" type="submit">⬆ Téléverser le contrat signé</button>
+          </form>
+          {% endif %}
+        {% endif %}
+      </div>
+
+      <div class="notice">
+        <b>⬆ Contrat locataire signé</b>
+        <span>À téléverser par le locataire ou FASTHOME.</span>
+        {% for document in case.documents.all %}
+          {% if document.document_type == 'tenant_contract' and document.file and document.status == 'validated' %}<span>✅ Document signé déjà reçu.</span>{% endif %}
+        {% endfor %}
+        {% if request.user.is_staff or request.user.pk == case.tenant_id %}
+          {% if case.status != 'active' %}
+          <form method="post" enctype="multipart/form-data" action="{% url 'upload_signed_rental_document' case.pk %}" style="margin-top:12px">
+            {% csrf_token %}
+            <input type="hidden" name="document_type" value="tenant_contract">
+            <label class="field"><span>PDF signé par le locataire</span><input type="file" name="file" accept="application/pdf,.pdf" required></label>
+            <button class="btn btn-light" type="submit">⬆ Téléverser le contrat signé</button>
+          </form>
+          {% endif %}
+        {% endif %}
+      </div>
+
+      <div class="notice">
+        <b>⬆ Document annexe signé</b>
+        <span>À téléverser par le propriétaire, le locataire ou FASTHOME après signature du document annexe.</span>
+        {% for document in case.documents.all %}
+          {% if document.document_type == 'inspection' and document.file and document.status == 'validated' %}<span>✅ Document annexe signé déjà reçu.</span>{% endif %}
+        {% endfor %}
+        {% if request.user.is_staff or request.user.pk == case.owner_id or request.user.pk == case.tenant_id %}
+          {% if case.status != 'active' %}
+          <form method="post" enctype="multipart/form-data" action="{% url 'upload_signed_rental_document' case.pk %}" style="margin-top:12px">
+            {% csrf_token %}
+            <input type="hidden" name="document_type" value="inspection">
+            <label class="field"><span>PDF du document annexe signé</span><input type="file" name="file" accept="application/pdf,.pdf" required></label>
+            <button class="btn btn-light" type="submit">⬆ Téléverser le document annexe</button>
+          </form>
+          {% endif %}
+        {% endif %}
+      </div>
+    </div>
+
+    <h2 style="margin-top:34px">3. Documents signés reçus</h2>
     <div class="panel list-panel" style="margin-top:12px">
       {% for document in case.documents.all %}
-      {% if document.status == 'validated' and document.file %}
-      {% if document.document_type == 'inspection' or document.document_type == 'owner_contract' and request.user.pk == case.owner_id or document.document_type == 'tenant_contract' and request.user.pk == case.tenant_id or request.user.is_staff %}
-      <div class="list-row"><div><b>{{ document.label }}</b><small>Document signé / reçu par FASTHOME</small></div><a class="btn btn-light" href="{{ document.file.url }}" target="_blank" rel="noopener">Voir le PDF signé</a></div>
-      {% endif %}{% endif %}
-      {% empty %}<div class="empty">Aucun document signé reçu.</div>{% endfor %}
+        {% if document.status == 'validated' and document.file %}
+          <div class="list-row">
+            <div>
+              <b>{{ document.label }}</b>
+              <small>Document signé reçu par FASTHOME</small>
+            </div>
+            <a class="btn btn-light" href="{{ document.file.url }}" target="_blank" rel="noopener">Voir le PDF signé</a>
+          </div>
+        {% endif %}
+      {% empty %}
+        <div class="empty">Aucun document signé reçu.</div>
+      {% endfor %}
     </div>
 
-    {% if case.status == 'active' %}<div class="notice" style="margin-top:22px"><b>Location active</b><span>Les documents signés sont conservés dans le dossier et restent visibles dans l’espace des personnes concernées.</span></div>
-    {% else %}<div class="notice" style="margin-top:22px"><b>Activation automatique</b><span>La location devient active lorsque les deux contrats signés et le procès-verbal signé sont reçus par FASTHOME.</span></div>{% endif %}
+    {% if case.status == 'active' %}
+      <div class="notice" style="margin-top:22px"><b>✅ Location active</b><span>Les trois documents signés ont été reçus et la location est active.</span></div>
+    {% else %}
+      <div class="notice" style="margin-top:22px"><b>Activation automatique</b><span>La location devient active uniquement lorsque le contrat propriétaire signé, le contrat locataire signé et le document annexe signé sont tous reçus.</span></div>
+    {% endif %}
+
     <a class="btn btn-light" style="margin-top:20px" href="{% url 'rental_cases' %}">Retour aux dossiers</a>
   </div>
 </section>
