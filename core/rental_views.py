@@ -118,8 +118,9 @@ def _draw_wrapped(c, text, x, y, width, leading=13, font='Helvetica', size=9.5):
         if stringWidth(candidate, font, size) <= width:
             line = candidate
         else:
-            c.drawString(x, y, line)
-            y -= leading
+            if line:
+                c.drawString(x, y, line)
+                y -= leading
             line = word
     if line:
         c.drawString(x, y, line)
@@ -300,3 +301,8 @@ def rental_contract_pdf(request, pk):
     except ImportError:
         messages.error(request, 'Le module PDF n’est pas installé sur cet environnement.')
         return redirect('rental_case_detail', pk=contract.rental_case_id)
+
+
+# La version visuelle premium est chargée en dernier afin de conserver toutes les routes et règles d'accès ci-dessus.
+from .rental_pdf_layout import _contract_pdf as _premium_contract_pdf
+_contract_pdf = _premium_contract_pdf
