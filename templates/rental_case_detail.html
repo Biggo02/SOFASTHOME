@@ -2,178 +2,45 @@
 {% block title %}Dossier {{ case.reference }} — FASTHOME{% endblock %}
 {% block content %}
 <style>
-  .rental-shell{max-width:1180px;margin:0 auto;padding:20px 0 60px}
-  .rental-hero{display:flex;justify-content:space-between;gap:24px;align-items:flex-start;margin-bottom:22px}
-  .eyebrow{font-size:12px;letter-spacing:.12em;font-weight:700;opacity:.65;text-transform:uppercase}
-  .rental-hero h1{margin:7px 0 6px;font-size:32px}
-  .rental-hero p{margin:0;max-width:760px;opacity:.72}
-  .status-pill{display:inline-flex;align-items:center;gap:7px;border:1px solid rgba(0,0,0,.12);border-radius:999px;padding:9px 13px;font-weight:700;white-space:nowrap}
-  .status-pill.active{border-color:#198754}.status-pill.wait{border-color:#d39e00}
-  .rental-card{background:#fff;border:1px solid rgba(0,0,0,.1);border-radius:18px;padding:24px;box-shadow:0 8px 28px rgba(0,0,0,.05);margin-bottom:20px}
-  .rental-card h2{font-size:20px;margin:0 0 7px}.section-sub{margin:0 0 18px;opacity:.68}
-  .property-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.summary-item{padding:14px;border-radius:12px;background:rgba(0,0,0,.035)}.summary-item span{display:block;font-size:12px;opacity:.58;margin-bottom:5px}.summary-item b{display:block}
-  .workflow{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.step{padding:13px;border-radius:12px;background:rgba(0,0,0,.04);font-size:13px}.step b{display:block;margin-bottom:4px}.step.done{outline:1px solid #198754}.step.pending{outline:1px solid #d39e00}
-  .doc-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}.doc-card{border:1px solid rgba(0,0,0,.1);border-radius:15px;padding:18px;background:#fff}.doc-card h3{font-size:16px;margin:0 0 7px}.doc-card p{font-size:13px;opacity:.68;margin:0 0 13px}.doc-meta{display:flex;justify-content:space-between;gap:12px;align-items:center;font-size:12px;margin-bottom:14px}.doc-state{font-weight:700}.doc-state.ok{color:#198754}.doc-state.warn{color:#9a6b00}.doc-state.bad{color:#b02a37}.doc-actions{display:flex;flex-wrap:wrap;gap:8px}.doc-actions form{margin:0}.doc-card input[type=file]{display:block;width:100%;margin:9px 0 12px}.verify-box{margin-top:14px;padding:12px;border-radius:12px;background:rgba(0,0,0,.035)}.verify-box small{display:block;margin-bottom:8px;opacity:.68}.verify-actions{display:flex;gap:8px}.verify-actions form{flex:1}.verify-actions button{width:100%}
-  .signed-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.signed-item{display:flex;justify-content:space-between;gap:15px;align-items:center;border:1px solid rgba(0,0,0,.08);padding:14px;border-radius:12px}.signed-item small{display:block;opacity:.6;margin-top:3px}
-  .activation{padding:17px;border-radius:14px;border:1px solid rgba(0,0,0,.1);background:rgba(0,0,0,.025)}.activation.active{border-color:#198754}.activation strong{display:block;margin-bottom:5px}
-  @media(max-width:800px){.rental-hero{display:block}.property-summary,.workflow,.doc-grid,.signed-grid{grid-template-columns:1fr}.status-pill{margin-top:15px}}
+.rental-shell{max-width:1180px;margin:0 auto;padding:20px 0 60px}.rental-hero{display:flex;justify-content:space-between;gap:24px;align-items:flex-start;margin-bottom:22px}.eyebrow{font-size:12px;letter-spacing:.12em;font-weight:700;opacity:.65;text-transform:uppercase}.rental-hero h1{margin:7px 0 6px;font-size:32px}.rental-hero p{margin:0;max-width:760px;opacity:.72}.status-pill{display:inline-flex;align-items:center;gap:7px;border:1px solid rgba(0,0,0,.12);border-radius:999px;padding:9px 13px;font-weight:700;white-space:nowrap}.status-pill.active{border-color:#198754}.status-pill.wait{border-color:#d39e00}.rental-card{background:#fff;border:1px solid rgba(0,0,0,.1);border-radius:18px;padding:24px;box-shadow:0 8px 28px rgba(0,0,0,.05);margin-bottom:20px}.rental-card h2{font-size:20px;margin:0 0 7px}.section-sub{margin:0 0 18px;opacity:.68}.property-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.summary-item{padding:14px;border-radius:12px;background:rgba(0,0,0,.035)}.summary-item span{display:block;font-size:12px;opacity:.58;margin-bottom:5px}.summary-item b{display:block}.workflow{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.step{padding:13px;border-radius:12px;background:rgba(0,0,0,.04);font-size:13px}.step b{display:block;margin-bottom:4px}.step.done{outline:1px solid #198754}.step.pending{outline:1px solid #d39e00}.doc-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}.doc-card{border:1px solid rgba(0,0,0,.1);border-radius:15px;padding:18px;background:#fff}.doc-card h3{font-size:16px;margin:0 0 7px}.doc-card p{font-size:13px;opacity:.68;margin:0 0 13px}.doc-meta{display:flex;justify-content:space-between;gap:12px;align-items:center;font-size:12px;margin-bottom:14px}.doc-state{font-weight:700}.doc-state.ok{color:#198754}.doc-state.warn{color:#9a6b00}.doc-state.bad{color:#b02a37}.doc-actions{display:flex;flex-wrap:wrap;gap:8px}.doc-card input[type=file]{display:block;width:100%;margin:9px 0 12px}.verify-box{margin-top:14px;padding:12px;border-radius:12px;background:rgba(0,0,0,.035)}.verify-box small{display:block;margin-bottom:8px;opacity:.68}.verify-actions{display:flex;gap:8px}.verify-actions form{flex:1}.verify-actions button{width:100%}.signed-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.signed-item{display:flex;justify-content:space-between;gap:15px;align-items:center;border:1px solid rgba(0,0,0,.08);padding:14px;border-radius:12px}.signed-item small{display:block;opacity:.6;margin-top:3px}.activation{padding:17px;border-radius:14px;border:1px solid rgba(0,0,0,.1);background:rgba(0,0,0,.025)}.activation.active{border-color:#198754}.activation strong{display:block;margin-bottom:5px}@media(max-width:800px){.rental-hero{display:block}.property-summary,.workflow,.doc-grid,.signed-grid{grid-template-columns:1fr}.status-pill{margin-top:15px}}
 </style>
-
 <section class="rental-shell">
-  <div class="rental-hero">
-    <div>
-      <div class="eyebrow">FASTHOME · Dossier de location</div>
-      <h1>{{ case.reference }}</h1>
-      <p>Les documents sont générés à partir des informations enregistrées sur le bien. Chaque partie signe uniquement les documents qui la concernent.</p>
-    </div>
-    <div class="status-pill {% if case.status == 'active' %}active{% else %}wait{% endif %}">
-      {% if case.status == 'active' %}● Contrat effectif{% else %}● En attente de vérification{% endif %}
-    </div>
-  </div>
+  <div class="rental-hero"><div><div class="eyebrow">FASTHOME · Dossier de location</div><h1>{{ case.reference }}</h1><p>Les documents sont générés à partir des informations enregistrées sur le bien. Chaque partie signe uniquement les documents qui la concernent.</p></div><div class="status-pill {% if case.status == 'active' %}active{% else %}wait{% endif %}">{% if case.status == 'active' %}● Contrat effectif{% else %}● En attente de vérification{% endif %}</div></div>
 
-  <div class="rental-card">
-    <h2>Résumé du bien</h2>
-    <div class="property-summary">
-      <div class="summary-item"><span>Bien</span><b>{{ case.property.title }}</b></div>
-      <div class="summary-item"><span>Référence</span><b>{{ case.property.reference }}</b></div>
-      <div class="summary-item"><span>Localisation</span><b>{{ case.property.commune }} — {{ case.property.city }} — {{ case.property.province }}</b></div>
-      <div class="summary-item"><span>Propriétaire</span><b>{{ case.owner.get_full_name|default:case.owner.username }}</b></div>
-      <div class="summary-item"><span>Locataire</span><b>{{ case.tenant.get_full_name|default:case.tenant.username }}</b></div>
-      <div class="summary-item"><span>Loyer enregistré</span><b>{{ case.tenant_contract.amount|default:case.property.rent }} USD / mois</b></div>
-    </div>
-  </div>
+  <div class="rental-card"><h2>Résumé du bien</h2><div class="property-summary">
+    <div class="summary-item"><span>Bien</span><b>{{ case.property.title }}</b></div><div class="summary-item"><span>Référence</span><b>{{ case.property.reference }}</b></div><div class="summary-item"><span>Localisation</span><b>{{ case.property.commune }} — {{ case.property.city }} — {{ case.property.province }}</b></div>
+    <div class="summary-item"><span>Propriétaire</span><b>{{ case.owner.get_full_name|default:case.owner.username }}</b></div><div class="summary-item"><span>Locataire</span><b>{{ case.tenant.get_full_name|default:case.tenant.username }}</b></div><div class="summary-item"><span>Loyer enregistré</span><b>{{ case.tenant_contract.amount|default:case.property.rent }} USD / mois</b></div>
+  </div></div>
 
-  <div class="rental-card">
-    <h2>Parcours de signature</h2>
-    <p class="section-sub">La location ne devient effective qu'après vérification des quatre documents signés par FASTHOME.</p>
-    <div class="workflow">
-      <div class="step {% if documents.owner_contract.status == 'validated' %}done{% else %}pending{% endif %}"><b>01 · Contrat propriétaire</b>{% if documents.owner_contract.status == 'validated' %}Vérifié{% else %}À signer / vérifier{% endif %}</div>
-      <div class="step {% if documents.tenant_contract.status == 'validated' %}done{% else %}pending{% endif %}"><b>02 · Contrat locataire</b>{% if documents.tenant_contract.status == 'validated' %}Vérifié{% else %}À signer / vérifier{% endif %}</div>
-      <div class="step {% if documents.owner_inspection.status == 'validated' %}done{% else %}pending{% endif %}"><b>03 · État des lieux propriétaire</b>{% if documents.owner_inspection.status == 'validated' %}Vérifié{% else %}À signer / vérifier{% endif %}</div>
-      <div class="step {% if documents.tenant_inspection.status == 'validated' %}done{% else %}pending{% endif %}"><b>04 · État des lieux locataire</b>{% if documents.tenant_inspection.status == 'validated' %}Vérifié{% else %}À signer / vérifier{% endif %}</div>
-    </div>
-  </div>
+  <div class="rental-card"><h2>Parcours de signature</h2><p class="section-sub">La location ne devient effective qu'après vérification des quatre documents signés par FASTHOME.</p><div class="workflow">
+    <div class="step {% if documents.owner_contract.status == 'validated' %}done{% else %}pending{% endif %}"><b>01 · Contrat propriétaire</b>{% if documents.owner_contract.status == 'validated' %}Vérifié{% else %}À signer / vérifier{% endif %}</div>
+    <div class="step {% if documents.tenant_contract.status == 'validated' %}done{% else %}pending{% endif %}"><b>02 · Contrat locataire</b>{% if documents.tenant_contract.status == 'validated' %}Vérifié{% else %}À signer / vérifier{% endif %}</div>
+    <div class="step {% if documents.owner_inspection.status == 'validated' %}done{% else %}pending{% endif %}"><b>03 · État des lieux propriétaire</b>{% if documents.owner_inspection.status == 'validated' %}Vérifié{% else %}À signer / vérifier{% endif %}</div>
+    <div class="step {% if documents.tenant_inspection.status == 'validated' %}done{% else %}pending{% endif %}"><b>04 · État des lieux locataire</b>{% if documents.tenant_inspection.status == 'validated' %}Vérifié{% else %}À signer / vérifier{% endif %}</div>
+  </div></div>
 
-  <div class="rental-card">
-    <h2>1. Les 4 documents à télécharger</h2>
-    <p class="section-sub">Les deux contrats sont ceux de FASTHOME avec chaque partie. Les deux états des lieux sont séparés et préremplis selon les caractéristiques réelles du bien.</p>
-    <div class="doc-grid">
-      {% if request.user.is_staff or request.user.pk == case.owner_id %}
-      <article class="doc-card">
-        <h3>📄 Contrat FASTHOME ↔ Propriétaire</h3>
-        <p>Convention entre l'agence FASTHOME et le propriétaire du bien. Document contractuel complet, prérempli avec les données du dossier.</p>
-        <div class="doc-meta"><span>{{ case.owner_contract.reference|default:'Non généré' }}</span><span class="doc-state {% if case.owner_contract.status == 'validated' %}ok{% endif %}">{{ case.owner_contract.get_status_display|default:'À préparer' }}</span></div>
-        {% if case.owner_contract %}<div class="doc-actions"><a class="btn btn-primary" href="{% url 'rental_contract_pdf' case.owner_contract.pk %}" target="_blank" rel="noopener">⬇ Télécharger le contrat</a></div>{% endif %}
-      </article>
-      {% endif %}
+  <div class="rental-card"><h2>1. Les 4 documents à télécharger</h2><p class="section-sub">Les deux contrats sont ceux de FASTHOME avec chaque partie. Les deux états des lieux sont séparés et préremplis selon les caractéristiques du bien.</p><div class="doc-grid">
+    {% if request.user.is_staff or request.user.pk == case.owner_id %}<article class="doc-card"><h3>📄 Contrat FASTHOME ↔ Propriétaire</h3><p>Convention entre l'agence FASTHOME et le propriétaire du bien. Document contractuel complet, prérempli avec les données du dossier.</p><div class="doc-meta"><span>{{ case.owner_contract.reference|default:'Non généré' }}</span><span class="doc-state {% if case.owner_contract.status == 'validated' %}ok{% endif %}">{{ case.owner_contract.get_status_display|default:'À préparer' }}</span></div>{% if case.owner_contract %}<div class="doc-actions"><a class="btn btn-primary" href="{% url 'rental_contract_pdf' case.owner_contract.pk %}" target="_blank" rel="noopener">⬇ Télécharger le contrat</a></div>{% endif %}</article>{% endif %}
+    {% if request.user.is_staff or request.user.pk == case.tenant_id %}<article class="doc-card"><h3>📄 Contrat FASTHOME ↔ Locataire</h3><p>Contrat de sous-location entre FASTHOME et le locataire. Le montant est calculé à partir du loyer du bien et de la marge FASTHOME.</p><div class="doc-meta"><span>{{ case.tenant_contract.reference|default:'Non généré' }}</span><span class="doc-state {% if case.tenant_contract.status == 'validated' %}ok{% endif %}">{{ case.tenant_contract.get_status_display|default:'À préparer' }}</span></div>{% if case.tenant_contract %}<div class="doc-actions"><a class="btn btn-primary" href="{% url 'rental_contract_pdf' case.tenant_contract.pk %}" target="_blank" rel="noopener">⬇ Télécharger le contrat</a></div>{% endif %}</article>{% endif %}
+    {% if request.user.is_staff or request.user.pk == case.owner_id %}<article class="doc-card"><h3>📋 État des lieux FASTHOME ↔ Propriétaire</h3><p>État des lieux propre à la relation FASTHOME–propriétaire, prérempli avec type, adresse, pièces, eau, électricité, sol, plafond, mobilier, parking, sécurité et état déclaré.</p><div class="doc-meta"><span>EDL-PRO-{{ case.reference }}</span><span class="doc-state {% if documents.owner_inspection.status == 'validated' %}ok{% endif %}">{{ documents.owner_inspection.get_status_display|default:'À préparer' }}</span></div><div class="doc-actions"><a class="btn btn-primary" href="{% url 'rental_owner_pv_pdf' case.pk %}" target="_blank" rel="noopener">⬇ Télécharger l'état des lieux</a></div></article>{% endif %}
+    {% if request.user.is_staff or request.user.pk == case.tenant_id %}<article class="doc-card"><h3>📋 État des lieux FASTHOME ↔ Locataire</h3><p>État des lieux propre à la relation FASTHOME–locataire, prérempli avec les caractéristiques du bien et les zones de constat contradictoire.</p><div class="doc-meta"><span>EDL-LOC-{{ case.reference }}</span><span class="doc-state {% if documents.tenant_inspection.status == 'validated' %}ok{% endif %}">{{ documents.tenant_inspection.get_status_display|default:'À préparer' }}</span></div><div class="doc-actions"><a class="btn btn-primary" href="{% url 'rental_tenant_pv_pdf' case.pk %}" target="_blank" rel="noopener">⬇ Télécharger l'état des lieux</a></div></article>{% endif %}
+  </div></div>
 
-      {% if request.user.is_staff or request.user.pk == case.tenant_id %}
-      <article class="doc-card">
-        <h3>📄 Contrat FASTHOME ↔ Locataire</h3>
-        <p>Contrat de sous-location entre FASTHOME et le locataire. Le montant est calculé à partir du loyer du bien et de la marge FASTHOME.</p>
-        <div class="doc-meta"><span>{{ case.tenant_contract.reference|default:'Non généré' }}</span><span class="doc-state {% if case.tenant_contract.status == 'validated' %}ok{% endif %}">{{ case.tenant_contract.get_status_display|default:'À préparer' }}</span></div>
-        {% if case.tenant_contract %}<div class="doc-actions"><a class="btn btn-primary" href="{% url 'rental_contract_pdf' case.tenant_contract.pk %}" target="_blank" rel="noopener">⬇ Télécharger le contrat</a></div>{% endif %}
-      </article>
-      {% endif %}
+  <div class="rental-card"><h2>2. Téléverser les 4 documents signés</h2><p class="section-sub">Chaque document téléversé passe d'abord en <b>À vérifier</b>. FASTHOME doit le contrôler et le valider avant qu'il compte pour l'activation.</p><div class="doc-grid">
+    {% if request.user.is_staff or request.user.pk == case.owner_id %}<article class="doc-card"><h3>⬆ Contrat propriétaire signé</h3><p>Déposé par le propriétaire ou FASTHOME.</p><div class="doc-meta"><span>Contrat</span><span class="doc-state {% if documents.owner_contract.status == 'validated' %}ok{% elif documents.owner_contract.status == 'rejected' %}bad{% else %}warn{% endif %}">{{ documents.owner_contract.get_status_display|default:'À préparer' }}</span></div>{% if documents.owner_contract.file %}<div class="doc-actions"><a class="btn btn-light" href="{{ documents.owner_contract.file.url }}" target="_blank">Voir le fichier reçu</a></div>{% endif %}{% if case.status != 'active' %}<form method="post" enctype="multipart/form-data" action="{% url 'upload_signed_rental_document' case.pk %}">{% csrf_token %}<input type="hidden" name="document_type" value="owner_contract"><input type="file" name="file" accept="application/pdf,.pdf" required><button class="btn btn-light" type="submit">⬆ Envoyer pour vérification</button></form>{% endif %}{% if request.user.is_staff and documents.owner_contract.file and documents.owner_contract.status == 'pending_review' %}<div class="verify-box"><small>Vérification FASTHOME</small><div class="verify-actions"><form method="post" action="{% url 'verify_signed_rental_document' case.pk documents.owner_contract.pk %}">{% csrf_token %}<input type="hidden" name="decision" value="validate"><button class="btn btn-primary">✓ Valider</button></form><form method="post" action="{% url 'verify_signed_rental_document' case.pk documents.owner_contract.pk %}">{% csrf_token %}<input type="hidden" name="decision" value="reject"><button class="btn btn-light">✕ À corriger</button></form></div></div>{% endif %}</article>{% endif %}
 
-      {% if request.user.is_staff or request.user.pk == case.owner_id %}
-      <article class="doc-card">
-        <h3>📋 État des lieux FASTHOME ↔ Propriétaire</h3>
-        <p>État des lieux propre à la relation FASTHOME–propriétaire, prérempli avec type, adresse, pièces, eau, électricité, sol, plafond, mobilier, parking, sécurité et état déclaré du bien.</p>
-        <div class="doc-meta"><span>EDL-PRO-{{ case.reference }}</span><span class="doc-state {% if documents.owner_inspection.status == 'validated' %}ok{% endif %}">{{ documents.owner_inspection.get_status_display|default:'À préparer' }}</span></div>
-        <div class="doc-actions"><a class="btn btn-primary" href="{% url 'rental_owner_pv_pdf' case.pk %}" target="_blank" rel="noopener">⬇ Télécharger l'état des lieux</a></div>
-      </article>
-      {% endif %}
+    {% if request.user.is_staff or request.user.pk == case.tenant_id %}<article class="doc-card"><h3>⬆ Contrat locataire signé</h3><p>Déposé par le locataire ou FASTHOME.</p><div class="doc-meta"><span>Contrat</span><span class="doc-state {% if documents.tenant_contract.status == 'validated' %}ok{% elif documents.tenant_contract.status == 'rejected' %}bad{% else %}warn{% endif %}">{{ documents.tenant_contract.get_status_display|default:'À préparer' }}</span></div>{% if documents.tenant_contract.file %}<div class="doc-actions"><a class="btn btn-light" href="{{ documents.tenant_contract.file.url }}" target="_blank">Voir le fichier reçu</a></div>{% endif %}{% if case.status != 'active' %}<form method="post" enctype="multipart/form-data" action="{% url 'upload_signed_rental_document' case.pk %}">{% csrf_token %}<input type="hidden" name="document_type" value="tenant_contract"><input type="file" name="file" accept="application/pdf,.pdf" required><button class="btn btn-light">⬆ Envoyer pour vérification</button></form>{% endif %}{% if request.user.is_staff and documents.tenant_contract.file and documents.tenant_contract.status == 'pending_review' %}<div class="verify-box"><small>Vérification FASTHOME</small><div class="verify-actions"><form method="post" action="{% url 'verify_signed_rental_document' case.pk documents.tenant_contract.pk %}">{% csrf_token %}<input type="hidden" name="decision" value="validate"><button class="btn btn-primary">✓ Valider</button></form><form method="post" action="{% url 'verify_signed_rental_document' case.pk documents.tenant_contract.pk %}">{% csrf_token %}<input type="hidden" name="decision" value="reject"><button class="btn btn-light">✕ À corriger</button></form></div></div>{% endif %}</article>{% endif %}
 
-      {% if request.user.is_staff or request.user.pk == case.tenant_id %}
-      <article class="doc-card">
-        <h3>📋 État des lieux FASTHOME ↔ Locataire</h3>
-        <p>État des lieux propre à la relation FASTHOME–locataire, prérempli avec les caractéristiques du bien et les zones de constat contradictoire.</p>
-        <div class="doc-meta"><span>EDL-LOC-{{ case.reference }}</span><span class="doc-state {% if documents.tenant_inspection.status == 'validated' %}ok{% endif %}">{{ documents.tenant_inspection.get_status_display|default:'À préparer' }}</span></div>
-        <div class="doc-actions"><a class="btn btn-primary" href="{% url 'rental_tenant_pv_pdf' case.pk %}" target="_blank" rel="noopener">⬇ Télécharger l'état des lieux</a></div>
-      </article>
-      {% endif %}
-    </div>
-  </div>
+    {% if request.user.is_staff or request.user.pk == case.owner_id %}<article class="doc-card"><h3>⬆ État des lieux propriétaire signé</h3><p>État des lieux FASTHOME ↔ propriétaire, signé par le propriétaire.</p><div class="doc-meta"><span>EDL propriétaire</span><span class="doc-state {% if documents.owner_inspection.status == 'validated' %}ok{% elif documents.owner_inspection.status == 'rejected' %}bad{% else %}warn{% endif %}">{{ documents.owner_inspection.get_status_display|default:'À préparer' }}</span></div>{% if documents.owner_inspection.file %}<div class="doc-actions"><a class="btn btn-light" href="{{ documents.owner_inspection.file.url }}" target="_blank">Voir le fichier reçu</a></div>{% endif %}{% if case.status != 'active' %}<form method="post" enctype="multipart/form-data" action="{% url 'upload_signed_rental_document' case.pk %}">{% csrf_token %}<input type="hidden" name="document_type" value="owner_inspection"><input type="file" name="file" accept="application/pdf,.pdf" required><button class="btn btn-light">⬆ Envoyer pour vérification</button></form>{% endif %}{% if request.user.is_staff and documents.owner_inspection.file and documents.owner_inspection.status == 'pending_review' %}<div class="verify-box"><small>Vérification FASTHOME</small><div class="verify-actions"><form method="post" action="{% url 'verify_signed_rental_document' case.pk documents.owner_inspection.pk %}">{% csrf_token %}<input type="hidden" name="decision" value="validate"><button class="btn btn-primary">✓ Valider</button></form><form method="post" action="{% url 'verify_signed_rental_document' case.pk documents.owner_inspection.pk %}">{% csrf_token %}<input type="hidden" name="decision" value="reject"><button class="btn btn-light">✕ À corriger</button></form></div></div>{% endif %}</article>{% endif %}
 
-  <div class="rental-card">
-    <h2>2. Téléverser les 4 documents signés</h2>
-    <p class="section-sub">Chaque document téléversé passe d'abord en <b>À vérifier</b>. FASTHOME doit le contrôler et le valider avant qu'il compte pour l'activation.</p>
-    <div class="doc-grid">
-      {% for dtype in 'owner_contract,tenant_contract,owner_inspection,tenant_inspection'.split: %}{% endfor %}
+    {% if request.user.is_staff or request.user.pk == case.tenant_id %}<article class="doc-card"><h3>⬆ État des lieux locataire signé</h3><p>État des lieux FASTHOME ↔ locataire, signé par le locataire.</p><div class="doc-meta"><span>EDL locataire</span><span class="doc-state {% if documents.tenant_inspection.status == 'validated' %}ok{% elif documents.tenant_inspection.status == 'rejected' %}bad{% else %}warn{% endif %}">{{ documents.tenant_inspection.get_status_display|default:'À préparer' }}</span></div>{% if documents.tenant_inspection.file %}<div class="doc-actions"><a class="btn btn-light" href="{{ documents.tenant_inspection.file.url }}" target="_blank">Voir le fichier reçu</a></div>{% endif %}{% if case.status != 'active' %}<form method="post" enctype="multipart/form-data" action="{% url 'upload_signed_rental_document' case.pk %}">{% csrf_token %}<input type="hidden" name="document_type" value="tenant_inspection"><input type="file" name="file" accept="application/pdf,.pdf" required><button class="btn btn-light">⬆ Envoyer pour vérification</button></form>{% endif %}{% if request.user.is_staff and documents.tenant_inspection.file and documents.tenant_inspection.status == 'pending_review' %}<div class="verify-box"><small>Vérification FASTHOME</small><div class="verify-actions"><form method="post" action="{% url 'verify_signed_rental_document' case.pk documents.tenant_inspection.pk %}">{% csrf_token %}<input type="hidden" name="decision" value="validate"><button class="btn btn-primary">✓ Valider</button></form><form method="post" action="{% url 'verify_signed_rental_document' case.pk documents.tenant_inspection.pk %}">{% csrf_token %}<input type="hidden" name="decision" value="reject"><button class="btn btn-light">✕ À corriger</button></form></div></div>{% endif %}</article>{% endif %}
+  </div></div>
 
-      {% if request.user.is_staff or request.user.pk == case.owner_id %}
-      <article class="doc-card">
-        <h3>⬆ Contrat propriétaire signé</h3>
-        <p>Déposé par le propriétaire ou FASTHOME.</p>
-        <div class="doc-meta"><span>Contrat</span><span class="doc-state {% if documents.owner_contract.status == 'validated' %}ok{% elif documents.owner_contract.status == 'rejected' %}bad{% else %}warn{% endif %}">{{ documents.owner_contract.get_status_display|default:'À préparer' }}</span></div>
-        {% if documents.owner_contract.file %}<div class="doc-actions"><a class="btn btn-light" href="{{ documents.owner_contract.file.url }}" target="_blank" rel="noopener">Voir le fichier reçu</a></div>{% endif %}
-        {% if case.status != 'active' %}<form method="post" enctype="multipart/form-data" action="{% url 'upload_signed_rental_document' case.pk %}">{% csrf_token %}<input type="hidden" name="document_type" value="owner_contract"><input type="file" name="file" accept="application/pdf,.pdf" required><button class="btn btn-light" type="submit">⬆ Envoyer pour vérification</button></form>{% endif %}
-        {% if request.user.is_staff and documents.owner_contract.file and documents.owner_contract.status == 'pending_review' %}<div class="verify-box"><small>Vérification FASTHOME</small><div class="verify-actions"><form method="post" action="{% url 'verify_signed_rental_document' case.pk documents.owner_contract.pk %}">{% csrf_token %}<input type="hidden" name="decision" value="validate"><button class="btn btn-primary" type="submit">✓ Valider</button></form><form method="post" action="{% url 'verify_signed_rental_document' case.pk documents.owner_contract.pk %}">{% csrf_token %}<input type="hidden" name="decision" value="reject"><button class="btn btn-light" type="submit">✕ À corriger</button></form></div></div>{% endif %}
-      </article>
-      {% endif %}
+  <div class="rental-card"><h2>3. Documents signés validés</h2><p class="section-sub">Après validation par FASTHOME, chaque partie retrouve uniquement les deux documents qui la concernent.</p><div class="signed-grid">
+    {% if request.user.is_staff or request.user.pk == case.owner_id %}{% if documents.owner_contract.status == 'validated' and documents.owner_contract.file %}<div class="signed-item"><div><b>Contrat FASTHOME ↔ Propriétaire</b><small>Signé et vérifié</small></div><a class="btn btn-light" href="{{ documents.owner_contract.file.url }}" target="_blank">Voir</a></div>{% endif %}{% if documents.owner_inspection.status == 'validated' and documents.owner_inspection.file %}<div class="signed-item"><div><b>État des lieux FASTHOME ↔ Propriétaire</b><small>Signé et vérifié</small></div><a class="btn btn-light" href="{{ documents.owner_inspection.file.url }}" target="_blank">Voir</a></div>{% endif %}{% endif %}
+    {% if request.user.is_staff or request.user.pk == case.tenant_id %}{% if documents.tenant_contract.status == 'validated' and documents.tenant_contract.file %}<div class="signed-item"><div><b>Contrat FASTHOME ↔ Locataire</b><small>Signé et vérifié</small></div><a class="btn btn-light" href="{{ documents.tenant_contract.file.url }}" target="_blank">Voir</a></div>{% endif %}{% if documents.tenant_inspection.status == 'validated' and documents.tenant_inspection.file %}<div class="signed-item"><div><b>État des lieux FASTHOME ↔ Locataire</b><small>Signé et vérifié</small></div><a class="btn btn-light" href="{{ documents.tenant_inspection.file.url }}" target="_blank">Voir</a></div>{% endif %}{% endif %}
+  </div></div>
 
-      {% if request.user.is_staff or request.user.pk == case.tenant_id %}
-      <article class="doc-card">
-        <h3>⬆ Contrat locataire signé</h3>
-        <p>Déposé par le locataire ou FASTHOME.</p>
-        <div class="doc-meta"><span>Contrat</span><span class="doc-state {% if documents.tenant_contract.status == 'validated' %}ok{% elif documents.tenant_contract.status == 'rejected' %}bad{% else %}warn{% endif %}">{{ documents.tenant_contract.get_status_display|default:'À préparer' }}</span></div>
-        {% if documents.tenant_contract.file %}<div class="doc-actions"><a class="btn btn-light" href="{{ documents.tenant_contract.file.url }}" target="_blank" rel="noopener">Voir le fichier reçu</a></div>{% endif %}
-        {% if case.status != 'active' %}<form method="post" enctype="multipart/form-data" action="{% url 'upload_signed_rental_document' case.pk %}">{% csrf_token %}<input type="hidden" name="document_type" value="tenant_contract"><input type="file" name="file" accept="application/pdf,.pdf" required><button class="btn btn-light" type="submit">⬆ Envoyer pour vérification</button></form>{% endif %}
-        {% if request.user.is_staff and documents.tenant_contract.file and documents.tenant_contract.status == 'pending_review' %}<div class="verify-box"><small>Vérification FASTHOME</small><div class="verify-actions"><form method="post" action="{% url 'verify_signed_rental_document' case.pk documents.tenant_contract.pk %}">{% csrf_token %}<input type="hidden" name="decision" value="validate"><button class="btn btn-primary" type="submit">✓ Valider</button></form><form method="post" action="{% url 'verify_signed_rental_document' case.pk documents.tenant_contract.pk %}">{% csrf_token %}<input type="hidden" name="decision" value="reject"><button class="btn btn-light" type="submit">✕ À corriger</button></form></div></div>{% endif %}
-      </article>
-      {% endif %}
-
-      {% if request.user.is_staff or request.user.pk == case.owner_id %}
-      <article class="doc-card">
-        <h3>⬆ État des lieux propriétaire signé</h3>
-        <p>État des lieux FASTHOME ↔ propriétaire, signé par le propriétaire.</p>
-        <div class="doc-meta"><span>EDL propriétaire</span><span class="doc-state {% if documents.owner_inspection.status == 'validated' %}ok{% elif documents.owner_inspection.status == 'rejected' %}bad{% else %}warn{% endif %}">{{ documents.owner_inspection.get_status_display|default:'À préparer' }}</span></div>
-        {% if documents.owner_inspection.file %}<div class="doc-actions"><a class="btn btn-light" href="{{ documents.owner_inspection.file.url }}" target="_blank" rel="noopener">Voir le fichier reçu</a></div>{% endif %}
-        {% if case.status != 'active' %}<form method="post" enctype="multipart/form-data" action="{% url 'upload_signed_rental_document' case.pk %}">{% csrf_token %}<input type="hidden" name="document_type" value="owner_inspection"><input type="file" name="file" accept="application/pdf,.pdf" required><button class="btn btn-light" type="submit">⬆ Envoyer pour vérification</button></form>{% endif %}
-        {% if request.user.is_staff and documents.owner_inspection.file and documents.owner_inspection.status == 'pending_review' %}<div class="verify-box"><small>Vérification FASTHOME</small><div class="verify-actions"><form method="post" action="{% url 'verify_signed_rental_document' case.pk documents.owner_inspection.pk %}">{% csrf_token %}<input type="hidden" name="decision" value="validate"><button class="btn btn-primary" type="submit">✓ Valider</button></form><form method="post" action="{% url 'verify_signed_rental_document' case.pk documents.owner_inspection.pk %}">{% csrf_token %}<input type="hidden" name="decision" value="reject"><button class="btn btn-light" type="submit">✕ À corriger</button></form></div></div>{% endif %}
-      </article>
-      {% endif %}
-
-      {% if request.user.is_staff or request.user.pk == case.tenant_id %}
-      <article class="doc-card">
-        <h3>⬆ État des lieux locataire signé</h3>
-        <p>État des lieux FASTHOME ↔ locataire, signé par le locataire.</p>
-        <div class="doc-meta"><span>EDL locataire</span><span class="doc-state {% if documents.tenant_inspection.status == 'validated' %}ok{% elif documents.tenant_inspection.status == 'rejected' %}bad{% else %}warn{% endif %}">{{ documents.tenant_inspection.get_status_display|default:'À préparer' }}</span></div>
-        {% if documents.tenant_inspection.file %}<div class="doc-actions"><a class="btn btn-light" href="{{ documents.tenant_inspection.file.url }}" target="_blank" rel="noopener">Voir le fichier reçu</a></div>{% endif %}
-        {% if case.status != 'active' %}<form method="post" enctype="multipart/form-data" action="{% url 'upload_signed_rental_document' case.pk %}">{% csrf_token %}<input type="hidden" name="document_type" value="tenant_inspection"><input type="file" name="file" accept="application/pdf,.pdf" required><button class="btn btn-light" type="submit">⬆ Envoyer pour vérification</button></form>{% endif %}
-        {% if request.user.is_staff and documents.tenant_inspection.file and documents.tenant_inspection.status == 'pending_review' %}<div class="verify-box"><small>Vérification FASTHOME</small><div class="verify-actions"><form method="post" action="{% url 'verify_signed_rental_document' case.pk documents.tenant_inspection.pk %}">{% csrf_token %}<input type="hidden" name="decision" value="validate"><button class="btn btn-primary" type="submit">✓ Valider</button></form><form method="post" action="{% url 'verify_signed_rental_document' case.pk documents.tenant_inspection.pk %}">{% csrf_token %}<input type="hidden" name="decision" value="reject"><button class="btn btn-light" type="submit">✕ À corriger</button></form></div></div>{% endif %}
-      </article>
-      {% endif %}
-    </div>
-  </div>
-
-  <div class="rental-card">
-    <h2>3. Documents signés validés</h2>
-    <p class="section-sub">Après validation par FASTHOME, chaque partie retrouve uniquement les deux documents qui la concernent.</p>
-    <div class="signed-grid">
-      {% if request.user.is_staff or request.user.pk == case.owner_id %}
-        {% if documents.owner_contract.status == 'validated' and documents.owner_contract.file %}<div class="signed-item"><div><b>Contrat FASTHOME ↔ Propriétaire</b><small>Signé et vérifié</small></div><a class="btn btn-light" href="{{ documents.owner_contract.file.url }}" target="_blank" rel="noopener">Voir</a></div>{% endif %}
-        {% if documents.owner_inspection.status == 'validated' and documents.owner_inspection.file %}<div class="signed-item"><div><b>État des lieux FASTHOME ↔ Propriétaire</b><small>Signé et vérifié</small></div><a class="btn btn-light" href="{{ documents.owner_inspection.file.url }}" target="_blank" rel="noopener">Voir</a></div>{% endif %}
-      {% endif %}
-      {% if request.user.is_staff or request.user.pk == case.tenant_id %}
-        {% if documents.tenant_contract.status == 'validated' and documents.tenant_contract.file %}<div class="signed-item"><div><b>Contrat FASTHOME ↔ Locataire</b><small>Signé et vérifié</small></div><a class="btn btn-light" href="{{ documents.tenant_contract.file.url }}" target="_blank" rel="noopener">Voir</a></div>{% endif %}
-        {% if documents.tenant_inspection.status == 'validated' and documents.tenant_inspection.file %}<div class="signed-item"><div><b>État des lieux FASTHOME ↔ Locataire</b><small>Signé et vérifié</small></div><a class="btn btn-light" href="{{ documents.tenant_inspection.file.url }}" target="_blank" rel="noopener">Voir</a></div>{% endif %}
-      {% endif %}
-    </div>
-  </div>
-
-  <div class="rental-card">
-    <div class="activation {% if case.status == 'active' %}active{% endif %}">
-      {% if case.status == 'active' %}
-        <strong>✅ CONTRAT EFFECTIF — LOCATION ACTIVE</strong>
-        Les 4 documents signés ont été vérifiés par FASTHOME. Le bien est maintenant enregistré comme loué et les documents validés restent disponibles dans les espaces des parties concernées.
-      {% else %}
-        <strong>🔐 ACTIVATION BLOQUÉE</strong>
-        Le contrat reste non effectif tant que les quatre pièces suivantes ne sont pas toutes validées par FASTHOME : contrat propriétaire, contrat locataire, état des lieux propriétaire et état des lieux locataire.
-      {% endif %}
-    </div>
-    <a class="btn btn-light" style="margin-top:18px" href="{% url 'rental_cases' %}">← Retour aux dossiers</a>
-  </div>
+  <div class="rental-card"><div class="activation {% if case.status == 'active' %}active{% endif %}">{% if case.status == 'active' %}<strong>✅ CONTRAT EFFECTIF — LOCATION ACTIVE</strong>Les 4 documents signés ont été vérifiés par FASTHOME. Le bien est maintenant enregistré comme loué et les documents validés restent disponibles dans les espaces des parties concernées.{% else %}<strong>🔐 ACTIVATION BLOQUÉE</strong>Le contrat reste non effectif tant que les quatre pièces suivantes ne sont pas toutes validées par FASTHOME : contrat propriétaire, contrat locataire, état des lieux propriétaire et état des lieux locataire.{% endif %}</div><a class="btn btn-light" style="margin-top:18px" href="{% url 'rental_cases' %}">← Retour aux dossiers</a></div>
 </section>
 {% endblock %}
