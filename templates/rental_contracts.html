@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% block title %}Mes contrats — FASTHOME{% endblock %}
+{% block content %}
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="side-brand">FAST<span>HOME</span><small>ESPACE PERSONNEL</small></div>
+    <a href="{% url 'dashboard' %}">⌂ Tableau de bord</a>
+    <a href="{% url 'search' %}">⌕ Rechercher</a>
+    <a href="{% url 'favorites' %}">♡ Mes favoris</a>
+    <a href="{% url 'publications' %}">▣ Mes publications</a>
+    <a href="{% url 'visits' %}">◷ Mes demandes de visite</a>
+    <a href="{% url 'rental_cases' %}">⌂ Mes dossiers de location</a>
+    <a href="{% url 'contracts' %}">▤ Mes contrats</a>
+    <a href="{% url 'payments' %}">◉ Mes paiements</a>
+    <a href="{% url 'due_dates' %}">◴ Mes échéances</a>
+    <a href="{% url 'notifications' %}">● Notifications</a>
+    <a href="{% url 'profile' %}">⚙ Mon profil</a>
+    <a href="{% url 'logout' %}" class="logout">↪ Déconnexion</a>
+  </aside>
+
+  <section class="dashboard">
+    <div class="dash-head">
+      <div>
+        <small>ESPACE PERSONNEL · LOCATION</small>
+        <h1>Mes contrats</h1>
+        <p>Retrouvez les contrats FASTHOME qui vous concernent. Un contrat n'est visible ici que par la partie concernée.</p>
+      </div>
+    </div>
+
+    <div class="panel list-panel">
+      {% for contract in contracts %}
+      <div class="list-row">
+        <div class="thumb small">▤</div>
+        <div>
+          <b>{{ contract.reference }}</b>
+          <small>{{ contract.property.title }} · {{ contract.property.reference }}</small>
+          <small>
+            {% if contract.contract_type == 'owner_agreement' %}
+              Contrat de mise en location · FASTHOME ↔ Propriétaire
+            {% else %}
+              Contrat de sous-location · FASTHOME ↔ Locataire
+            {% endif %}
+          </small>
+          {% if contract.rental_case.status == 'active' %}
+            <small style="margin-top:6px"><strong>Location active</strong></small>
+          {% endif %}
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+          <span class="status">{{ contract.get_status_display }}</span>
+          <a class="btn btn-light" href="{% url 'rental_case_detail' contract.rental_case.pk %}">Ouvrir le dossier</a>
+          <a class="btn btn-primary" href="{% url 'rental_contract_pdf' contract.pk %}" target="_blank" rel="noopener">Télécharger le contrat</a>
+        </div>
+      </div>
+      {% empty %}
+        <div class="empty">
+          <strong>Aucun contrat FASTHOME n'est encore associé à votre compte.</strong>
+          <br><small>Si vous avez une location active, ouvrez « Mes dossiers de location » pour vérifier le dossier.</small>
+          <br><br><a class="btn btn-light" href="{% url 'rental_cases' %}">Mes dossiers de location</a>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}
