@@ -15,6 +15,13 @@ class RentalCase(models.Model):
     owner = models.ForeignKey(User, on_delete=models.PROTECT, related_name='owned_rental_cases')
     tenant = models.ForeignKey(User, on_delete=models.PROTECT, related_name='tenant_rental_cases')
     status = models.CharField(max_length=30, choices=STATUS, default='preparing')
+
+    # Données financières saisies manuellement par FASTHOME dans le dossier.
+    # Elles sont conservées séparément du fichier de preuve de paiement.
+    rent_payment_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    rent_payment_date = models.DateField(null=True, blank=True)
+    guarantee_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
     owner_contract = models.OneToOneField('core.RentalContract', on_delete=models.SET_NULL, null=True, blank=True, related_name='owner_case')
     tenant_contract = models.OneToOneField('core.RentalContract', on_delete=models.SET_NULL, null=True, blank=True, related_name='tenant_case')
     notes = models.TextField(blank=True)
