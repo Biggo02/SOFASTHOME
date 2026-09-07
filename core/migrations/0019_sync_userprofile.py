@@ -6,4 +6,6 @@ class Migration(migrations.Migration):
         ('core', '0018_userprofile'),
     ]
 
-    operations = []
+    operations = [
+        migrations.RunSQL(sql='SELECT 1;', reverse_sql='SELECT 1;'),
+    ]
