@@ -1,11 +1,12 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponseForbidden
+from django.http import HttpResponseForbidden, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
 from .models import Notification
 from .rental_models import RentalCase, RentalContract, RentalDocument
 from .rental_document_views import prepare_four_rental_documents
+from .rental_contract_generator import generate_contract_pdf
 
 REQUIRED = {'owner_contract', 'tenant_contract', 'owner_inspection', 'tenant_inspection'}
 
@@ -28,7 +29,6 @@ def rental_case_detail(request, pk):
     if not _allowed(request, case):
         return HttpResponseForbidden('Accès refusé.')
 
-    # Toute ouverture du dossier synchronise les 2 états des lieux préremplis avec le bien.
     if case.owner_contract and case.tenant_contract:
         prepare_four_rental_documents(case)
         case.refresh_from_db()
@@ -56,12 +56,22 @@ def rental_case_detail(request, pk):
 
 @login_required
 def rental_contract_pdf(request, pk):
-    """Accès au PDF du contrat uniquement par la partie concernée ou FASTHOME."""
-    contract = get_object_or_404(RentalContract.objects.select_related('rental_case'), pk=pk)
+    """Génère le nouveau contrat détaillé depuis RentalContract, sans passer par l'ancien PDF."""
+    contract = get_object_or_404(
+        RentalContract.objects.select_related(
+            'rental_case', 'rental_case__property', 'rental_case__owner', 'rental_case__tenant', 'party'
+        ),
+        pk=pk,
+    )
     case = contract.rental_case
     if not _allowed(request, case):
         return HttpResponseForbidden('Accès refusé.')
     if not request.user.is_staff and request.user.pk != contract.party_id:
         return HttpResponseForbidden('Ce contrat est réservé à la partie concernée.')
-    from .rental_views import rental_contract_pdf as legacy_contract_pdf
-    return legacy_contract_pdf(request, pk)
+
+    pdf = generate_contract_pdf(contract)
+    kind = 'mise-en-location-proprietaire' if contract.contract_type == 'owner_agreement' else 'sous-location-locataire'
+    filename = f'{kind}-{contract.reference}.pdf'
+    response = HttpResponse(pdf, content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="{filename}"'
+    return response
