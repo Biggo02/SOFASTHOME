@@ -41,8 +41,11 @@
         <div style="flex:1">
           <b>{% if contract.contract_type == 'owner_agreement' %}Contrat de mise en location{% else %}Contrat de sous-location{% endif %}</b>
           <small>FASTHOME ↔ {% if contract.contract_type == 'owner_agreement' %}Propriétaire{% else %}Locataire{% endif %}</small>
-          <small>Loyer contractuel : {{ contract.amount }} CDF · Garantie : {{ contract.deposit }} CDF</small>
+          <small>Loyer contractuel : {{ contract.amount|floatformat:2 }} CDF · Garantie : {{ contract.deposit|floatformat:2 }} CDF</small>
           {% if contract.start_date %}<small>Début : {{ contract.start_date }}{% if contract.end_date %} · Fin : {{ contract.end_date }}{% endif %}</small>{% endif %}
+        </div>
+        <div style="display:flex;align-items:center">
+          <a class="btn btn-primary" href="{% url 'rental_contract_detail' contract.id %}">Voir le contrat en détail →</a>
         </div>
       </div>
 
@@ -56,7 +59,7 @@
               <b>{{ doc.label }}</b>
               {% if doc.status == 'validated' and doc.file %}
                 <small>✓ Document signé et vérifié par FASTHOME</small>
-                <a class="btn btn-primary" href="{{ doc.file.url }}" target="_blank" rel="noopener">Voir le document signé</a>
+                <a class="btn btn-primary" href="{% url 'signed_rental_document_file' doc.id %}" target="_blank" rel="noopener">Voir le document signé</a>
               {% else %}
                 <small>Le document signé sera disponible après vérification par FASTHOME.</small>
               {% endif %}
@@ -67,7 +70,7 @@
               <b>{{ doc.label }}</b>
               {% if doc.status == 'validated' and doc.file %}
                 <small>✓ État des lieux signé et vérifié par FASTHOME</small>
-                <a class="btn btn-primary" href="{{ doc.file.url }}" target="_blank" rel="noopener">Voir l'état des lieux signé</a>
+                <a class="btn btn-primary" href="{% url 'signed_rental_document_file' doc.id %}" target="_blank" rel="noopener">Voir l'état des lieux signé</a>
               {% else %}
                 <small>L'état des lieux signé sera disponible après vérification par FASTHOME.</small>
               {% endif %}
@@ -85,4 +88,7 @@
     {% endfor %}
   </section>
 </div>
+<style>
+@media(max-width:760px){.list-row{flex-wrap:wrap}.list-row>div:last-child{width:100%;margin-top:10px}.list-row .btn{width:100%;text-align:center}}
+</style>
 {% endblock %}
