@@ -1,39 +1,12 @@
 from django.db import models
 from django.contrib.auth.models import User
-from django.db.models.signals import post_save
-from django.dispatch import receiver
 
 class UserProfile(models.Model):
-    PROFESSIONS = [
-        ('agent_immobilier', 'Agent immobilier'),
-        ('agriculteur', 'Agriculteur'),
-        ('artisan', 'Artisan'),
-        ('commercant', 'Commerçant'),
-        ('enseignant', 'Enseignant'),
-        ('fonctionnaire', 'Fonctionnaire'),
-        ('medecin', 'Médecin / professionnel de santé'),
-        ('ingenieur', 'Ingénieur'),
-        ('juriste', 'Juriste / avocat'),
-        ('comptable', 'Comptable / financier'),
-        ('entrepreneur', 'Entrepreneur'),
-        ('etudiant', 'Étudiant'),
-        ('sans_emploi', 'Sans emploi'),
-        ('retraite', 'Retraité'),
-        ('autre', 'Autre'),
-    ]
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
-    postnom = models.CharField(max_length=100, blank=True)
-    profession = models.CharField(max_length=40, choices=PROFESSIONS, blank=True)
-
-@receiver(post_save, sender=User)
-def ensure_user_profile(sender, instance, created, **kwargs):
-    profile_data = getattr(instance, '_registration_profile_data', None)
-    if created:
-        profile, _ = UserProfile.objects.get_or_create(user=instance)
-        if profile_data:
-            profile.postnom = profile_data.get('postnom', '')
-            profile.profession = profile_data.get('profession', '')
-            profile.save(update_fields=['postnom', 'profession'])
+    PROFESSIONS=[('Agriculteur','Agriculteur'),('Commerçant','Commerçant'),('Entrepreneur','Entrepreneur'),('Enseignant','Enseignant'),('Étudiant','Étudiant'),('Fonctionnaire','Fonctionnaire'),('Ingénieur','Ingénieur'),('Médecin','Médecin'),('Avocat','Avocat'),('Comptable','Comptable'),('Technicien','Technicien'),('Informaticien','Informaticien'),('Chauffeur','Chauffeur'),('Artisan','Artisan'),('Militaire','Militaire'),('Sans emploi','Sans emploi'),('Autre','Autre')]
+    user=models.OneToOneField(User,on_delete=models.CASCADE,related_name='profile')
+    postnom=models.CharField(max_length=150,blank=True)
+    profession=models.CharField(max_length=100,blank=True)
+    date_of_birth=models.DateField(null=True,blank=True)
 
 class Property(models.Model):
     TYPES=[('Appartement','Appartement'),('Maison','Maison'),('Studio','Studio'),('Villa','Villa')]
@@ -49,7 +22,7 @@ class Property(models.Model):
     bedrooms=models.PositiveIntegerField(default=1); salons=models.PositiveIntegerField(default=1); kitchens=models.PositiveIntegerField(default=1); bathrooms=models.PositiveIntegerField(default=1); toilets=models.PositiveIntegerField(default=1); max_occupants=models.PositiveIntegerField(default=1); floors=models.PositiveIntegerField(default=1); floor_number=models.PositiveIntegerField(default=0); parking=models.BooleanField(default=False); parking_spaces=models.PositiveIntegerField(default=0); security=models.BooleanField(default=True)
     furnished=models.BooleanField(default=False); furniture_details=models.TextField(blank=True); furnished_bedrooms=models.PositiveIntegerField(default=0); furnished_salons=models.PositiveIntegerField(default=0); furnished_kitchens=models.PositiveIntegerField(default=0); furnished_bathrooms=models.PositiveIntegerField(default=0); shower_count=models.PositiveIntegerField(default=0); shower_location=models.CharField(max_length=20,blank=True); shower_privacy=models.CharField(max_length=20,blank=True); shower_tank_type=models.CharField(max_length=80,blank=True); bathroom_details=models.TextField(blank=True); toilet_details=models.TextField(blank=True)
     water=models.BooleanField(default=True); water_days_per_week=models.PositiveIntegerField(default=7); water_source=models.CharField(max_length=30,choices=WATER_SOURCES,blank=True); water_details=models.TextField(blank=True); electricity=models.BooleanField(default=True); electricity_days_per_week=models.PositiveIntegerField(default=7); electricity_source=models.CharField(max_length=30,choices=ELECTRICITY_SOURCES,blank=True); electricity_details=models.TextField(blank=True); floor_type=models.CharField(max_length=30,choices=FLOOR_TYPES,blank=True); ceiling_type=models.CharField(max_length=30,choices=CEILING_TYPES,blank=True); condition=models.CharField(max_length=120,blank=True); furnished_type=models.CharField(max_length=100,blank=True)
-    rent=models.DecimalField(max_digits=10,decimal_places=2,default=0); deposit=models.DecimalField(max_digits=10,decimal_places=2,default=0); margin=models.DecimalField(max_digits=10,decimal_places=2,default=0); availability_date=models.DateField(null=True,blank=True); available_now=models.BooleanField(default=True); rejection_reason=models.TextField(blank=True); status=models.CharField(max_length=20,default='draft'); views=models.PositiveIntegerField(default=0); created_at=models.DateTimeField(auto_now_add=True); updated_at=models.DateTimeField(auto_now=True)
+    rent=models.DecimalField(max_digits=10,decimal_places=2,default=0); deposit=models.DecimalField(max_digits=10,decimal_places=2,default=0); margin=models.DecimalField(max_digits=10,decimal_places=2,default=0); availability_date=models.DateField(null=True,blank=True); available_now=models.BooleanField(default=True); rejection_reason=models.TextField(blank=True); status=models.CharField(max_length=20,choices=STATUSES,default='draft'); views=models.PositiveIntegerField(default=0); created_at=models.DateTimeField(auto_now_add=True); updated_at=models.DateTimeField(auto_now=True)
     room_details=models.JSONField(default=list,blank=True)
     def save(self,*args,**kwargs):
         if not self.reference:
@@ -83,7 +56,7 @@ class VerificationDocument(models.Model):
     user=models.ForeignKey(User,on_delete=models.CASCADE,related_name='verification_documents'); kind=models.CharField(max_length=20); file=models.FileField(upload_to='verification/%Y/%m/'); status=models.CharField(max_length=20,default='pending'); note=models.TextField(blank=True); created_at=models.DateTimeField(auto_now_add=True)
 class VerificationDossier(models.Model):
     STATUS=[('pending','En attente'),('review','En cours de vérification'),('approved','Vérification validée'),('rejected','Vérification refusée'),('needs_info','Informations supplémentaires requises')]
-    user=models.OneToOneField(User,on_delete=models.CASCADE,related_name='verification_dossier'); id_front=models.FileField(upload_to='verification/%Y/%m/',blank=True); id_back=models.FileField(upload_to='verification/%Y/%m/',blank=True); selfie=models.FileField(upload_to='verification/%Y/%m/',blank=True); status=models.CharField(max_length=20,choices=STATUS,default='pending'); note=models.TextField(blank=True); created_at=models.DateTimeField(auto_now_add=True); updated_at=models.DateTimeField(auto_now=True)
+    user=models.OneToOneField(User,on_delete=models.CASCADE,related_name='verification_dossier'); id_front=models.FileField(upload_to='verification/%Y/%m/',blank=True); id_back=models.FileField(upload_to='verification/%Y/%m/',blank=True); selfie=models.FileField(upload_to='verification/%Y/%m/',blank=True); status=models.CharField(max_length=20,default='pending'); note=models.TextField(blank=True); created_at=models.DateTimeField(auto_now_add=True); updated_at=models.DateTimeField(auto_now=True)
 class AuditLog(models.Model):
     actor=models.ForeignKey(User,on_delete=models.SET_NULL,null=True,blank=True,related_name='audit_logs'); action=models.CharField(max_length=120); object_type=models.CharField(max_length=80,blank=True); object_id=models.CharField(max_length=80,blank=True); ip_address=models.GenericIPAddressField(null=True,blank=True); details=models.JSONField(default=dict,blank=True); created_at=models.DateTimeField(auto_now_add=True)
     class Meta: ordering=['-created_at']
