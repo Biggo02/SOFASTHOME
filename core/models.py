@@ -1,5 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
 class UserProfile(models.Model):
     PROFESSIONS = [
@@ -23,6 +25,16 @@ class UserProfile(models.Model):
     postnom = models.CharField(max_length=100, blank=True)
     profession = models.CharField(max_length=40, choices=PROFESSIONS, blank=True)
 
+@receiver(post_save, sender=User)
+def ensure_user_profile(sender, instance, created, **kwargs):
+    profile_data = getattr(instance, '_registration_profile_data', None)
+    if created:
+        profile, _ = UserProfile.objects.get_or_create(user=instance)
+        if profile_data:
+            profile.postnom = profile_data.get('postnom', '')
+            profile.profession = profile_data.get('profession', '')
+            profile.save(update_fields=['postnom', 'profession'])
+
 class Property(models.Model):
     TYPES=[('Appartement','Appartement'),('Maison','Maison'),('Studio','Studio'),('Villa','Villa')]
     STATUSES=[('draft','Brouillon'),('review','En vérification'),('published','Publiée'),('rented','Louée'),('archived','Archivée'),('rejected','Refusée')]
@@ -37,7 +49,7 @@ class Property(models.Model):
     bedrooms=models.PositiveIntegerField(default=1); salons=models.PositiveIntegerField(default=1); kitchens=models.PositiveIntegerField(default=1); bathrooms=models.PositiveIntegerField(default=1); toilets=models.PositiveIntegerField(default=1); max_occupants=models.PositiveIntegerField(default=1); floors=models.PositiveIntegerField(default=1); floor_number=models.PositiveIntegerField(default=0); parking=models.BooleanField(default=False); parking_spaces=models.PositiveIntegerField(default=0); security=models.BooleanField(default=True)
     furnished=models.BooleanField(default=False); furniture_details=models.TextField(blank=True); furnished_bedrooms=models.PositiveIntegerField(default=0); furnished_salons=models.PositiveIntegerField(default=0); furnished_kitchens=models.PositiveIntegerField(default=0); furnished_bathrooms=models.PositiveIntegerField(default=0); shower_count=models.PositiveIntegerField(default=0); shower_location=models.CharField(max_length=20,blank=True); shower_privacy=models.CharField(max_length=20,blank=True); shower_tank_type=models.CharField(max_length=80,blank=True); bathroom_details=models.TextField(blank=True); toilet_details=models.TextField(blank=True)
     water=models.BooleanField(default=True); water_days_per_week=models.PositiveIntegerField(default=7); water_source=models.CharField(max_length=30,choices=WATER_SOURCES,blank=True); water_details=models.TextField(blank=True); electricity=models.BooleanField(default=True); electricity_days_per_week=models.PositiveIntegerField(default=7); electricity_source=models.CharField(max_length=30,choices=ELECTRICITY_SOURCES,blank=True); electricity_details=models.TextField(blank=True); floor_type=models.CharField(max_length=30,choices=FLOOR_TYPES,blank=True); ceiling_type=models.CharField(max_length=30,choices=CEILING_TYPES,blank=True); condition=models.CharField(max_length=120,blank=True); furnished_type=models.CharField(max_length=100,blank=True)
-    rent=models.DecimalField(max_digits=10,decimal_places=2,default=0); deposit=models.DecimalField(max_digits=10,decimal_places=2,default=0); margin=models.DecimalField(max_digits=10,decimal_places=2,default=0); availability_date=models.DateField(null=True,blank=True); available_now=models.BooleanField(default=True); rejection_reason=models.TextField(blank=True); status=models.CharField(max_length=20,choices=STATUSES,default='draft'); views=models.PositiveIntegerField(default=0); created_at=models.DateTimeField(auto_now_add=True); updated_at=models.DateTimeField(auto_now=True)
+    rent=models.DecimalField(max_digits=10,decimal_places=2,default=0); deposit=models.DecimalField(max_digits=10,decimal_places=2,default=0); margin=models.DecimalField(max_digits=10,decimal_places=2,default=0); availability_date=models.DateField(null=True,blank=True); available_now=models.BooleanField(default=True); rejection_reason=models.TextField(blank=True); status=models.CharField(max_length=20,default='draft'); views=models.PositiveIntegerField(default=0); created_at=models.DateTimeField(auto_now_add=True); updated_at=models.DateTimeField(auto_now=True)
     room_details=models.JSONField(default=list,blank=True)
     def save(self,*args,**kwargs):
         if not self.reference:
