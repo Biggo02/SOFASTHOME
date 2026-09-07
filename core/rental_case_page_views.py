@@ -9,6 +9,8 @@ from .rental_document_views import prepare_four_rental_documents
 from .rental_contract_generator import generate_contract_pdf
 
 REQUIRED = {'owner_contract', 'tenant_contract', 'owner_inspection', 'tenant_inspection'}
+OWNER_DOCUMENTS = {'owner_contract', 'owner_inspection'}
+TENANT_DOCUMENTS = {'tenant_contract', 'tenant_inspection'}
 
 
 def _allowed(request, case):
@@ -23,7 +25,9 @@ def _status_for(case, doc_type):
 @login_required
 def rental_case_detail(request, pk):
     case = get_object_or_404(
-        RentalCase.objects.select_related('property', 'owner', 'tenant', 'visit', 'owner_contract', 'tenant_contract').prefetch_related('documents'),
+        RentalCase.objects.select_related(
+            'property', 'owner', 'tenant', 'visit', 'owner_contract', 'tenant_contract'
+        ).prefetch_related('documents'),
         pk=pk,
     )
     if not _allowed(request, case):
@@ -34,15 +38,36 @@ def rental_case_detail(request, pk):
         case.refresh_from_db()
 
     documents = {d.document_type: d for d in case.documents.all()}
-    uploaded_count = sum(1 for kind in REQUIRED if documents.get(kind) and documents[kind].file)
-    validated_count = sum(1 for kind in REQUIRED if documents.get(kind) and documents[kind].status == 'validated' and documents[kind].file)
+
+    # Un propriétaire ne reçoit que le suivi de ses 2 documents.
+    # Un locataire ne reçoit que le suivi de ses 2 documents.
+    # FASTHOME voit le dossier complet et les 4 documents.
+    if request.user.is_staff:
+        visible_types = REQUIRED
+    elif request.user.pk == case.owner_id:
+        visible_types = OWNER_DOCUMENTS
+    else:
+        visible_types = TENANT_DOCUMENTS
+
+    uploaded_count = sum(
+        1 for kind in visible_types if documents.get(kind) and documents[kind].file
+    )
+    validated_count = sum(
+        1 for kind in visible_types
+        if documents.get(kind) and documents[kind].status == 'validated' and documents[kind].file
+    )
+
     context = {
         'case': case,
         'documents': documents,
         'required_document_types': REQUIRED,
-        'document_statuses': {kind: _status_for(case, kind) for kind in REQUIRED},
+        'visible_document_types': visible_types,
         'uploaded_count': uploaded_count,
         'validated_count': validated_count,
+        'is_owner_view': request.user.pk == case.owner_id and not request.user.is_staff,
+        'is_tenant_view': request.user.pk == case.tenant_id and not request.user.is_staff,
+        'is_staff_view': request.user.is_staff,
+        'document_statuses': {kind: _status_for(case, kind) for kind in REQUIRED},
     }
 
     if request.method == 'POST':
@@ -50,8 +75,16 @@ def rental_case_detail(request, pk):
             from .visitor_decision_views import _prepare_rental_documents
             _prepare_rental_documents(case.visit, case)
             prepare_four_rental_documents(case)
-            Notification.objects.create(user=case.tenant, title='4 documents prêts', message='Les deux contrats et les deux états des lieux préremplis sont disponibles.')
-            Notification.objects.create(user=case.owner, title='4 documents prêts', message='Les deux contrats et les deux états des lieux préremplis sont disponibles.')
+            Notification.objects.create(
+                user=case.tenant,
+                title='4 documents prêts',
+                message='Les deux contrats et les deux états des lieux préremplis sont disponibles.',
+            )
+            Notification.objects.create(
+                user=case.owner,
+                title='4 documents prêts',
+                message='Les deux contrats et les deux états des lieux préremplis sont disponibles.',
+            )
             messages.success(request, 'Les 2 contrats et les 2 états des lieux ont été générés.')
         return redirect('rental_case_detail', pk=case.pk)
 
@@ -63,7 +96,8 @@ def rental_contract_pdf(request, pk):
     """Génère le nouveau contrat détaillé depuis RentalContract, sans passer par l'ancien PDF."""
     contract = get_object_or_404(
         RentalContract.objects.select_related(
-            'rental_case', 'rental_case__property', 'rental_case__owner', 'rental_case__tenant', 'party'
+            'rental_case', 'rental_case__property', 'rental_case__owner',
+            'rental_case__tenant', 'party'
         ),
         pk=pk,
     )
