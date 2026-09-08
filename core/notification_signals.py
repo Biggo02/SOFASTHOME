@@ -52,9 +52,8 @@ def property_notifications(sender, instance, created, **kwargs):
 
 @receiver(post_save, sender=Visit)
 def visit_created_notifications(sender, instance, created, **kwargs):
-    if not created:
-        return
-    notify_staff_once('Nouvelle demande de visite', f'Demande #{instance.pk} pour {instance.property.reference} — action FASTHOME requise.')
+    if created:
+        notify_staff_once('Nouvelle demande de visite', f'Demande #{instance.pk} pour {instance.property.reference} — action FASTHOME requise.')
 
 
 @receiver(pre_save, sender=Visit)
@@ -63,11 +62,15 @@ def visit_before_save(sender, instance, **kwargs):
         instance._old_status = None
         instance._old_scheduled = None
         instance._old_agent_id = None
+        instance._old_owner_approved = False
+        instance._old_agent_approved = False
         return
-    old = sender.objects.filter(pk=instance.pk).values('status', 'scheduled_date', 'scheduled_time', 'agent_id').first()
+    old = sender.objects.filter(pk=instance.pk).values('status', 'scheduled_date', 'scheduled_time', 'agent_id', 'owner_approved', 'agent_approved').first()
     instance._old_status = old['status'] if old else None
     instance._old_scheduled = (old['scheduled_date'], old['scheduled_time']) if old else None
     instance._old_agent_id = old['agent_id'] if old else None
+    instance._old_owner_approved = old['owner_approved'] if old else False
+    instance._old_agent_approved = old['agent_approved'] if old else False
 
 
 @receiver(post_save, sender=Visit)
@@ -77,6 +80,8 @@ def visit_changed_notifications(sender, instance, created, **kwargs):
     old_status = getattr(instance, '_old_status', None)
     old_scheduled = getattr(instance, '_old_scheduled', None)
     old_agent_id = getattr(instance, '_old_agent_id', None)
+    old_owner_approved = getattr(instance, '_old_owner_approved', False)
+    old_agent_approved = getattr(instance, '_old_agent_approved', False)
     if old_status != instance.status:
         if instance.status == 'confirmed':
             notify_once(instance.requester, 'Demande de visite validée', 'Votre demande de visite est validée.')
@@ -86,15 +91,23 @@ def visit_changed_notifications(sender, instance, created, **kwargs):
             notify_once(instance.requester, 'Visite effectuée', 'Votre visite a été effectuée.')
         elif instance.status == 'cancelled':
             notify_once(instance.requester, 'Visite annulée', f'Votre visite pour {instance.property.reference} a été annulée.')
+        notify_staff_once('Statut de visite mis à jour', f'Demande #{instance.pk} — {instance.property.reference} : « {_status_label(instance, instance.status)} ».')
     scheduled = (instance.scheduled_date, instance.scheduled_time)
     if old_scheduled != scheduled and instance.scheduled_date and instance.requester:
         when = f'{instance.scheduled_date:%d/%m/%Y}'
         if instance.scheduled_time:
             when += f' à {instance.scheduled_time:%H:%M}'
         notify_once(instance.requester, 'Horaire de visite mis à jour', f'Votre visite pour {instance.property.reference} est prévue le {when}.')
+        notify_staff_once('Horaire de visite mis à jour', f'Demande #{instance.pk} — nouvelle programmation : {when}.')
     if instance.agent_id and instance.agent_id != old_agent_id:
         notify_once(instance.agent, 'Visite assignée', f'La visite #{instance.pk} pour {instance.property.reference} vous a été assignée.')
         notify_staff_once('Agent affecté à une visite', f'La visite #{instance.pk} pour {instance.property.reference} a été affectée à un agent.')
+    if instance.owner_approved != old_owner_approved:
+        decision = 'acceptée' if instance.owner_approved else 'refusée'
+        notify_staff_once('Décision propriétaire enregistrée', f'Le propriétaire a {decision} la demande de visite #{instance.pk} pour {instance.property.reference}.')
+    if instance.agent_approved != old_agent_approved:
+        decision = 'acceptée' if instance.agent_approved else 'refusée'
+        notify_staff_once('Décision FASTHOME enregistrée', f'La décision de l’agent pour la demande #{instance.pk} est : {decision}.')
 
 
 @receiver(pre_save, sender=Payment)
@@ -111,6 +124,7 @@ def payment_before_save(sender, instance, **kwargs):
 @receiver(post_save, sender=Payment)
 def payment_notifications(sender, instance, created, **kwargs):
     if created:
+        notify_staff_once('Nouvelle échéance de paiement', f'Une échéance #{instance.pk} a été créée pour le contrat {instance.contract.pk}.')
         return
     old_status = getattr(instance, '_old_status', None)
     old_paid = getattr(instance, '_old_amount_paid', None)
