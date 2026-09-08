@@ -4,7 +4,7 @@ from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
 from .models import Property, PropertyImage, Visit, VisitInspection, Contract, ContractDocument, Payment, PaymentProof, VerificationDocument, VerificationDossier, AuditLog, Notification
-from .rental_models import RentalCase, RentalContract, RentalDocument
+from .rental_models import RentalCase, RentalContract, RentalDocument, OwnerRemittance
 
 admin.site.site_header='FASTHOME — Administration'; admin.site.site_title='FASTHOME Admin'; admin.site.index_title='Centre de gestion immobilière'
 
@@ -122,6 +122,13 @@ class RentalDocumentAdmin(admin.ModelAdmin):
     list_display=('rental_case','document_type','label','status','file','updated_at')
     list_filter=('document_type','status')
     search_fields=('rental_case__reference','label')
+
+@admin.register(OwnerRemittance)
+class OwnerRemittanceAdmin(admin.ModelAdmin):
+    list_display=('reference','property','owner','amount','payment_date','period_start','period_end','payment_method')
+    list_filter=('payment_date','payment_method')
+    search_fields=('reference','property__reference','property__title','owner__username','owner__first_name','owner__last_name')
+    readonly_fields=('reference','created_at','updated_at')
 
 @admin.register(AuditLog)
 class AuditLogAdmin(admin.ModelAdmin):
