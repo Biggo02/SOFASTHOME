@@ -5,13 +5,13 @@
 <script>
 (function () {
   function removeUnwantedRoomFields() {
-    const labelsToRemove = new Set(['Sol', 'Plafond', 'État']);
-    document.querySelectorAll('.room-box').forEach(function (box) {
+    const labelsToRemove = new Set(['sol', 'plafond', 'état']);
+    document.querySelectorAll('#roomDetails .room-box').forEach(function (box) {
       box.querySelectorAll('label').forEach(function (label) {
-        const text = label.textContent.trim();
+        const text = label.textContent.trim().toLowerCase();
         if (!labelsToRemove.has(text)) return;
-        const field = label.closest('.field');
-        if (field) field.remove();
+        const wrapper = label.parentElement;
+        if (wrapper) wrapper.remove();
       });
     });
   }
@@ -19,10 +19,9 @@
   function applyCleanComposition() {
     ['shower_count', 'floors', 'floor_number'].forEach(function (name) {
       const field = document.getElementById('id_' + name);
-      if (field) {
-        const wrapper = field.closest('.field');
-        if (wrapper) wrapper.remove();
-      }
+      if (!field) return;
+      const wrapper = field.closest('.field') || field.parentElement;
+      if (wrapper) wrapper.remove();
     });
   }
 
@@ -34,7 +33,10 @@
   clean();
   const observer = new MutationObserver(clean);
   observer.observe(document.body, { childList: true, subtree: true });
-  setTimeout(function () { observer.disconnect(); clean(); }, 5000);
+  setTimeout(function () {
+    observer.disconnect();
+    clean();
+  }, 5000);
 })();
 </script>
 {% endblock %}
