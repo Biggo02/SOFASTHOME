@@ -3,7 +3,7 @@ from django.contrib.auth import views as auth_views
 from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
-from core import views, search_views, contract_views, how_it_works_views, about_views, contact_views, favorite_views, profile_views, verification_views, visit_views, visitor_decision_views, rental_views, rental_case_page_views, rental_contracts_page_views, rental_dashboard_views, rental_contract_detail_views, publication_views, rented_property_detail_views
+from core import views, search_views, contract_views, how_it_works_views, about_views, contact_views, favorite_views, profile_views, verification_views, visit_views, visitor_decision_views, rental_views, rental_case_page_views, rental_contracts_page_views, rental_dashboard_views, rental_contract_detail_views, publication_views, rented_property_detail_views, owner_remittance_statement_views
 from core import rental_signed_upload_views, rental_document_views, rental_secure_document_views
 
 urlpatterns = [
@@ -18,6 +18,7 @@ urlpatterns = [
     path('mes-dossiers-location/<int:pk>/document/owner-pv/', rental_document_views.rental_support_document_pdf, {'document': 'owner_pv'}, name='rental_owner_pv_pdf'), path('mes-dossiers-location/<int:pk>/document/tenant-pv/', rental_document_views.rental_support_document_pdf, {'document': 'tenant_pv'}, name='rental_tenant_pv_pdf'),
     path('mes-contrats/', rental_contracts_page_views.rental_contracts, name='contracts'), path('mes-contrats/<int:pk>/', rental_contract_detail_views.rental_contract_detail, name='rental_contract_detail'), path('mes-paiements/', views.payments, name='payments'), path('paiement/<int:pk>/preuve/', views.payment_proof, name='payment_proof'), path('mes-echeances/', views.due_dates, name='due_dates'), path('notifications/', views.notifications, name='notifications'), path('messages/', views.messages_page, name='messages'),
     path('bien-loue/<int:pk>/', rented_property_detail_views.rented_property_detail, name='rented_property_detail'),
+    path('bien-loue/<int:pk>/releve-versements.pdf', owner_remittance_statement_views.owner_remittance_statement, name='owner_remittance_statement'),
     path('verification-documents/', verification_views.verification_upload, name='verification_upload'), path('contrat/<str:reference>/pdf/', contract_views.contract_pdf, name='contract_pdf'), path('location/contrat/<int:pk>/pdf/', rental_case_page_views.rental_contract_pdf, name='rental_contract_pdf'),
     path('document-location-signe/<int:document_id>/', rental_secure_document_views.signed_document_file, name='signed_rental_document_file'),
     path('a-propos/', about_views.about, name='about'), path('comment-ca-marche/', how_it_works_views.how_it_works, name='how_it_works'), path('contact/', contact_views.contact, name='contact'), path('verification-contrat/<str:reference>/', views.contract_verify, name='contract_verify'), path('gestion/', views.admin_dashboard, name='admin_dashboard'), path('gestion/publication/<int:pk>/', views.review_publication, name='review_publication'), path('gestion/visite/<int:pk>/', visit_views.agent_visit_decision, name='manage_visit'), path('gestion/visite/<int:pk>/etat-des-lieux/', views.inspection, name='inspection'),
