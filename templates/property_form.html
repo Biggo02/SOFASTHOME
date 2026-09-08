@@ -2,40 +2,126 @@
 {% block title %}Publier un bien — FASTHOME{% endblock %}
 {% block content %}
 <style>
-.publication-page{max-width:1180px;margin:auto}.publication-page .form-card{padding:30px}.pub-section{padding:25px 0;border-bottom:1px solid var(--line)}.pub-title{display:flex;gap:14px;align-items:flex-start;margin-bottom:20px}.pub-title>span{display:grid;place-items:center;width:38px;height:38px;border-radius:11px;background:#fff3cd;color:#8a6500;font-weight:900}.pub-title h2{margin:0 0 3px;font-size:18px}.pub-title p{margin:0;color:var(--muted);font-size:11px}.form-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.field.full{grid-column:1/-1}.conditional{display:none}.conditional.visible{display:block}.dynamic-preview,.utility-preview{display:flex;flex-wrap:wrap;gap:8px;margin-top:15px;padding:13px;border-radius:10px;background:#fff}.dynamic-preview span,.utility-preview span{padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#f8fafb;font-size:10px}.room-preview{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:18px}.room-card{border:1px solid var(--line);border-radius:12px;padding:16px;background:#fbfcfd}.room-card h3{margin:0 0 10px;font-size:13px}.room-card .mini-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}.room-card label{font-size:9px}.room-card input,.room-card select{width:100%;padding:7px;margin-top:4px}.photo-rules{display:flex;gap:8px;flex-wrap:wrap}.photo-rules span{padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#f8fafb;font-size:10px}.field-error{color:var(--red);font-size:10px}.notice{margin-bottom:16px}@media(max-width:800px){.form-grid,.room-preview{grid-template-columns:1fr 1fr}.field.full{grid-column:1/-1}}@media(max-width:520px){.form-grid,.room-preview{grid-template-columns:1fr}.publication-page .form-card{padding:18px}.pub-section{padding:20px 0}.room-card .mini-grid{grid-template-columns:1fr}}
+.pub-page{max-width:1050px;margin:auto}.pub-card{padding:22px}.step{padding:24px 0;border-bottom:1px solid var(--line)}.step:last-of-type{border-bottom:0}.step-head{display:flex;gap:12px;align-items:flex-start;margin-bottom:18px}.step-no{min-width:36px;height:36px;border-radius:11px;background:#173f68;color:#fff;display:grid;place-items:center;font-weight:900}.step-head h2{margin:0 0 3px;font-size:19px}.step-head p{margin:0;color:var(--muted);font-size:12px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.field.full{grid-column:1/-1}.field label{display:block;font-weight:700;margin-bottom:6px}.field input,.field select,.field textarea{width:100%;box-sizing:border-box}.help{font-size:11px;color:var(--muted);margin-top:5px}.error{color:#b42318;font-size:11px;margin-top:5px}.conditional{display:none}.conditional.show{display:block}.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.chip{padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:#f7f9fb;font-size:12px}.room-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:15px}.room-card{border:1px solid var(--line);border-radius:14px;padding:15px;background:#fbfcfd}.room-card h3{margin:0 0 12px;font-size:14px}.room-card .mini{display:grid;grid-template-columns:1fr 1fr;gap:9px}.mini label{font-size:10px}.mini input,.mini select{margin-top:4px;width:100%;box-sizing:border-box}.auth-box{padding:16px;border:1px solid #d9e2ec;border-radius:14px;background:#f8fbfd;margin-top:12px}.check-row{display:flex;gap:10px;align-items:flex-start;margin:12px 0}.check-row input{margin-top:4px}.check-row label{font-size:13px;line-height:1.45}.map-row{display:flex;gap:8px;align-items:flex-end}.map-row .field{flex:1}.map-btn{white-space:nowrap}.photo-plan{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:14px}.photo-slot{border:1px dashed #b8c4d0;border-radius:13px;padding:12px;background:#fafcfe}.photo-slot strong{display:block;margin-bottom:8px;font-size:12px}.photo-slot input{width:100%}.photo-preview{display:none;width:100%;max-height:170px;object-fit:cover;border-radius:9px;margin-top:8px}.photo-count{font-weight:800}.actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;padding-top:20px}.currency{position:relative}.currency small{position:absolute;right:12px;top:39px;color:var(--muted);font-weight:700}.currency input{padding-right:45px}@media(max-width:700px){.grid,.room-list,.photo-plan{grid-template-columns:1fr}.pub-card{padding:16px}.map-row{align-items:stretch;flex-direction:column}.actions .btn{width:100%}.room-card .mini{grid-template-columns:1fr}}
 </style>
-<section class='form-page publication-page'>
-<div class='page-head'><small>FASTHOME · PUBLICATION VÉRIFIÉE</small><h1>Décrire votre bien avec précision</h1><p>Le formulaire se construit automatiquement à partir de la composition réelle du logement.</p></div>
-<div class='notice'><b>🔐 Identité vérifiée obligatoire</b><span>Le recto, le verso et le selfie doivent être approuvés par FASTHOME avant publication ou demande de visite.</span></div>
-<form method='post' class='panel form-card' id='propertyForm'>{% csrf_token %}{{ form.non_field_errors }}{{ form.room_details_json }}
-<div class='pub-section'><div class='pub-title'><span>01</span><div><h2>Informations générales</h2><p>Identité, localisation et description du bien.</p></div></div><div class='form-grid'>
-{% for field in form %}{% if field.name == 'title' or field.name == 'property_type' or field.name == 'description' or field.name == 'province' or field.name == 'city' or field.name == 'commune' or field.name == 'neighborhood' or field.name == 'full_address' or field.name == 'latitude' or field.name == 'longitude' %}<div class='field {% if field.name == 'description' %}full{% endif %}'><label>{{ field.label }}</label>{{ field }}{% if field.errors %}<small class='field-error'>{{ field.errors|striptags }}</small>{% endif %}</div>{% endif %}{% endfor %}
-</div></div>
-<div class='pub-section'><div class='pub-title'><span>02</span><div><h2>Composition et capacité</h2><p>Le nombre de pièces détermine automatiquement les fiches détaillées ci-dessous.</p></div></div><div class='form-grid'>
-{% for field in form %}{% if field.name in 'bedrooms,salons,kitchens,bathrooms,toilets,max_occupants,floors,floor_number,parking,parking_spaces,security' %}<div class='field'><label>{{ field.label }}</label>{{ field }}{% if field.errors %}<small class='field-error'>{{ field.errors|striptags }}</small>{% endif %}</div>{% endif %}{% endfor %}</div><div class='dynamic-preview' id='compositionPreview'></div><div id='roomPreview' class='room-preview'></div></div>
-<div class='pub-section conditional' id='furnishedSection'><div class='pub-title'><span>03</span><div><h2>🛋 Mobilier</h2><p>Cette section apparaît uniquement si le logement est déclaré meublé.</p></div></div><div class='form-grid'>{% for field in form %}{% if field.name in 'furnished,furnished_type,furnished_bedrooms,furnished_salons,furnished_kitchens,furnished_bathrooms,furniture_details' %}<div class='field {% if field.name == 'furniture_details' %}full{% endif %}'><label>{{ field.label }}</label>{{ field }}{% if field.errors %}<small class='field-error'>{{ field.errors|striptags }}</small>{% endif %}</div>{% endif %}{% endfor %}</div></div>
-<div class='pub-section'><div class='pub-title'><span>04</span><div><h2>🚿 Sanitaires</h2><p>Décrivez les douches, salles de bain et toilettes.</p></div></div><div class='form-grid'>{% for field in form %}{% if field.name in 'shower_count,shower_location,shower_privacy,shower_tank_type,bathroom_details,toilet_details' %}<div class='field {% if field.name == 'bathroom_details' or field.name == 'toilet_details' %}full{% endif %}'><label>{{ field.label }}</label>{{ field }}{% if field.errors %}<small class='field-error'>{{ field.errors|striptags }}</small>{% endif %}</div>{% endif %}{% endfor %}</div><div id='sanitaryPreview' class='dynamic-preview'></div></div>
-<div class='pub-section'><div class='pub-title'><span>05</span><div><h2>💧 Eau et ⚡ courant</h2><p>Disponibilité réelle, jours par semaine et provenance.</p></div></div><div class='form-grid'>{% for field in form %}{% if field.name in 'water,water_days_per_week,water_source,water_details,electricity,electricity_days_per_week,electricity_source,electricity_details' %}<div class='field {% if field.name == 'water_details' or field.name == 'electricity_details' %}full{% endif %}'><label>{{ field.label }}</label>{{ field }}{% if field.errors %}<small class='field-error'>{{ field.errors|striptags }}</small>{% endif %}</div>{% endif %}{% endfor %}</div><div id='utilityPreview' class='utility-preview'></div></div>
-<div class='pub-section'><div class='pub-title'><span>06</span><div><h2>🏠 État, finitions et disponibilité</h2><p>Sol, plafond, état et disponibilité du logement.</p></div></div><div class='form-grid'>{% for field in form %}{% if field.name in 'floor_type,ceiling_type,condition,available_now,availability_date' %}<div class='field'><label>{{ field.label }}</label>{{ field }}{% if field.errors %}<small class='field-error'>{{ field.errors|striptags }}</small>{% endif %}</div>{% endif %}{% endfor %}</div></div>
-<div class='pub-section'><div class='pub-title'><span>07</span><div><h2>📸 Plan de photos</h2><p>Après création du brouillon, ajoutez les photos. Les catégories proposées sont générées selon la composition.</p></div></div><div id='photoPlan' class='photo-rules'></div></div>
-<div class='pub-section'><div class='pub-title'><span>08</span><div><h2>💰 Conditions financières</h2><p>Informations privées utilisées par FASTHOME.</p></div></div><div class='form-grid'>{% for field in form %}{% if field.name in 'rent,deposit' %}<div class='field'><label>{{ field.label }}</label>{{ field }}{% if field.errors %}<small class='field-error'>{{ field.errors|striptags }}</small>{% endif %}</div>{% endif %}{% endfor %}</div></div>
-<div class='form-actions'><a class='btn btn-light' href='{% url 'publications' %}'>Annuler</a><button class='btn btn-light' name='save'>Enregistrer brouillon</button><button class='btn btn-primary' name='submit'>Soumettre à vérification</button></div>
-</form></section>
+<section class="form-page pub-page">
+  <div class="page-head"><small>FASTHOME · PUBLICATION VÉRIFIÉE</small><h1>Créer une publication</h1><p>Le formulaire s'adapte automatiquement aux caractéristiques que vous renseignez.</p></div>
+  <div class="notice"><b>🔐 Publication encadrée</b><span>Votre identité doit être validée par FASTHOME. Les informations saisies serviront à préparer et vérifier le dossier du bien.</span></div>
+
+  <form method="post" enctype="multipart/form-data" class="panel pub-card" id="propertyForm">
+    {% csrf_token %}{{ form.non_field_errors }}{{ form.room_details_json }}{{ form.title }}
+
+    <section class="step"><div class="step-head"><span class="step-no">01</span><div><h2>Type de bien</h2><p>Commencez par identifier précisément le logement.</p></div></div>
+      <div class="grid">
+        <div class="field"><label>{{ form.property_type.label }}</label>{{ form.property_type }}{% for e in form.property_type.errors %}<div class="error">{{ e }}</div>{% endfor %}</div>
+        <div class="field"><label>Bien meublé ?</label>{{ form.furnished }}<div class="help">Si oui, des questions supplémentaires apparaîtront automatiquement.</div></div>
+        <div class="field full"><label>{{ form.description.label }}</label>{{ form.description }}</div>
+      </div>
+    </section>
+
+    <section class="step"><div class="step-head"><span class="step-no">02</span><div><h2>Localisation</h2><p>Utilisez uniquement des intitulés en français et une adresse réellement vérifiable.</p></div></div>
+      <div class="grid">
+        {% for f in form %}{% if f.name in 'province,city,commune,neighborhood,avenue,number' %}<div class="field"><label>{{ f.label }}</label>{{ f }}{% for e in f.errors %}<div class="error">{{ e }}</div>{% endfor %}</div>{% endif %}{% endfor %}
+        <div class="field full"><label>{{ form.geolocation_link.label }}</label><div class="map-row"><div class="field">{{ form.geolocation_link }}</div><button type="button" class="btn btn-light map-btn" id="openMap">📍 Ouvrir Google Maps</button></div><div class="help">Collez le lien de localisation Google Maps du bien. Le bouton ouvre exactement ce lien.</div></div>
+      </div>
+    </section>
+
+    <section class="step"><div class="step-head"><span class="step-no">03</span><div><h2>Composition</h2><p>Le nombre de pièces génère automatiquement leurs fiches détaillées.</p></div></div>
+      <div class="grid">
+        {% for f in form %}{% if f.name in 'bedrooms,salons,kitchens,bathrooms,toilets,max_occupants,floors,floor_number,parking,parking_spaces,security,floor_type,ceiling_type,condition' %}<div class="field"><label>{{ f.label }}</label>{{ f }}{% for e in f.errors %}<div class="error">{{ e }}</div>{% endfor %}</div>{% endif %}{% endfor %}
+      </div>
+      <div class="chips" id="compositionChips"></div>
+      <div class="room-list" id="roomList"></div>
+    </section>
+
+    <section class="step conditional" id="furnishedStep"><div class="step-head"><span class="step-no">04</span><div><h2>🛋 Détails du mobilier</h2><p>Cette partie n'apparaît que pour un bien meublé.</p></div></div>
+      <div class="grid">
+        {% for f in form %}{% if f.name in 'furnished_type,furnished_bedrooms,furnished_salons,furnished_kitchens,furnished_bathrooms,furniture_details' %}<div class="field {% if f.name == 'furniture_details' %}full{% endif %}"><label>{{ f.label }}</label>{{ f }}{% for e in f.errors %}<div class="error">{{ e }}</div>{% endfor %}</div>{% endif %}{% endfor %}
+      </div>
+      <div class="help">Pour chaque chambre/salon, le système demandera aussi si la pièce est meublée et quels meubles sont présents.</div>
+    </section>
+
+    <section class="step"><div class="step-head"><span class="step-no">05</span><div><h2>🚿 Sanitaires</h2><p>Les détails apparaissent selon le nombre renseigné.</p></div></div>
+      <div class="grid">
+        {% for f in form %}{% if f.name in 'shower_count,shower_location,shower_privacy,shower_tank_type,bathroom_details,toilet_details' %}<div class="field {% if f.name in 'bathroom_details,toilet_details' %}full{% endif %}"><label>{{ f.label }}</label>{{ f }}{% for e in f.errors %}<div class="error">{{ e }}</div>{% endfor %}</div>{% endif %}{% endfor %}
+      </div>
+      <div class="chips" id="sanitaryChips"></div>
+    </section>
+
+    <section class="step"><div class="step-head"><span class="step-no">06</span><div><h2>💧 Eau et ⚡ courant</h2><p>Répondez d'abord oui/non ; les précisions apparaissent seulement si nécessaire.</p></div></div>
+      <div class="grid">
+        <div class="field"><label>{{ form.water.label }}</label>{{ form.water }}</div>
+        <div class="field conditional" id="waterDetails"><label>Jours d'eau par semaine</label>{{ form.water_days_per_week }}</div>
+        <div class="field conditional" id="waterSource"><label>{{ form.water_source.label }}</label>{{ form.water_source }}</div>
+        <div class="field full conditional" id="waterText"><label>{{ form.water_details.label }}</label>{{ form.water_details }}</div>
+        <div class="field"><label>{{ form.electricity.label }}</label>{{ form.electricity }}</div>
+        <div class="field conditional" id="electricityDetails"><label>Jours de courant par semaine</label>{{ form.electricity_days_per_week }}</div>
+        <div class="field conditional" id="electricitySource"><label>{{ form.electricity_source.label }}</label>{{ form.electricity_source }}</div>
+        <div class="field full conditional" id="electricityText"><label>{{ form.electricity_details.label }}</label>{{ form.electricity_details }}</div>
+      </div>
+    </section>
+
+    <section class="step"><div class="step-head"><span class="step-no">07</span><div><h2>💰 Conditions financières</h2><p>Montants saisis directement en francs congolais.</p></div></div>
+      <div class="grid">
+        <div class="field currency"><label>{{ form.rent.label }}</label>{{ form.rent }}<small>FC</small>{% for e in form.rent.errors %}<div class="error">{{ e }}</div>{% endfor %}</div>
+        <div class="field currency"><label>{{ form.deposit.label }}</label>{{ form.deposit }}<small>FC</small>{% for e in form.deposit.errors %}<div class="error">{{ e }}</div>{% endfor %}</div>
+      </div>
+    </section>
+
+    <section class="step"><div class="step-head"><span class="step-no">08</span><div><h2>📸 Photos du bien</h2><p>Les emplacements sont générés selon la composition. Sur téléphone, chaque bouton peut ouvrir directement l'appareil photo.</p></div></div>
+      <div class="help">Photos recommandées : façade, salon(s), chambre(s), cuisine(s), salle(s) de bain et toilette(s). Maximum 10 photos par publication.</div>
+      <div class="chips"><span class="chip photo-count" id="photoCount">0 photo(s) recommandée(s)</span></div>
+      <div class="photo-plan" id="photoPlan"></div>
+    </section>
+
+    <section class="step"><div class="step-head"><span class="step-no">09</span><div><h2>📜 Autorisations</h2><p>Ces déclarations sont séparées et doivent être acceptées pour soumettre le bien à FASTHOME.</p></div></div>
+      <div class="auth-box">
+        <div class="check-row">{{ form.owner_authorized_publication }}<label for="id_owner_authorized_publication"><strong>Je confirme être autorisé à publier ce bien.</strong><br>Je déclare être propriétaire du bien ou disposer d'un droit ou mandat valable m'autorisant à le proposer à la location et j'accepte que FASTHOME vérifie cette qualité.</label></div>
+        {% for e in form.owner_authorized_publication.errors %}<div class="error">{{ e }}</div>{% endfor %}
+        <div class="check-row">{{ form.owner_authorized_subletting }}<label for="id_owner_authorized_subletting"><strong>J'autorise FASTHOME à exploiter ce bien dans le cadre de son activité de sous-location.</strong><br>J'autorise FASTHOME à prendre le bien en location et à l'utiliser pour son activité de sous-location, selon les conditions convenues et le contrat qui sera établi.</label></div>
+        {% for e in form.owner_authorized_subletting.errors %}<div class="error">{{ e }}</div>{% endfor %}
+      </div>
+    </section>
+
+    <div class="actions"><a class="btn btn-light" href="{% url 'publications' %}">Annuler</a><button class="btn btn-light" name="save">Enregistrer le brouillon</button><button class="btn btn-primary" name="submit">Soumettre à FASTHOME</button></div>
+  </form>
+</section>
 <script>
 (function(){
-const f=document.getElementById('propertyForm'),q=n=>f.querySelector('[name="'+n+'"]');
-function val(n){return Math.max(0,parseInt(q(n)?.value||0,10)||0)}
-function field(name,label,type='text',options=[],key=''){const prefix=key?`dynamic_${key}_`:'dynamic_';if(type==='select')return `<div><label>${label}</label><select name="${prefix}${name}">${options.map(o=>`<option>${o}</option>`).join('')}</select></div>`;return `<div><label>${label}</label><input name="${prefix}${name}" type="${type}" placeholder="${label}"></div>`}
-function roomCard(kind,i){let title=kind+' '+i;let key=kind.toLowerCase().replaceAll(' ','_')+'_'+i;return `<article class="room-card" data-room-kind="${kind}" data-room-index="${i}" data-room-key="${key}"><h3>${kind==='Chambre'?'🛏':kind==='Salon'?'🛋':'🍳'} ${title}</h3><div class="mini-grid">${field('floor','Sol','select',['À préciser','Carrelage','Ciment','Parquet','Vinyle','Terre battue'],key)}${field('ceiling','Plafond','select',['À préciser','Dalle béton','Plafond classique','Staff','Lambris','Tôle'],key)}${field('condition','État','text',[],key)}${kind!=='Cuisine'?field('furnished','Meublée ?','select',['Non','Oui'],key):field('equipment','Équipements','text',[],key)}${field('details','Caractéristiques','text',[],key)}${field('photo','Photo à fournir','text',[],key)}</div></article>`}
-function refresh(){let labels=[['bedrooms','🛏','Chambre'],['salons','🛋','Salon'],['kitchens','🍳','Cuisine'],['bathrooms','🛁','Salle de bain'],['toilets','🚽','Toilette']];let html='';labels.forEach(([n,icon,label])=>{for(let i=1;i<=val(n);i++){if(['Chambre','Salon','Cuisine'].includes(label))html+=roomCard(label,i)}});document.getElementById('roomPreview').innerHTML=html;
-let total=labels.reduce((s,x)=>s+val(x[0]),0);document.getElementById('compositionPreview').innerHTML=[...labels.filter(x=>val(x[0])).map(x=>`<span>${x[1]} ${val(x[0])} ${x[2]}${val(x[0])>1?'s':''}</span>`),`<span>👨‍👩‍👧 Capacité maximale : ${val('max_occupants')} habitant(s)</span>`].join('');
-let furnished=q('furnished');document.getElementById('furnishedSection').classList.toggle('visible',!!furnished?.checked);
-let plans=['📷 Façade / extérieur'];for(let i=1;i<=val('salons');i++)plans.push(`📷 Salon ${i}`);for(let i=1;i<=val('bedrooms');i++)plans.push(`📷 Chambre ${i}`);for(let i=1;i<=val('kitchens');i++)plans.push(`📷 Cuisine ${i}`);for(let i=1;i<=val('bathrooms');i++)plans.push(`📷 Salle de bain ${i}`);for(let i=1;i<=val('toilets');i++)plans.push(`📷 Toilette ${i}`);document.getElementById('photoPlan').innerHTML=plans.map(x=>`<span>${x}</span>`).join('');
-const water=q('water')?.checked,electric=q('electricity')?.checked;document.getElementById('utilityPreview').innerHTML=[water?`💧 Eau · ${val('water_days_per_week')}/7 · ${q('water_source')?.selectedOptions[0]?.text||'provenance'}`:'💧 Eau non disponible',electric?`⚡ Courant · ${val('electricity_days_per_week')}/7 · ${q('electricity_source')?.selectedOptions[0]?.text||'provenance'}`:'⚡ Courant non disponible'].map(x=>`<span>${x}</span>`).join('');
-document.getElementById('sanitaryPreview').innerHTML=[`🚿 ${val('shower_count')} douche(s)`,`${val('bathrooms')} salle(s) de bain`,`${val('toilets')} toilette(s)`].map(x=>`<span>${x}</span>`).join('');}
-function collectRoomDetails(){const result=[];f.querySelectorAll('.room-card').forEach(card=>{const key=card.dataset.roomKey;const read=name=>card.querySelector(`[name="dynamic_${key}_${name}"]`)?.value?.trim()||'';result.push({kind:card.dataset.roomKind,index:Number(card.dataset.roomIndex),floor:read('floor'),ceiling:read('ceiling'),condition:read('condition'),furnished:read('furnished'),equipment:read('equipment'),details:read('details'),photo:read('photo')})});const hidden=q('room_details_json');if(hidden)hidden.value=JSON.stringify(result)}
-f.addEventListener('submit',function(){collectRoomDetails()});
-f.querySelectorAll('input,select,textarea').forEach(e=>{e.addEventListener('input',refresh);e.addEventListener('change',refresh)});refresh();
+ const form=document.getElementById('propertyForm');
+ const q=n=>form.querySelector('[name="'+n+'"]');
+ const num=n=>Math.max(0,parseInt(q(n)?.value||0,10)||0);
+ const checked=n=>!!q(n)?.checked;
+ const esc=s=>String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+ function setConditional(id,on){document.getElementById(id)?.classList.toggle('show',on)}
+ function roomCard(kind,i){
+   const key=kind.toLowerCase().replaceAll(' ','_')+'_'+i;
+   const furniture=checked('furnished')?`<div><label>Meublée ?</label><select name="dynamic_${key}_furnished"><option>Non</option><option>Oui</option></select></div><div><label>Meubles présents</label><input name="dynamic_${key}_furniture" placeholder="Lit, armoire, table…"></div>`:'';
+   const kitchen=kind==='Cuisine'?`<div><label>Cuisine équipée ?</label><select class="kitchen-equipped" name="dynamic_${key}_equipped"><option>Non</option><option>Oui</option></select></div><div><label>Équipements</label><input name="dynamic_${key}_equipment" placeholder="Four, frigo, évier…"></div>`:'';
+   const sanitary=kind==='Toilette'?`<div><label>Type de toilette</label><select name="dynamic_${key}_type"><option>À préciser</option><option>Cuvette</option><option>Turque</option><option>Autre</option></select></div><div><label>Emplacement</label><select name="dynamic_${key}_location"><option>À préciser</option><option>Intérieure</option><option>Extérieure</option></select></div>`:kind==='Salle de bain'?`<div><label>Accès</label><select name="dynamic_${key}_access"><option>À préciser</option><option>Privée</option><option>Commune</option></select></div><div><label>Emplacement</label><select name="dynamic_${key}_location"><option>À préciser</option><option>Intérieure</option><option>Extérieure</option></select></div>`:'';
+   return `<article class="room-card"><h3>${kind==='Chambre'?'🛏':kind==='Salon'?'🛋':kind==='Cuisine'?'🍳':kind==='Salle de bain'?'🛁':'🚽'} ${kind} ${i}</h3><div class="mini">${furniture}${kitchen}${sanitary}<div><label>Sol</label><select name="dynamic_${key}_floor"><option>À préciser</option><option>Carrelage</option><option>Ciment</option><option>Parquet</option><option>Vinyle</option></select></div><div><label>Plafond</label><select name="dynamic_${key}_ceiling"><option>À préciser</option><option>Dalle béton</option><option>Plafond classique</option><option>Staff</option></select></div><div><label>État</label><input name="dynamic_${key}_condition" placeholder="Bon, neuf, à rénover…"></div><div><label>Précisions</label><input name="dynamic_${key}_details" placeholder="Autres caractéristiques…"></div></div></article>`;
+ }
+ function refreshRooms(){
+   const specs=[['bedrooms','Chambre'],['salons','Salon'],['kitchens','Cuisine'],['bathrooms','Salle de bain'],['toilets','Toilette']];let html='';
+   specs.forEach(([field,label])=>{for(let i=1;i<=num(field);i++)html+=roomCard(label,i)});
+   document.getElementById('roomList').innerHTML=html;
+   document.getElementById('compositionChips').innerHTML=specs.filter(x=>num(x[0])).map(x=>`<span class="chip">${x[1]} : ${num(x[0])}</span>`).join('')+`<span class="chip">Capacité : ${num('max_occupants')}</span>`;
+   document.getElementById('sanitaryChips').innerHTML=[`🚿 Douches : ${num('shower_count')}`,`🛁 Salles de bain : ${num('bathrooms')}`,`🚽 Toilettes : ${num('toilets')}`].map(x=>`<span class="chip">${x}</span>`).join('');
+   setConditional('furnishedStep',checked('furnished'));
+ }
+ function refreshUtilities(){
+   const w=checked('water'),e=checked('electricity');['waterDetails','waterSource','waterText'].forEach(id=>setConditional(id,w));['electricityDetails','electricitySource','electricityText'].forEach(id=>setConditional(id,e));
+ }
+ function refreshPhotos(){
+   const slots=[['Façade / extérieur',1],['Salon',num('salons')],['Chambre',num('bedrooms')],['Cuisine',num('kitchens')],['Salle de bain',num('bathrooms')],['Toilette',num('toilets')]];let all=[];slots.forEach(([label,count])=>{for(let i=1;i<=count;i++)all.push(`${label} ${i}`)});if(!all.length)all=['Façade / extérieur'];all=all.slice(0,10);
+   document.getElementById('photoCount').textContent=all.length+' photo(s) recommandée(s)';
+   const plan=document.getElementById('photoPlan');plan.innerHTML=all.map((label,i)=>`<div class="photo-slot"><strong>📷 ${esc(label)}</strong><input type="file" name="photos" accept="image/*" capture="environment" data-photo-index="${i}"><img class="photo-preview" id="preview_${i}" alt="Aperçu"></div>`).join('');
+   plan.querySelectorAll('input[type=file]').forEach(input=>input.addEventListener('change',function(){const file=this.files?.[0],img=document.getElementById('preview_'+this.dataset.photoIndex);if(file&&img){img.src=URL.createObjectURL(file);img.style.display='block'}}));
+ }
+ function collectDetails(){const data=[];document.querySelectorAll('.room-card').forEach(card=>{const values={};card.querySelectorAll('[name^="dynamic_"]').forEach(el=>values[el.name]=el.value);data.push(values)});q('room_details_json').value=JSON.stringify(data)}
+ document.getElementById('openMap').addEventListener('click',function(){const link=q('geolocation_link')?.value.trim();if(link)window.open(link,'_blank','noopener');else{const parts=['avenue','number','neighborhood','commune','city','province'].map(qn=>q(qn)?.value.trim()).filter(Boolean);if(parts.length)window.open('https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(parts.join(', ')),'_blank','noopener');else alert('Renseignez au moins la ville ou collez un lien Google Maps.')}});
+ form.querySelectorAll('input,select,textarea').forEach(el=>el.addEventListener('change',()=>{refreshRooms();refreshUtilities();refreshPhotos()}));
+ form.addEventListener('submit',collectDetails);refreshRooms();refreshUtilities();refreshPhotos();
 })();
 </script>
 {% endblock %}
