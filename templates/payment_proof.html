@@ -1,1 +1,30 @@
-{% extends 'base.html' %}{% block title %}Preuve de paiement — FASTHOME{% endblock %}{% block content %}<section class='form-page'><div class='page-head'><small>PAIEMENT · JUSTIFICATIF</small><h1>Envoyer une preuve</h1><p>{{ payment.contract.property.title }} · Échéance du {{ payment.due_date|date:'d/m/Y' }}</p></div><form method='post' enctype='multipart/form-data' class='form-card'>{% csrf_token %}<div class='notice'><b>Montant attendu : {{ payment.amount_due }} USD</b><span>FASTHOME vérifie le justificatif avant de marquer le paiement comme reçu.</span></div><div class='field'><label>Reçu / justificatif</label><input type='file' name='file' required accept='image/*,.pdf'></div><div class='field'><label>Note</label><textarea name='note' rows='4' placeholder='Référence ou précision facultative'></textarea></div><div class='form-actions'><a class='btn btn-light' href='{% url "payments" %}'>Annuler</a><button class='btn btn-primary'>Envoyer à FASTHOME</button></div></form></section>{% endblock %}
+{% extends 'base.html' %}
+{% block title %}Justificatif de paiement — FASTHOME{% endblock %}
+{% block content %}
+<section class="proof-page">
+  <a class="back" href="{% url 'payments' %}">← Retour à mes paiements</a>
+  <div class="proof-head"><div><span>ESPACE PERSONNEL · PAIEMENT</span><h1>Déposer un justificatif</h1><p>{{ payment.contract.property.title }} · {{ payment.contract.property.reference }}</p></div><div class="proof-icon">₣</div></div>
+  <div class="proof-grid">
+    <section class="proof-card payment-summary">
+      <div class="kicker">OPÉRATION</div><h2>{{ payment.reference|default:'Paiement FASTHOME' }}</h2>
+      <div class="summary-line"><span>Bien</span><strong>{{ payment.contract.property.title }}</strong></div>
+      <div class="summary-line"><span>Montant attendu</span><strong>{{ payment.amount_due|floatformat:0 }} CDF</strong></div>
+      <div class="summary-line"><span>Déjà payé</span><strong>{{ payment.amount_paid|floatformat:0 }} CDF</strong></div>
+      <div class="summary-line"><span>Échéance</span><strong>{{ payment.due_date|date:'d/m/Y' }}</strong></div>
+      <div class="summary-line"><span>Statut</span><strong>{{ payment.get_status_display }}</strong></div>
+    </section>
+    <section class="proof-card">
+      <div class="kicker">VÉRIFICATION FASTHOME</div><h2>Votre justificatif</h2><p class="intro">Ajoutez le reçu ou la preuve correspondant à ce paiement. FASTHOME vérifiera le document avant d'enregistrer définitivement le paiement.</p>
+      <div class="secure-note"><b>🔒 Document confidentiel</b><span>Le justificatif est rattaché à votre opération et n'est pas affiché publiquement.</span></div>
+      <form method="post" enctype="multipart/form-data">{% csrf_token %}
+        <label class="upload-zone"><span class="upload-icon">↑</span><strong>Choisir le reçu ou justificatif</strong><small>Image ou PDF · fichier lisible recommandé</small><input type="file" name="file" required accept="image/*,.pdf"></label>
+        <label class="field"><span>Note facultative</span><textarea name="note" rows="4" placeholder="Référence de transaction, précision ou remarque utile à FASTHOME…"></textarea></label>
+        <div class="actions"><a class="btn btn-light" href="{% url 'payments' %}">Annuler</a><button class="btn btn-primary" type="submit">Envoyer à FASTHOME →</button></div>
+      </form>
+    </section>
+  </div>
+</section>
+<style>
+.proof-page{max-width:1050px;margin:0 auto;padding:30px 22px 60px}.back{font-size:10px;color:#526b80;text-decoration:none}.proof-head{display:flex;justify-content:space-between;gap:20px;align-items:flex-start;margin:22px 0}.proof-head span,.kicker{font-size:8px;letter-spacing:1.5px;font-weight:900;color:#84929d}.proof-head h1{font-size:29px;margin:6px 0}.proof-head p{font-size:10px;color:#748491;margin:0}.proof-icon{width:54px;height:54px;border-radius:15px;background:#10243e;color:#fff;display:grid;place-items:center;font-size:23px}.proof-grid{display:grid;grid-template-columns:.8fr 1.2fr;gap:16px}.proof-card{background:#fff;border:1px solid #e0e6eb;border-radius:16px;padding:21px;box-shadow:0 5px 18px rgba(16,36,62,.045)}.proof-card h2{font-size:17px;margin:6px 0 18px}.summary-line{display:flex;justify-content:space-between;gap:15px;padding:12px 0;border-bottom:1px solid #edf0f3}.summary-line span{font-size:9px;color:#7e8d99}.summary-line strong{font-size:10px;text-align:right}.intro{font-size:10px;line-height:1.6;color:#6f7f8c}.secure-note{padding:12px 14px;border-radius:11px;background:#f3f8fc;border:1px solid #dce8f2;margin:16px 0}.secure-note b,.secure-note span{display:block}.secure-note b{font-size:9px}.secure-note span{font-size:8px;color:#687a88;margin-top:3px}.upload-zone{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:150px;border:1.5px dashed #b9c7d2;border-radius:13px;background:#fafcfd;text-align:center;cursor:pointer;padding:20px}.upload-zone:hover{background:#f5f8fa}.upload-zone input{margin-top:12px;max-width:100%;font-size:9px}.upload-icon{width:35px;height:35px;border-radius:50%;background:#eaf1f6;display:grid;place-items:center;font-size:17px;margin-bottom:8px}.upload-zone strong{font-size:11px}.upload-zone small{font-size:8px;color:#81909b;margin-top:4px}.field{display:block;margin-top:15px}.field>span{display:block;font-size:9px;font-weight:800;margin-bottom:6px}.field textarea{width:100%;box-sizing:border-box;border:1px solid #dce3e8;border-radius:10px;padding:11px;font:inherit;font-size:10px;resize:vertical}.actions{display:flex;justify-content:flex-end;gap:10px;margin-top:17px}.actions .btn{padding:10px 14px;border-radius:9px;text-decoration:none;font-size:9px;font-weight:800;border:0}@media(max-width:760px){.proof-page{padding:22px 14px 45px}.proof-head{display:block}.proof-icon{margin-top:14px}.proof-grid{grid-template-columns:1fr}.actions{flex-direction:column}.actions .btn{text-align:center;width:100%;box-sizing:border-box}}
+</style>
+{% endblock %}
