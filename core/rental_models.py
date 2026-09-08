@@ -15,13 +15,9 @@ class RentalCase(models.Model):
     owner = models.ForeignKey(User, on_delete=models.PROTECT, related_name='owned_rental_cases')
     tenant = models.ForeignKey(User, on_delete=models.PROTECT, related_name='tenant_rental_cases')
     status = models.CharField(max_length=30, choices=STATUS, default='preparing')
-
-    # Données financières saisies manuellement par FASTHOME dans le dossier.
-    # Elles sont conservées séparément du fichier de preuve de paiement.
     rent_payment_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     rent_payment_date = models.DateField(null=True, blank=True)
     guarantee_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-
     owner_contract = models.OneToOneField('core.RentalContract', on_delete=models.SET_NULL, null=True, blank=True, related_name='owner_case')
     tenant_contract = models.OneToOneField('core.RentalContract', on_delete=models.SET_NULL, null=True, blank=True, related_name='tenant_case')
     notes = models.TextField(blank=True)
@@ -90,3 +86,27 @@ class RentalDocument(models.Model):
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+
+class OwnerRemittance(models.Model):
+    """Versement effectué par FASTHOME au propriétaire pour un bien loué."""
+    rental_case = models.ForeignKey(RentalCase, on_delete=models.PROTECT, related_name='owner_remittances')
+    property = models.ForeignKey('core.Property', on_delete=models.PROTECT, related_name='owner_remittances')
+    owner = models.ForeignKey(User, on_delete=models.PROTECT, related_name='owner_remittances')
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    payment_date = models.DateField()
+    period_start = models.DateField(null=True, blank=True)
+    period_end = models.DateField(null=True, blank=True)
+    reference = models.CharField(max_length=60, unique=True, blank=True)
+    payment_method = models.CharField(max_length=40, blank=True, default='')
+    proof = models.FileField(upload_to='owner_remittances/%Y/%m/', blank=True)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        if not self.reference:
+            super().save(*args, **kwargs)
+            self.reference = f'FAST-VERS-{self.pk:06d}'
+            return super().save(update_fields=['reference'])
+        return super().save(*args, **kwargs)
