@@ -2,10 +2,14 @@
 {% block title %}{{ title }} — FASTHOME{% endblock %}
 {% block content %}
 <div class="personal-space list-personal-space">
-  <aside class="personal-sidebar" id="dashboard-sidebar">
-    <div class="personal-brand"><div class="brand-mark">F</div><div><strong>FASTHOME</strong><small>MON ESPACE</small></div></div>
+  <aside class="personal-sidebar" id="dashboard-sidebar" aria-label="Menu de mon espace">
+    <div class="personal-brand">
+      <div class="brand-mark">F</div>
+      <div><strong>FASTHOME</strong><small>MON ESPACE</small></div>
+    </div>
     <nav>
-      <div class="nav-group"><span class="nav-label">MON ESPACE</span>
+      <div class="nav-group">
+        <span class="nav-label">MON ESPACE</span>
         <a class="nav-item {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}"><span>⌂</span>Tableau de bord</a>
         <a class="nav-item {% if request.resolver_match.url_name == 'search' %}active{% endif %}" href="{% url 'search' %}"><span>⌕</span>Rechercher un logement</a>
         <a class="nav-item {% if request.resolver_match.url_name == 'favorites' %}active{% endif %}" href="{% url 'favorites' %}"><span>♡</span>Mes favoris</a>
@@ -15,7 +19,8 @@
         <a class="nav-item {% if request.resolver_match.url_name == 'contracts' %}active{% endif %}" href="{% url 'contracts' %}"><span>▤</span>Mes locations</a>
         <a class="nav-item {% if kind == 'notification' %}active{% endif %}" href="{% url 'notifications' %}"><span>♢</span>Notifications</a>
       </div>
-      <div class="nav-group nav-bottom"><span class="nav-label">MON COMPTE</span>
+      <div class="nav-group nav-bottom">
+        <span class="nav-label">MON COMPTE</span>
         <a class="nav-item {% if request.resolver_match.url_name == 'profile' %}active{% endif %}" href="{% url 'profile' %}"><span>⚙</span>Mon profil</a>
         <a class="nav-item logout" href="{% url 'logout' %}"><span>↪</span>Déconnexion</a>
       </div>
@@ -24,38 +29,75 @@
 
   <main class="personal-main list-main">
     <header class="page-header list-head">
-      <div><span class="eyebrow">ESPACE PERSONNEL</span><h1>{{ title }}</h1><p>{% if kind == 'favorite' %}Retrouvez les logements que vous avez enregistrés comme favoris.{% elif kind == 'visit' %}Suivez vos demandes de visite, les dates proposées et leur état d’avancement.{% elif kind == 'contract' %}Retrouvez vos contrats et les informations liées à vos locations.{% elif kind == 'property' %}Gérez les biens immobiliers associés à votre compte.{% elif kind == 'notification' %}Toutes les informations importantes concernant votre compte FASTHOME.{% else %}Retrouvez les informations importantes de votre compte FASTHOME.{% endif %}</p></div>
+      <div>
+        <span class="eyebrow">ESPACE PERSONNEL</span>
+        <h1>{{ title }}</h1>
+        <p>{% if kind == 'favorite' %}Retrouvez rapidement les logements que vous avez enregistrés.{% elif kind == 'visit' %}Suivez vos demandes de visite, leurs dates et leur état d’avancement.{% elif kind == 'contract' %}Retrouvez vos contrats et les informations liées à vos locations.{% elif kind == 'property' %}Gérez les biens immobiliers associés à votre compte.{% elif kind == 'notification' %}Toutes les informations importantes concernant votre compte FASTHOME.{% else %}Retrouvez les informations importantes de votre compte FASTHOME.{% endif %}</p>
+      </div>
       {% if kind == 'favorite' %}<a class="btn btn-primary" href="{% url 'search' %}">⌕ Rechercher un logement</a>{% elif kind == 'visit' %}<a class="btn btn-primary" href="{% url 'search' %}">＋ Trouver un logement</a>{% elif kind == 'property' %}<a class="btn btn-primary" href="{% url 'add_property' %}">＋ Ajouter un bien</a>{% endif %}
     </header>
 
     {% if kind == 'favorite' %}
-      <div class="section-caption"><strong>Mes logements favoris</strong><span>{{ items|length }} logement{% if items|length != 1 %}s{% endif %} enregistré{% if items|length != 1 %}s{% endif %}</span></div>
+      <div class="section-caption"><strong>Logements enregistrés</strong><span>{{ items|length }} logement{% if items|length != 1 %}s{% endif %}</span></div>
       <div class="favorite-grid">
         {% for item in items %}
           <article class="favorite-card">
-            <div class="favorite-cover">
-              {% with image=item.images.first %}{% if image %}<img src="{{ image.image.url }}" alt="{{ item.title }}">{% else %}<div class="cover-placeholder">⌂</div>{% endif %}{% endwith %}
+            <a class="favorite-cover" href="{% url 'property_detail' item.pk %}" aria-label="Voir {{ item.title }}">
+              {% with image=item.images.first %}
+                {% if image %}<img src="{{ image.image.url }}" alt="{{ item.title }}" loading="lazy">{% else %}<div class="cover-placeholder">⌂</div>{% endif %}
+              {% endwith %}
               <span class="favorite-badge">♡ Favori</span>
+            </a>
+            <div class="favorite-body">
+              <span class="ref">{{ item.reference }}</span>
+              <h2>{{ item.title }}</h2>
+              <p class="location">{% if item.city %}{{ item.city }}{% endif %}{% if item.commune %} · {{ item.commune }}{% endif %}</p>
+              <div class="favorite-meta">
+                <span>⌂ {{ item.bedrooms }} chambre{% if item.bedrooms != 1 %}s{% endif %}</span>
+                <span>♢ {{ item.bathrooms }} salle{% if item.bathrooms != 1 %}s{% endif %} d’eau</span>
+              </div>
+              <a class="card-action" href="{% url 'property_detail' item.pk %}">Voir le logement <span>→</span></a>
             </div>
-            <div class="favorite-body"><span class="ref">{{ item.reference }}</span><h2>{{ item.title }}</h2><p>{% if item.city %}{{ item.city }}{% endif %}{% if item.commune %} · {{ item.commune }}{% endif %}</p><div class="favorite-meta"><span>{{ item.bedrooms }} chambre{% if item.bedrooms != 1 %}s{% endif %}</span><span>{{ item.bathrooms }} salle{% if item.bathrooms != 1 %}s{% endif %} d’eau</span></div><a class="card-action" href="{% url 'property_detail' item.pk %}">Voir le logement →</a></div>
           </article>
         {% empty %}
-          <div class="empty-state"><div class="empty-icon">♡</div><h2>Vous n’avez aucun favori</h2><p>Enregistrez les logements qui vous intéressent pendant votre recherche pour les retrouver facilement ici.</p><a class="btn btn-primary" href="{% url 'search' %}">Rechercher un logement</a></div>
+          <div class="empty-state">
+            <div class="empty-icon">♡</div>
+            <h2>Vous n’avez aucun favori</h2>
+            <p>Enregistrez les logements qui vous intéressent pendant votre recherche pour les retrouver facilement ici.</p>
+            <a class="btn btn-primary" href="{% url 'search' %}">Rechercher un logement</a>
+          </div>
         {% endfor %}
       </div>
 
     {% elif kind == 'visit' %}
-      <div class="section-caption"><strong>Mes demandes de visite</strong><span>{{ items|length }} demande{% if items|length != 1 %}s{% endif %}</span></div>
+      <div class="section-caption"><strong>Demandes de visite</strong><span>{{ items|length }} demande{% if items|length != 1 %}s{% endif %}</span></div>
       <div class="visit-list">
         {% for item in items %}
           <article class="visit-card">
             <div class="visit-icon">◷</div>
-            <div class="visit-info"><span class="ref">DEMANDE #{{ item.pk }}</span><h2>{{ item.property.title }}</h2><p>{{ item.property.reference }}{% if item.property.city %} · {{ item.property.city }}{% endif %}</p></div>
-            <div class="visit-date"><small>DATE SOUHAITÉE</small><strong>{% if item.preferred_date %}{{ item.preferred_date|date:'d/m/Y' }}{% else %}À définir{% endif %}</strong>{% if item.preferred_time %}<span>{{ item.preferred_time|time:'H:i' }}</span>{% endif %}</div>
-            <div class="visit-status"><span class="status-pill {% if item.status == 'confirmed' %}success{% elif item.status == 'rejected' or item.status == 'cancelled' %}danger{% else %}pending{% endif %}">{{ item.get_status_display }}</span><small>Demande envoyée à FASTHOME</small></div>
+            <div class="visit-info">
+              <span class="ref">DEMANDE #{{ item.pk }}</span>
+              <h2>{{ item.property.title }}</h2>
+              <p>{{ item.property.reference }}{% if item.property.city %} · {{ item.property.city }}{% endif %}</p>
+            </div>
+            <div class="visit-date">
+              <small>DATE SOUHAITÉE</small>
+              <strong>{% if item.preferred_date %}{{ item.preferred_date|date:'d/m/Y' }}{% else %}À définir{% endif %}</strong>
+              {% if item.preferred_time %}<span>à {{ item.preferred_time|time:'H:i' }}</span>{% endif %}
+            </div>
+            <div class="visit-status">
+              <span class="status-pill {% if item.status == 'confirmed' %}success{% elif item.status == 'rejected' or item.status == 'cancelled' %}danger{% else %}pending{% endif %}">{{ item.get_status_display }}</span>
+              <small>Suivi FASTHOME</small>
+            </div>
+            <a class="visit-action" href="{% url 'property_detail' item.property.pk %}">Voir le logement →</a>
           </article>
         {% empty %}
-          <div class="empty-state"><div class="empty-icon">◷</div><h2>Aucune demande de visite</h2><p>Lorsque vous demanderez à visiter un logement, vous pourrez suivre ici sa date et son statut.</p><a class="btn btn-primary" href="{% url 'search' %}">Trouver un logement</a></div>
+          <div class="empty-state">
+            <div class="empty-icon">◷</div>
+            <h2>Aucune demande de visite</h2>
+            <p>Lorsque vous demanderez à visiter un logement, vous pourrez suivre ici sa date et son statut.</p>
+            <a class="btn btn-primary" href="{% url 'search' %}">Trouver un logement</a>
+          </div>
         {% endfor %}
       </div>
 
@@ -77,8 +119,18 @@
   </main>
 </div>
 <style>
-.list-personal-space{min-height:calc(100vh - 76px);background:#f5f7fa}.list-main{min-width:0;padding:32px 34px 55px;max-width:1280px}.list-head{display:flex;align-items:center;justify-content:space-between;gap:24px;margin-bottom:28px}.list-head h1{margin:5px 0 7px;color:#10243e;font-size:29px;letter-spacing:-.5px}.list-head p{margin:0;color:#718096;font-size:13px;line-height:1.5;max-width:700px}.section-caption{display:flex;align-items:center;justify-content:space-between;margin:0 0 14px}.section-caption strong{font-size:14px;color:#10243e}.section-caption span{font-size:10px;color:#8995a3}.favorite-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:17px}.favorite-card{background:#fff;border:1px solid #e3e9ef;border-radius:16px;overflow:hidden;box-shadow:0 6px 20px rgba(16,36,62,.045);transition:transform .18s,box-shadow .18s}.favorite-card:hover{transform:translateY(-2px);box-shadow:0 10px 26px rgba(16,36,62,.08)}.favorite-cover{height:175px;background:#e9eef3;position:relative;overflow:hidden}.favorite-cover img{width:100%;height:100%;object-fit:cover}.cover-placeholder{height:100%;display:grid;place-items:center;font-size:42px;color:#9aa8b5}.favorite-badge{position:absolute;top:11px;right:11px;padding:6px 9px;border-radius:20px;background:rgba(16,36,62,.9);color:#fff;font-size:9px;font-weight:800}.favorite-body{padding:15px}.ref{font-size:8px;font-weight:900;letter-spacing:1.2px;color:#9a7219}.favorite-body h2,.visit-info h2,.simple-card h2,.notification-card h2{margin:5px 0;color:#1c3047;font-size:16px}.favorite-body p,.visit-info p,.simple-card p{margin:0;color:#7b8794;font-size:10px}.favorite-meta{display:flex;gap:12px;margin:14px 0;color:#637386;font-size:9px}.card-action{display:block;text-align:center;padding:9px;border-radius:9px;background:#10243e;color:#fff;text-decoration:none;font-size:10px;font-weight:800}.empty-state{grid-column:1/-1;background:#fff;border:1px dashed #d6dfe7;border-radius:16px;text-align:center;padding:58px 25px}.empty-icon{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;margin:0 auto 13px;background:#f1f5f8;color:#10243e;font-size:22px}.empty-state h2{margin:0 0 7px;color:#1c3047;font-size:18px}.empty-state p{max-width:500px;margin:0 auto 18px;color:#7b8794;font-size:11px;line-height:1.6}.visit-list,.simple-list,.notification-list{display:grid;gap:11px}.visit-card,.simple-card,.notification-card{background:#fff;border:1px solid #e3e9ef;border-radius:15px;box-shadow:0 5px 18px rgba(16,36,62,.035)}.visit-card{display:grid;grid-template-columns:auto minmax(220px,1fr) 150px 170px;align-items:center;gap:15px;padding:15px}.visit-icon,.simple-icon,.notification-icon{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;background:#eef3f7;color:#10243e;font-size:19px}.visit-date{border-left:1px solid #edf0f3;padding-left:18px}.visit-date small{display:block;font-size:7px;letter-spacing:1px;font-weight:900;color:#8a97a3}.visit-date strong{display:block;margin-top:4px;font-size:13px;color:#21344a}.visit-date span{font-size:9px;color:#7d8a96}.visit-status{display:flex;flex-direction:column;align-items:flex-end;gap:5px}.visit-status small{font-size:8px;color:#9aa4ad}.status-pill{display:inline-flex;width:max-content;padding:6px 10px;border-radius:20px;background:#edf1f4;color:#607086;font-size:8px;font-weight:900;white-space:nowrap}.status-pill.success{background:#e7f3eb;color:#39744e}.status-pill.danger{background:#faeaea;color:#984343}.status-pill.pending{background:#f7eedb;color:#8a661a}.simple-card{display:flex;align-items:center;gap:13px;padding:15px;text-decoration:none}.simple-card>div:nth-child(2){flex:1;min-width:0}.simple-card .arrow{font-size:17px;color:#a47719}.notification-card{display:flex;gap:13px;padding:15px}.notification-card>div:last-child{flex:1}.notification-card p{margin:5px 0;color:#65758a;font-size:11px;line-height:1.5}.notification-card small{color:#9aa4ad;font-size:8px}.finance-alert{display:flex;gap:12px;padding:15px 17px;border:1px solid #dbe8f3;background:#f3f8fc;border-radius:13px;margin-bottom:18px}.alert-mark{width:28px;height:28px;flex:0 0 28px;border-radius:50%;display:grid;place-items:center;background:#dbeaf6;color:#2d668e;font-weight:900}.finance-alert strong,.finance-alert span{display:block}.finance-alert strong{font-size:11px}.finance-alert span{font-size:9px;color:#667786;line-height:1.5;margin-top:3px}.money-card{background:#fff;border:1px solid #e0e6eb;border-radius:16px;margin-bottom:14px;overflow:hidden;box-shadow:0 5px 18px rgba(16,36,62,.045)}.money-main{display:flex;align-items:center;gap:13px;padding:17px 19px}.money-symbol{width:42px;height:42px;flex:0 0 42px;border-radius:12px;background:#f1f5f8;display:grid;place-items:center;font-weight:900;font-size:17px}.money-title{flex:1;min-width:0}.money-title h2{font-size:16px;margin:4px 0}.money-title p{font-size:9px;color:#7c8b98;margin:0}.money-data{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid #edf0f3;border-bottom:1px solid #edf0f3}.money-data>div{padding:14px 16px;border-right:1px solid #edf0f3}.money-data>div:last-child{border-right:0}.money-data small{display:block;color:#87949f;font-size:7px;font-weight:900;letter-spacing:.8px}.money-data strong{display:block;margin-top:5px;font-size:12px}.is-late{border-left:4px solid #9a4545}.is-paid{border-left:4px solid #3d825c}.is-partial{border-left:4px solid #b27a30}
-@media(max-width:1000px){.favorite-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.visit-card{grid-template-columns:auto 1fr}.visit-date{border-left:0;padding-left:0}.visit-status{align-items:flex-start}}
-@media(max-width:700px){.list-main{padding:22px 14px 45px}.list-head{display:block}.list-head .btn{margin-top:14px}.favorite-grid{grid-template-columns:1fr}.favorite-cover{height:190px}.visit-card{grid-template-columns:auto 1fr;gap:11px}.visit-date,.visit-status{grid-column:2}.money-data{grid-template-columns:1fr 1fr}.money-main{align-items:flex-start;flex-wrap:wrap}}
+/* Shared personal-space shell for all list pages */
+.list-personal-space{display:grid;grid-template-columns:235px minmax(0,1fr);min-height:calc(100vh - 76px);background:#f5f7fa}
+.list-personal-space .personal-sidebar{position:sticky;top:76px;z-index:20;height:calc(100vh - 76px);background:#10243e;padding:18px 12px;overflow:auto;box-sizing:border-box}
+.list-personal-space .personal-brand{display:flex;align-items:center;gap:10px;padding:8px 10px 20px;color:#fff}.list-personal-space .brand-mark{width:35px;height:35px;border-radius:10px;background:var(--gold,#f1b90b);color:#10243e;display:grid;place-items:center;font-weight:900}.list-personal-space .personal-brand strong{display:block;font-size:15px}.list-personal-space .personal-brand small{display:block;color:#8ea0b4;font-size:8px;letter-spacing:1.3px;margin-top:2px}
+.list-personal-space .nav-group{padding:12px 0;border-top:1px solid rgba(255,255,255,.07)}.list-personal-space .nav-group:first-child{border-top:0}.list-personal-space .nav-label{display:block;padding:0 11px 7px;color:#8093a7;font-size:8px;font-weight:900;letter-spacing:1.4px}.list-personal-space .nav-item{display:flex;align-items:center;gap:10px;padding:10px 11px;border-radius:9px;color:#cbd6e1;text-decoration:none;font-size:13px;margin:2px 0;white-space:nowrap;transition:background .2s,color .2s}.list-personal-space .nav-item:hover,.list-personal-space .nav-item.active{background:rgba(255,255,255,.09);color:#fff}.list-personal-space .nav-item span{width:18px;min-width:18px;text-align:center}.list-personal-space .nav-bottom{margin-top:18px}.list-personal-space .nav-item.logout{color:#f0b6b6}
+.list-main{min-width:0;padding:32px 34px 55px;max-width:1280px;width:100%;box-sizing:border-box}.list-head{display:flex;align-items:center;justify-content:space-between;gap:24px;margin-bottom:28px}.list-head h1{margin:5px 0 7px;color:#10243e;font-size:29px;letter-spacing:-.5px}.list-head p{margin:0;color:#718096;font-size:13px;line-height:1.5;max-width:700px}.section-caption{display:flex;align-items:center;justify-content:space-between;margin:0 0 14px}.section-caption strong{font-size:14px;color:#10243e}.section-caption span{font-size:10px;color:#8995a3}
+.favorite-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:17px}.favorite-card{background:#fff;border:1px solid #e3e9ef;border-radius:16px;overflow:hidden;box-shadow:0 6px 20px rgba(16,36,62,.045);transition:transform .18s,box-shadow .18s}.favorite-card:hover{transform:translateY(-2px);box-shadow:0 10px 26px rgba(16,36,62,.08)}.favorite-cover{height:175px;background:#e9eef3;position:relative;display:block;overflow:hidden;text-decoration:none}.favorite-cover img{width:100%;height:100%;object-fit:cover;display:block}.cover-placeholder{height:100%;display:grid;place-items:center;font-size:42px;color:#9aa8b5}.favorite-badge{position:absolute;top:11px;right:11px;padding:6px 9px;border-radius:20px;background:rgba(16,36,62,.9);color:#fff;font-size:9px;font-weight:800}.favorite-body{padding:15px}.ref{font-size:8px;font-weight:900;letter-spacing:1.2px;color:#9a7219}.favorite-body h2,.visit-info h2,.simple-card h2,.notification-card h2{margin:5px 0;color:#1c3047;font-size:16px}.favorite-body p,.visit-info p,.simple-card p{margin:0;color:#7b8794;font-size:10px}.favorite-body .location{min-height:15px}.favorite-meta{display:flex;flex-wrap:wrap;gap:12px;margin:14px 0;color:#637386;font-size:9px}.card-action{display:flex;align-items:center;justify-content:center;gap:6px;padding:9px;border-radius:9px;background:#10243e;color:#fff;text-decoration:none;font-size:10px;font-weight:800}.card-action:hover,.visit-action:hover{background:#1b3554}
+.empty-state{grid-column:1/-1;background:#fff;border:1px dashed #d6dfe7;border-radius:16px;text-align:center;padding:58px 25px}.empty-icon{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;margin:0 auto 13px;background:#f1f5f8;color:#10243e;font-size:22px}.empty-state h2{margin:0 0 7px;color:#1c3047;font-size:18px}.empty-state p{max-width:500px;margin:0 auto 18px;color:#7b8794;font-size:11px;line-height:1.6}
+.visit-list,.simple-list,.notification-list{display:grid;gap:11px}.visit-card,.simple-card,.notification-card{background:#fff;border:1px solid #e3e9ef;border-radius:15px;box-shadow:0 5px 18px rgba(16,36,62,.035)}.visit-card{display:grid;grid-template-columns:auto minmax(180px,1fr) 145px 145px auto;align-items:center;gap:15px;padding:15px}.visit-icon,.simple-icon,.notification-icon{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;background:#eef3f7;color:#10243e;font-size:19px}.visit-info{min-width:0}.visit-date{border-left:1px solid #edf0f3;padding-left:18px}.visit-date small{display:block;font-size:7px;letter-spacing:1px;font-weight:900;color:#8a97a3}.visit-date strong{display:block;margin-top:4px;font-size:13px;color:#21344a}.visit-date span{font-size:9px;color:#7d8a96}.visit-status{display:flex;flex-direction:column;align-items:flex-start;gap:5px}.visit-status small{font-size:8px;color:#9aa4ad}.status-pill{display:inline-flex;align-items:center;padding:6px 9px;border-radius:999px;background:#edf0f4;color:#607086;font-size:8px;font-weight:900;white-space:nowrap}.status-pill.success{background:#e7f3eb;color:#39744e}.status-pill.danger{background:#f9e9e9;color:#9a4545}.status-pill.pending{background:#f7eedb;color:#8a661a}.visit-action{padding:8px 10px;border-radius:9px;background:#10243e;color:#fff;text-decoration:none;font-size:9px;font-weight:800;white-space:nowrap}.simple-card{display:flex;align-items:center;gap:13px;padding:14px;text-decoration:none}.simple-card>div:nth-child(2){min-width:0;flex:1}.simple-card p{margin-top:3px}.arrow{font-size:18px;color:#9a7219}.notification-card{display:flex;align-items:flex-start;gap:13px;padding:15px}.notification-card>div:last-child{min-width:0}.notification-card h2{margin:0 0 4px;font-size:13px}.notification-card p{margin:0;color:#667786;font-size:10px;line-height:1.5}.notification-card small{display:block;margin-top:7px;color:#9aa4ad;font-size:8px}
+.finance-alert{display:flex;gap:12px;padding:15px 17px;border:1px solid #dbe8f3;background:#f3f8fc;border-radius:13px;margin-bottom:18px}.alert-mark{width:28px;height:28px;flex:0 0 28px;border-radius:50%;display:grid;place-items:center;background:#dbeaf6;color:#2d668e;font-weight:900}.finance-alert strong,.finance-alert span{display:block}.finance-alert strong{font-size:11px}.finance-alert span{font-size:9px;color:#667786;line-height:1.5;margin-top:3px}.money-card{background:#fff;border:1px solid #e0e6eb;border-radius:16px;margin-bottom:14px;overflow:hidden;box-shadow:0 5px 18px rgba(16,36,62,.045)}.money-main{display:flex;align-items:center;gap:13px;padding:17px 19px}.money-symbol{width:42px;height:42px;flex:0 0 42px;border-radius:12px;background:#f1f5f8;display:grid;place-items:center;font-weight:900;font-size:17px}.money-title{flex:1;min-width:0}.money-title h2{font-size:16px;margin:4px 0}.money-title p{font-size:9px;color:#7c8b98;margin:0}.money-data{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid #edf0f3;border-bottom:1px solid #edf0f3}.money-data>div{padding:14px 16px;border-right:1px solid #edf0f3}.money-data>div:last-child{border-right:0}.money-data small{display:block;color:#87949f;font-size:7px;font-weight:900;letter-spacing:.8px}.money-data strong{display:block;margin-top:5px;font-size:12px}.is-late{border-left:4px solid #9a4545}.is-paid{border-left:4px solid #3d825c}.is-partial{border-left:4px solid #b27a30}
+@media(max-width:1100px){.favorite-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.visit-card{grid-template-columns:auto minmax(160px,1fr) 130px 125px}.visit-action{grid-column:2/-1;justify-self:start}}
+@media(max-width:800px){.list-personal-space{display:block;position:relative}.list-personal-space .personal-sidebar{position:fixed;left:0;top:76px;width:270px;height:calc(100vh - 76px);transform:translateX(-105%);transition:transform .22s ease;box-shadow:10px 0 30px rgba(0,0,0,.16)}.list-personal-space.sidebar-open .personal-sidebar{transform:translateX(0)}.list-personal-space.sidebar-open:after{content:'';position:fixed;z-index:10;inset:76px 0 0;background:rgba(16,36,62,.35)}.list-main{padding:24px 18px 45px}.list-head{align-items:flex-start;flex-direction:column;margin-bottom:22px}.list-head .btn{width:100%}.favorite-grid{grid-template-columns:1fr}.favorite-cover{height:190px}.visit-card{grid-template-columns:auto 1fr;gap:12px}.visit-date{grid-column:2;border-left:0;border-top:1px solid #edf0f3;padding:11px 0 0}.visit-status{grid-column:2;align-items:flex-start}.visit-action{grid-column:2;justify-self:stretch;text-align:center}.money-data{grid-template-columns:1fr 1fr}.money-data>div:nth-child(2){border-right:0}.money-main{align-items:flex-start;flex-wrap:wrap}}
+@media(max-width:480px){.list-main{padding:20px 12px 38px}.list-head h1{font-size:25px}.list-head p{font-size:11px}.favorite-cover{height:175px}.favorite-body{padding:13px}.visit-card{padding:12px}.simple-card,.notification-card{padding:12px}}
 </style>
 {% endblock %}
