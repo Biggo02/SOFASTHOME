@@ -16,7 +16,7 @@ class Migration(migrations.Migration):
             field=models.CharField(
                 choices=[
                     ("preparing", "Dossier à préparer"),
-                    ("signing", "Contrats et PV à signer"),
+                    ("signing", "Contrats et états des lieux à signer"),
                     ("active", "Location active"),
                     ("cancelled", "Dossier annulé"),
                 ],
