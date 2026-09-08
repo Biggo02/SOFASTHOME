@@ -9,7 +9,7 @@ from .views import audit, require_verified
 @login_required
 def add_property(request):
     form=PropertyForm(request.POST or None,request.FILES or None)
-    template='property_form_final.html'
+    template='property_form_v2.html'
     if request.method=='POST' and form.is_valid():
         submitting='submit' in request.POST
         if submitting:
@@ -19,13 +19,25 @@ def add_property(request):
                 form.add_error('owner_authorized_publication','Cette autorisation est obligatoire pour soumettre le bien.')
             if not form.cleaned_data.get('owner_authorized_subletting'):
                 form.add_error('owner_authorized_subletting','Vous devez autoriser FASTHOME à exploiter le bien en sous-location.')
-            if form.errors:return render(request,template,{'form':form})
-        obj=form.save(commit=False);obj.owner=request.user;obj.title=f"{obj.get_property_type_display()} — {obj.city or obj.province or 'Bien'}";obj.status='review' if submitting else 'draft'
-        if submitting:obj.authorization_confirmed_at=timezone.now()
+            if form.errors:
+                return render(request,template,{'form':form})
+        obj=form.save(commit=False)
+        obj.owner=request.user
+        obj.title=f"{obj.get_property_type_display()} — {obj.city or obj.province or 'Bien'}"
+        obj.status='review' if submitting else 'draft'
+        if submitting:
+            obj.authorization_confirmed_at=timezone.now()
         obj.save()
-        for index,uploaded in enumerate(form.cleaned_data.get('photos') or []):PropertyImage.objects.create(property=obj,image=uploaded,order=index,is_cover=index==0)
-        audit(request,'property.created',obj,{'status':obj.status,'photos':len(form.cleaned_data.get('photos') or []),'publication_authorized':obj.owner_authorized_publication,'subletting_authorized':obj.owner_authorized_subletting})
-        if obj.status=='review':Notification.objects.create(user=request.user,title='Publication en vérification',message=f'{obj.reference} a été transmise à FASTHOME avec les autorisations requises.')
+        for index,uploaded in enumerate(form.cleaned_data.get('photos') or []):
+            PropertyImage.objects.create(property=obj,image=uploaded,order=index,is_cover=index==0)
+        audit(request,'property.created',obj,{
+            'status':obj.status,
+            'photos':len(form.cleaned_data.get('photos') or []),
+            'publication_authorized':obj.owner_authorized_publication,
+            'subletting_authorized':obj.owner_authorized_subletting,
+        })
+        if obj.status=='review':
+            Notification.objects.create(user=request.user,title='Publication en vérification',message=f'{obj.reference} a été transmise à FASTHOME avec les autorisations requises.')
         messages.success(request,'Publication soumise à vérification.' if obj.status=='review' else 'Brouillon enregistré.')
         return redirect('publications')
     return render(request,template,{'form':form})
