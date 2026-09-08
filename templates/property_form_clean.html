@@ -1,0 +1,40 @@
+{% extends 'property_form_v2.html' %}
+
+{% block content %}
+{{ block.super }}
+<script>
+(function () {
+  function removeUnwantedRoomFields() {
+    const labelsToRemove = new Set(['Sol', 'Plafond', 'État']);
+    document.querySelectorAll('.room-box').forEach(function (box) {
+      box.querySelectorAll('label').forEach(function (label) {
+        const text = label.textContent.trim();
+        if (!labelsToRemove.has(text)) return;
+        const field = label.closest('.field');
+        if (field) field.remove();
+      });
+    });
+  }
+
+  function applyCleanComposition() {
+    ['shower_count', 'floors', 'floor_number'].forEach(function (name) {
+      const field = document.getElementById('id_' + name);
+      if (field) {
+        const wrapper = field.closest('.field');
+        if (wrapper) wrapper.remove();
+      }
+    });
+  }
+
+  function clean() {
+    applyCleanComposition();
+    removeUnwantedRoomFields();
+  }
+
+  clean();
+  const observer = new MutationObserver(clean);
+  observer.observe(document.body, { childList: true, subtree: true });
+  setTimeout(function () { observer.disconnect(); clean(); }, 5000);
+})();
+</script>
+{% endblock %}
