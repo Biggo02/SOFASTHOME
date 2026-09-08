@@ -25,7 +25,7 @@
       .pf-photo-actions input{display:none}
       .pf-photo-status{margin-top:9px;font-size:10px;color:#587187;min-height:15px}
       .pf-thumbs{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
-      .pf-thumb{width:54px;height:42px;object-fit:cover;border-radius:7px;border:1px solid #dce5ec}
+      .pf-thumb{width:100%;max-width:180px;height:120px;object-fit:cover;border-radius:9px;border:1px solid #dce5ec;display:block}
       .pf-camera{position:fixed;inset:0;z-index:10000;background:rgba(5,15,25,.82);display:none;align-items:center;justify-content:center;padding:16px}
       .pf-camera.open{display:flex}
       .pf-camera-box{width:min(650px,100%);background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 25px 80px rgba(0,0,0,.35)}
@@ -40,7 +40,7 @@
       .pf-capture:disabled{opacity:.5;cursor:not-allowed}
       .pf-camera-done{border:1px solid #d3dee6;border-radius:999px;background:#fff;padding:11px 20px;font-weight:800;cursor:pointer}
       .pf-camera-note{width:100%;text-align:center;color:#66798a;font-size:10px}
-      @media(max-width:700px){.pf-photo-grid{grid-template-columns:1fr}.pf-camera{padding:0}.pf-camera-box{width:100%;height:100%;border-radius:0;display:flex;flex-direction:column}.pf-camera-view{flex:1;aspect-ratio:auto}.pf-camera-head{flex:none}.pf-camera-foot{flex:none}}
+      @media(max-width:700px){.pf-photo-grid{grid-template-columns:1fr}.pf-camera{padding:0}.pf-camera-box{width:100%;height:100%;border-radius:0;display:flex;flex-direction:column}.pf-camera-view{flex:1;aspect-ratio:auto}.pf-camera-head{flex:none}.pf-camera-foot{flex:none}.pf-thumb{max-width:none;height:180px}}
     `;
     document.head.appendChild(style);
 
@@ -50,7 +50,7 @@
       <div class="pf-camera-box" role="dialog" aria-modal="true" aria-label="Appareil photo FASTHOME">
         <div class="pf-camera-head"><strong id="pfCameraTitle">Prendre une photo</strong><button type="button" class="pf-camera-close">Fermer</button></div>
         <div class="pf-camera-view"><video autoplay playsinline muted></video><div class="pf-camera-message" hidden></div></div>
-        <div class="pf-camera-foot"><button type="button" class="pf-capture" disabled>● Prendre la photo</button><button type="button" class="pf-camera-done">Terminer</button><div class="pf-camera-note">La photo prise est automatiquement ajoutée à cette pièce.</div></div>
+        <div class="pf-camera-foot"><button type="button" class="pf-capture" disabled>● Prendre la photo</button><button type="button" class="pf-camera-done">Terminer</button><div class="pf-camera-note">Une seule photo est autorisée pour cette pièce. Après la prise, elle est immédiatement ajoutée au formulaire.</div></div>
       </div>`;
     document.body.appendChild(modal);
 
@@ -69,6 +69,11 @@
     async function openCamera(card) {
       active = card;
       const title = card.dataset.roomName || 'Cette pièce';
+      const { dt } = filesFor(card);
+      if (dt.files.length >= 1) {
+        alert('Cette pièce possède déjà sa photo. Une seule photo est autorisée par pièce.');
+        return;
+      }
       modal.querySelector('#pfCameraTitle').textContent = 'Photo — ' + title;
       message.hidden = true;
       message.textContent = '';
@@ -76,7 +81,7 @@
       modal.classList.add('open');
 
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        message.textContent = "La caméra n'est pas disponible dans ce navigateur. Utilisez « Choisir des photos ».";
+        message.textContent = "La caméra n'est pas disponible dans ce navigateur. Utilisez « Choisir une photo ».";
         message.hidden = false;
         return;
       }
@@ -97,7 +102,7 @@
       if (!stores.has(card)) stores.set(card, new DataTransfer());
       const dt = stores.get(card);
       if (input && input.files.length && dt.files.length === 0) {
-        Array.from(input.files).forEach(file => dt.items.add(file));
+        Array.from(input.files).slice(0, 1).forEach(file => dt.items.add(file));
       }
       return { input, dt };
     }
@@ -108,27 +113,23 @@
       const count = dt.files.length;
       const status = card.querySelector('.pf-photo-status');
       const thumbs = card.querySelector('.pf-thumbs');
-      status.textContent = count ? `${count} photo${count > 1 ? 's' : ''} prête${count > 1 ? 's' : ''} à être téléversée` : 'Aucune photo sélectionnée';
+      status.textContent = count ? '1 photo prête à être téléversée' : 'Aucune photo sélectionnée';
       thumbs.innerHTML = '';
-      Array.from(dt.files).forEach(file => {
+      if (count) {
+        const file = dt.files[0];
         const img = document.createElement('img');
         img.className = 'pf-thumb';
-        img.alt = 'Aperçu';
+        img.alt = 'Photo de ' + (card.dataset.roomName || 'la pièce');
         img.src = URL.createObjectURL(file);
         img.onload = () => URL.revokeObjectURL(img.src);
         thumbs.appendChild(img);
-      });
+      }
     }
 
     function addFile(card, file) {
       const { dt } = filesFor(card);
-      if (dt.files.length >= 5) {
-        alert('Maximum 5 photos pour cette pièce.');
-        return false;
-      }
-      const total = Array.from(stores.values()).reduce((sum, x) => sum + x.files.length, 0);
-      if (total >= 40) {
-        alert('Maximum 40 photos pour le bien.');
+      if (dt.files.length >= 1) {
+        alert('Une seule photo est autorisée pour cette pièce.');
         return false;
       }
       dt.items.add(file);
@@ -143,12 +144,20 @@
       canvas.height = video.videoHeight || 960;
       const ctx = canvas.getContext('2d');
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      capture.disabled = true;
       canvas.toBlob(function (blob) {
-        if (!blob) return;
+        if (!blob) {
+          capture.disabled = false;
+          return;
+        }
         const stamp = new Date().toISOString().replace(/[:.]/g, '-');
         const safe = (active.dataset.roomName || 'piece').toLowerCase().replace(/[^a-z0-9]+/gi, '-');
         const file = new File([blob], `${safe}-${stamp}.jpg`, { type: 'image/jpeg', lastModified: Date.now() });
-        addFile(active, file);
+        if (addFile(active, file)) {
+          closeCamera();
+        } else {
+          capture.disabled = false;
+        }
       }, 'image/jpeg', 0.88);
     });
 
@@ -183,10 +192,10 @@
           card.dataset.roomName = `${type} ${i}`;
           card.innerHTML = `
             <h3>📷 ${type} ${i}</h3>
-            <p>Ajoutez jusqu'à 5 photos de cette pièce.</p>
+            <p>Une seule photo de cette pièce.</p>
             <div class="pf-photo-actions">
               <button type="button" class="pf-camera-button">📸 Prendre une photo</button>
-              <label>🖼️ Choisir des photos<input type="file" name="photos" accept="image/*" multiple></label>
+              <label>🖼️ Choisir une photo<input type="file" name="photos" accept="image/*"></label>
             </div>
             <div class="pf-photo-status">Aucune photo sélectionnée</div>
             <div class="pf-thumbs"></div>`;
@@ -199,7 +208,7 @@
           card.querySelector('input[type=file]').addEventListener('change', function () {
             const { dt } = filesFor(card);
             dt.items.clear();
-            Array.from(this.files).slice(0, 5).forEach(file => dt.items.add(file));
+            if (this.files.length) dt.items.add(this.files[0]);
             this.files = dt.files;
             refreshCard(card);
           });
