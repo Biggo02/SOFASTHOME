@@ -9,7 +9,7 @@ from .views import audit, require_verified
 @login_required
 def add_property(request):
     form=PropertyForm(request.POST or None,request.FILES or None)
-    template='property_form_v2.html'
+    template='property_form_clean.html'
     if request.method=='POST' and form.is_valid():
         submitting='submit' in request.POST
         if submitting:
