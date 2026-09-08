@@ -7,19 +7,16 @@ from .rental_models import RentalCase, RentalContract
 
 
 def _links(user, has_tenant_activity):
+    # The personal space has the same navigation for every account.
+    # What appears inside each section is filtered by the user's rights/data.
     primary = [
         ('⌂', 'Tableau de bord', 'dashboard'),
         ('⌕', 'Rechercher un logement', 'search'),
         ('♡', 'Mes favoris', 'favorites'),
         ('◷', 'Mes visites', 'visits'),
     ]
-    owner = []
-    if Property.objects.filter(owner=user).exists():
-        owner = [('▣', 'Mes biens', 'publications'), ('✓', 'Demandes reçues', 'owner_visit_requests')]
-    tenant = []
-    if has_tenant_activity:
-        tenant = [('▤', 'Mes contrats', 'contracts'), ('◉', 'Mes paiements', 'payments'), ('◴', 'Mes échéances', 'due_dates')]
-    # Notifications deliberately stay out of the personal-space navigation.
+    owner = [('▣', 'Mes biens', 'publications'), ('✓', 'Demandes reçues', 'owner_visit_requests')]
+    tenant = [('▤', 'Mes contrats', 'contracts'), ('◉', 'Mes paiements', 'payments'), ('◴', 'Mes échéances', 'due_dates')]
     common = [('⚙', 'Mon profil', 'profile')]
     return primary, owner, tenant, common
 
@@ -71,7 +68,12 @@ def dashboard(request):
         .order_by('due_date')
     )
 
-    has_tenant_activity = tenant_rental_contracts.exists() or active_rentals.filter(tenant=user).exists() or tenant_payments.exists()
+    # IMPORTANT: the layout is identical for every account.  We therefore do
+    # not hide the owner/tenant sections according to activity.  Empty sections
+    # simply show their empty state, while the underlying queries remain
+    # strictly scoped to the logged-in user.
+    has_owner_activity = True
+    has_tenant_activity = True
     primary_links, owner_links, tenant_links, common_links = _links(user, has_tenant_activity)
 
     pending_contracts = tenant_rental_contracts.filter(status__in=['draft', 'prepared', 'pending_signature']).count()
@@ -107,7 +109,7 @@ def dashboard(request):
         'tenant_payment_count': tenant_payments.count(),
         'next_payment': tenant_payments.filter(status__in=['upcoming', 'partial', 'late']).first(),
         'notifications': Notification.objects.filter(user=user).order_by('-created_at')[:6],
-        'has_owner_activity': properties.exists(),
+        'has_owner_activity': has_owner_activity,
         'has_tenant_activity': has_tenant_activity,
         'pending_contracts': pending_contracts,
         'validated_contracts': validated_contracts,
