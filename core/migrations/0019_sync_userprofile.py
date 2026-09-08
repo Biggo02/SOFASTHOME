@@ -7,5 +7,8 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunSQL(sql='SELECT 1;', reverse_sql='SELECT 1;'),
+        migrations.RunSQL(
+            sql='SELECT 1;',
+            reverse_sql=migrations.RunSQL.noop,
+        ),
     ]
