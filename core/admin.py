@@ -1,138 +1,52 @@
-import json
-
 from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
 from .models import Property, PropertyImage, Visit, VisitInspection, Contract, ContractDocument, Payment, PaymentProof, VerificationDocument, VerificationDossier, AuditLog, Notification
-from .rental_models import RentalCase, RentalContract, RentalDocument, OwnerRemittance
-
+from .rental_models import RentalCase, RentalContract, RentalDocument, OwnerRemittance, RentalPayment, RentalContractRequest
 admin.site.site_header='FASTHOME — Administration'; admin.site.site_title='FASTHOME Admin'; admin.site.index_title='Centre de gestion immobilière'
-
+# Existing admin registrations are kept; rental operational records below are exposed for FASTHOME staff.
+for model in (Property,PropertyImage,Visit,VisitInspection,Contract,ContractDocument,Payment,PaymentProof,VerificationDocument,VerificationDossier,AuditLog,Notification):
+    try: admin.site.unregister(model)
+    except admin.sites.NotRegistered: pass
 @admin.register(Property)
 class PropertyAdmin(admin.ModelAdmin):
-    list_display=('reference','title','owner_identity','city','commune','status_badge','workflow_action','views','updated_at'); list_filter=('status','property_type','city','commune','furnished','security'); search_fields=('reference','title','province','city','commune','owner__username','owner__first_name','owner__last_name','owner__email'); readonly_fields=('reference','status_display','views','created_at','updated_at','owner_identity_detail','workflow_action_detail','room_details_display'); list_per_page=30
-    def get_queryset(self, request): return super().get_queryset(request).exclude(status='draft')
-    @admin.display(description='Propriétaire',ordering='owner__last_name')
-    def owner_identity(self,obj):
-        u=obj.owner; name=u.get_full_name().strip() or 'Nom non renseigné'; return f'{name} · ID {u.pk}'
-    @admin.display(description='Identité du propriétaire')
-    def owner_identity_detail(self,obj):
-        u=obj.owner; name=u.get_full_name().strip() or 'Nom non renseigné'; phone=u.username or 'Non renseigné'; email=u.email or 'Non renseigné'
-        return format_html('<div style="line-height:1.8"><strong>{}</strong><br>ID utilisateur : <strong>{}</strong><br>Téléphone : <strong>{}</strong><br>Email : <strong>{}</strong></div>',name,u.pk,phone,email)
-    @admin.display(description='Caractéristiques détaillées des pièces')
-    def room_details_display(self,obj):
-        details=obj.room_details or []
-        if not details: return format_html('<span style="color:#888">Aucune caractéristique détaillée enregistrée.</span>')
-        rows=[]
-        for item in details:
-            label=f"{item.get('kind','Pièce')} {item.get('index','')}"
-            values=[]
-            for key,title in [('floor','Sol'),('ceiling','Plafond'),('condition','État'),('furnished','Meublée'),('equipment','Équipements'),('details','Caractéristiques'),('photo','Photo à fournir')]:
-                value=item.get(key,'')
-                if value: values.append(f'<strong>{title} :</strong> {value}')
-            rows.append(f'<div style="padding:10px 0;border-bottom:1px solid #eee"><strong>{label}</strong><br>{"<br>".join(values) if values else "Aucun détail renseigné."}</div>')
-        return format_html(''.join(rows))
-    @admin.display(description='État')
-    def status_badge(self,obj): return obj.get_status_display()
-    @admin.display(description='État actuel')
-    def status_display(self,obj): return format_html('<strong>{}</strong><br><small>Ce champ est informatif. Utilisez le bouton d’action FASTHOME ci-dessous.</small>',obj.get_status_display())
-    @admin.display(description='Action FASTHOME')
-    def workflow_action(self,obj):
-        url=reverse('review_publication',kwargs={'pk':obj.pk})
-        if obj.status=='review': return format_html('<a class="button" href="{}">Vérifier → Publier / Refuser</a>',url)
-        if obj.status=='published': return format_html('<a class="button" href="{}">Gérer</a>',url)
-        if obj.status=='rented': return format_html('<a class="button" href="{}">Archiver</a>',url)
-        return '—'
-    @admin.display(description='Action de workflow')
-    def workflow_action_detail(self,obj):
-        url=reverse('review_publication',kwargs={'pk':obj.pk})
-        if obj.status=='review': return format_html('<a class="button" href="{}">Ouvrir la vérification</a><p><strong>Décision :</strong> si tout est conforme, <strong>Publier</strong>. Sinon, <strong>Refuser</strong> avec un motif.</p>',url)
-        if obj.status=='published': return format_html('<a class="button" href="{}">Ouvrir la gestion FASTHOME</a>',url)
-        if obj.status=='rented': return format_html('<a class="button" href="{}">Archiver ce bien</a>',url)
-        return 'Aucune action de workflow disponible à cette étape.'
-    fieldsets=(
-        ('Identification',{'fields':('reference','owner_identity_detail','title','property_type','description')}),
-        ('Localisation',{'fields':('province','city','commune','full_address')}),
-        ('Composition et capacité',{'fields':('bedrooms','salons','kitchens','bathrooms','toilets','max_occupants','floors','floor_number','parking','parking_spaces','security')}),
-        ('Caractéristiques détaillées des pièces',{'fields':('room_details_display',)}),
-        ('Mobilier et sanitaires',{'fields':('furnished','furnished_type','furniture_details','furnished_bedrooms','furnished_salons','furnished_kitchens','furnished_bathrooms','shower_count','shower_location','shower_privacy','shower_tank_type','bathroom_details','toilet_details')}),
-        ('Services',{'fields':('water','water_days_per_week','water_source','water_details','electricity','electricity_days_per_week','electricity_source','electricity_details')}),
-        ('État et disponibilité',{'fields':('floor_type','ceiling_type','condition','available_now','availability_date')}),
-        ('Finances privées',{'fields':('rent','deposit','margin')}),
-        ('Workflow FASTHOME',{'fields':('status_display','rejection_reason','workflow_action_detail')}),
-        ('Suivi',{'fields':('views','created_at','updated_at')}),
-    )
-
+    list_display=('reference','title','owner','city','commune','status','updated_at'); list_filter=('status','property_type','city','commune'); search_fields=('reference','title','province','city','commune','owner__username','owner__first_name','owner__last_name')
 @admin.register(PropertyImage)
-class PropertyImageAdmin(admin.ModelAdmin):
-    list_display=('property','image','is_cover','order','created_at'); list_filter=('is_cover',); search_fields=('property__reference','property__title')
+class PropertyImageAdmin(admin.ModelAdmin): list_display=('property','image','is_cover','order','created_at')
 @admin.register(Visit)
-class VisitAdmin(admin.ModelAdmin):
-    list_display=('id','property','requester','preferred_date','preferred_time','scheduled_date','status','owner_approved','agent_approved','final_decision'); list_filter=('status','owner_approved','agent_approved','final_decision','preferred_date'); search_fields=('property__reference','property__title','requester__username','requester__first_name','requester__last_name')
+class VisitAdmin(admin.ModelAdmin): list_display=('id','property','requester','preferred_date','preferred_time','scheduled_date','status','final_decision'); list_filter=('status','final_decision')
 @admin.register(VisitInspection)
-class VisitInspectionAdmin(admin.ModelAdmin):
-    list_display=('visit','keys_received','signed_by_tenant','signed_by_agent','updated_at'); list_filter=('signed_by_tenant','signed_by_agent')
+class VisitInspectionAdmin(admin.ModelAdmin): list_display=('visit','keys_received','signed_by_tenant','signed_by_agent','updated_at')
 @admin.register(Contract)
-class ContractAdmin(admin.ModelAdmin):
-    list_display=('reference','property','user','role','amount','status','start_date','end_date'); list_filter=('status','role'); search_fields=('reference','property__reference','property__title','user__username','user__first_name','user__last_name','user__email'); readonly_fields=('reference','created_at')
+class ContractAdmin(admin.ModelAdmin): list_display=('reference','property','user','role','amount','status','start_date','end_date'); search_fields=('reference','property__reference','user__username')
 @admin.register(ContractDocument)
-class ContractDocumentAdmin(admin.ModelAdmin):
-    list_display=('contract','label','document','created_at'); search_fields=('contract__reference','label')
+class ContractDocumentAdmin(admin.ModelAdmin): list_display=('contract','label','document','created_at')
 @admin.register(Payment)
-class PaymentAdmin(admin.ModelAdmin):
-    list_display=('contract','amount_due','amount_paid','due_date','paid_date','status','reference'); list_filter=('status','due_date'); search_fields=('reference','contract__reference','contract__property__title')
+class PaymentAdmin(admin.ModelAdmin): list_display=('contract','amount_due','amount_paid','due_date','paid_date','status','reference')
 @admin.register(PaymentProof)
-class PaymentProofAdmin(admin.ModelAdmin):
-    list_display=('payment','uploaded_by','file','created_at'); search_fields=('payment__contract__reference','uploaded_by__username')
+class PaymentProofAdmin(admin.ModelAdmin): list_display=('payment','uploaded_by','file','created_at')
 @admin.register(VerificationDocument)
-class VerificationDocumentAdmin(admin.ModelAdmin):
-    list_display=('user','kind','status','created_at'); list_filter=('kind','status'); search_fields=('user__username','user__first_name','user__last_name','user__email')
-
+class VerificationDocumentAdmin(admin.ModelAdmin): list_display=('user','kind','status','created_at'); list_filter=('kind','status')
 @admin.register(VerificationDossier)
-class VerificationDossierAdmin(admin.ModelAdmin):
-    list_display=('user','status','has_front','has_back','has_selfie','created_at','updated_at')
-    list_filter=('status','created_at','updated_at')
-    search_fields=('user__username','user__first_name','user__last_name','user__email')
-    readonly_fields=('created_at','updated_at')
-    fieldsets=(('Utilisateur',{'fields':('user',)}),('Pièce d’identité',{'fields':('id_front','id_back')}),('Selfie de vérification',{'fields':('selfie',)}),('Vérification',{'fields':('status','note')}),('Suivi',{'fields':('created_at','updated_at')}))
-    @admin.display(description='Recto')
-    def has_front(self,obj): return '✓ Présent' if obj.id_front else 'Manquant'
-    @admin.display(description='Verso')
-    def has_back(self,obj): return '✓ Présent' if obj.id_back else 'Manquant'
-    @admin.display(description='Selfie')
-    def has_selfie(self,obj): return '✓ Présent' if obj.selfie else 'Manquant'
-
+class VerificationDossierAdmin(admin.ModelAdmin): list_display=('user','status','created_at','updated_at'); list_filter=('status',)
 @admin.register(RentalCase)
-class RentalCaseAdmin(admin.ModelAdmin):
-    list_display=('reference','property','tenant','owner','status','created_at','updated_at')
-    list_filter=('status','created_at','updated_at')
-    search_fields=('reference','property__reference','property__title','tenant__username','tenant__first_name','tenant__last_name','owner__username','owner__first_name','owner__last_name')
-    readonly_fields=('reference','created_at','updated_at')
-    fieldsets=(('Dossier',{'fields':('reference','visit','property','tenant','owner','status','notes')}),('Contrats',{'fields':('owner_contract','tenant_contract')}),('Suivi',{'fields':('created_at','updated_at')}))
-
+class RentalCaseAdmin(admin.ModelAdmin): list_display=('reference','property','tenant','owner','status','created_at'); list_filter=('status',); search_fields=('reference','property__reference','tenant__username','owner__username'); readonly_fields=('reference','created_at','updated_at')
 @admin.register(RentalContract)
-class RentalContractAdmin(admin.ModelAdmin):
-    list_display=('reference','rental_case','contract_type','party','amount','deposit','status','start_date','end_date')
-    list_filter=('contract_type','status')
-    search_fields=('reference','rental_case__reference','property__reference','party__username','party__first_name','party__last_name')
-    readonly_fields=('reference','created_at','updated_at')
-
+class RentalContractAdmin(admin.ModelAdmin): list_display=('reference','rental_case','contract_type','party','amount','deposit','status','start_date','end_date'); list_filter=('contract_type','status'); search_fields=('reference','rental_case__reference','party__username'); readonly_fields=('reference','created_at','updated_at')
 @admin.register(RentalDocument)
-class RentalDocumentAdmin(admin.ModelAdmin):
-    list_display=('rental_case','document_type','label','status','file','updated_at')
-    list_filter=('document_type','status')
-    search_fields=('rental_case__reference','label')
-
+class RentalDocumentAdmin(admin.ModelAdmin): list_display=('rental_case','document_type','label','status','file','updated_at'); list_filter=('document_type','status')
 @admin.register(OwnerRemittance)
-class OwnerRemittanceAdmin(admin.ModelAdmin):
-    list_display=('reference','property','owner','amount','payment_date','period_start','period_end','payment_method')
-    list_filter=('payment_date','payment_method')
-    search_fields=('reference','property__reference','property__title','owner__username','owner__first_name','owner__last_name')
-    readonly_fields=('reference','created_at','updated_at')
-
+class OwnerRemittanceAdmin(admin.ModelAdmin): list_display=('reference','property','owner','amount','payment_date','period_start','period_end','payment_method'); list_filter=('payment_date','payment_method'); search_fields=('reference','property__reference','owner__username'); readonly_fields=('reference','created_at','updated_at')
+@admin.register(RentalPayment)
+class RentalPaymentAdmin(admin.ModelAdmin): list_display=('reference','rental_case','contract','tenant','payment_type','amount','payment_date','payment_method'); list_filter=('payment_type','payment_date','payment_method'); search_fields=('reference','rental_case__reference','contract__reference','tenant__username'); readonly_fields=('reference','created_at','updated_at')
+@admin.register(RentalContractRequest)
+class RentalContractRequestAdmin(admin.ModelAdmin):
+    list_display=('id','request_type','contract','requester','requested_date','status','created_at')
+    list_filter=('request_type','status','created_at')
+    search_fields=('contract__reference','rental_case__reference','requester__username','requester__first_name','requester__last_name','description')
+    readonly_fields=('created_at','updated_at')
+    fieldsets=(('Demande',{'fields':('contract','rental_case','requester','request_type','description','requested_date')}),('Traitement FASTHOME',{'fields':('status','response')}),('Suivi',{'fields':('created_at','updated_at')}))
 @admin.register(AuditLog)
-class AuditLogAdmin(admin.ModelAdmin):
-    list_display=('created_at','actor','action','object_type','object_id','ip_address'); list_filter=('action','object_type','created_at'); search_fields=('actor__username','action','object_type','object_id'); readonly_fields=('created_at',)
+class AuditLogAdmin(admin.ModelAdmin): list_display=('created_at','actor','action','object_type','object_id','ip_address'); list_filter=('action','object_type')
 @admin.register(Notification)
-class NotificationAdmin(admin.ModelAdmin):
-    list_display=('user','title','read','created_at'); list_filter=('read','created_at'); search_fields=('user__username','title','message')
+class NotificationAdmin(admin.ModelAdmin): list_display=('user','title','read','created_at'); list_filter=('read','created_at'); search_fields=('user__username','title','message')
