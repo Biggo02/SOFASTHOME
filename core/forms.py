@@ -16,8 +16,8 @@ class RegisterForm(forms.ModelForm):
     class Meta:
         model = User
         fields = ['last_name', 'postnom', 'first_name', 'username', 'email', 'password']
-        labels = {'last_name': 'Nom', 'first_name': 'Prénom', 'username': 'Téléphone', 'email': 'Email'}
-        widgets = {'last_name': forms.TextInput(attrs={'placeholder': 'Votre nom'}), 'first_name': forms.TextInput(attrs={'placeholder': 'Votre prénom'}), 'username': forms.TextInput(attrs={'placeholder': 'Ex. 0812345678', 'autocomplete': 'tel'}), 'email': forms.EmailInput(attrs={'placeholder': 'exemple@email.com', 'autocomplete': 'email'})}
+        labels = {'last_name': 'Nom', 'first_name': 'Prénom', 'username': 'Téléphone', 'email': 'Adresse électronique'}
+        widgets = {'last_name': forms.TextInput(attrs={'placeholder': 'Votre nom'}), 'first_name': forms.TextInput(attrs={'placeholder': 'Votre prénom'}), 'username': forms.TextInput(attrs={'placeholder': 'Ex. 0812345678', 'autocomplete': 'tel'}), 'email': forms.EmailInput(attrs={'placeholder': 'exemple@domaine.com', 'autocomplete': 'email'})}
 
     def clean(self):
         data = super().clean()
@@ -42,35 +42,65 @@ class PropertyForm(forms.ModelForm):
     owner_authorized_subletting = forms.BooleanField(required=False, label='J’autorise FASTHOME à utiliser ce bien dans le cadre de son activité de sous-location.')
     title = forms.CharField(required=False, widget=forms.HiddenInput())
 
+    # Les réponses fermées sont volontairement présentées sous forme de listes.
+    YES_NO = [(True, 'Oui'), (False, 'Non')]
+    YES_NO_PRECISION = [('', 'Sélectionnez une réponse'), ('oui', 'Oui'), ('non', 'Non')]
+    PRIVACY_CHOICES = [('', 'Sélectionnez'), ('privees', 'Privées'), ('communes', 'Communes'), ('les_deux', 'Les deux')]
+    LOCATION_CHOICES = [('', 'Sélectionnez'), ('interieure', 'Intérieure'), ('exterieure', 'Extérieure'), ('les_deux', 'Les deux')]
+    TANK_CHOICES = [('', 'Sélectionnez'), ('aucune', 'Sans réservoir'), ('petite', 'Petit réservoir'), ('moyenne', 'Réservoir moyen'), ('grande', 'Grand réservoir'), ('citerne', 'Citerne')]
+    CONDITION_CHOICES = [('', 'Sélectionnez'), ('neuf', 'Neuf'), ('tres_bon', 'Très bon état'), ('bon', 'Bon état'), ('a_rafraichir', 'À rafraîchir'), ('a_rehabiliter', 'À réhabiliter')]
+    FURNISHED_CHOICES = [('', 'Sélectionnez'), ('non', 'Non meublé'), ('partiel', 'Partiellement meublé'), ('complet', 'Entièrement meublé')]
+    FURNISHED_TYPE_CHOICES = [('', 'Sélectionnez'), ('simple', 'Meublé simple'), ('confort', 'Meublé confort'), ('haut_gamme', 'Meublé haut de gamme')]
+
+    furnished = forms.TypedChoiceField(label='Bien meublé ?', choices=YES_NO, coerce=lambda v: v == 'True', empty_value=None, widget=forms.Select())
+    parking = forms.TypedChoiceField(label='Parking disponible ?', choices=YES_NO, coerce=lambda v: v == 'True', empty_value=None, widget=forms.Select())
+    security = forms.TypedChoiceField(label='Sécurité disponible ?', choices=YES_NO, coerce=lambda v: v == 'True', empty_value=None, widget=forms.Select())
+    water = forms.TypedChoiceField(label='Eau disponible ?', choices=YES_NO, coerce=lambda v: v == 'True', empty_value=None, widget=forms.Select())
+    electricity = forms.TypedChoiceField(label='Courant disponible ?', choices=YES_NO, coerce=lambda v: v == 'True', empty_value=None, widget=forms.Select())
+    available_now = forms.TypedChoiceField(label='Le bien est-il disponible maintenant ?', choices=YES_NO, coerce=lambda v: v == 'True', empty_value=None, widget=forms.Select())
+    shower_privacy = forms.ChoiceField(label='Les douches sont', choices=PRIVACY_CHOICES, required=False)
+    shower_location = forms.ChoiceField(label='Les douches se trouvent', choices=LOCATION_CHOICES, required=False)
+    shower_tank_type = forms.ChoiceField(label='Alimentation de la douche', choices=TANK_CHOICES, required=False)
+    condition = forms.ChoiceField(label='État général du bien', choices=CONDITION_CHOICES, required=False)
+    furnished_type = forms.ChoiceField(label='Niveau de mobilier', choices=FURNISHED_TYPE_CHOICES, required=False)
+    water_source = forms.ChoiceField(label='Provenance de l’eau', choices=[('', 'Sélectionnez'), *Property.WATER_SOURCES], required=False)
+    electricity_source = forms.ChoiceField(label='Source du courant', choices=[('', 'Sélectionnez'), *Property.ELECTRICITY_SOURCES], required=False)
+    floor_type = forms.ChoiceField(label='Type de sol', choices=[('', 'Sélectionnez'), *Property.FLOOR_TYPES], required=False)
+    ceiling_type = forms.ChoiceField(label='Type de plafond', choices=[('', 'Sélectionnez'), *Property.CEILING_TYPES], required=False)
+
     class Meta:
         model = Property
         exclude = ['owner', 'reference', 'status', 'views', 'created_at', 'updated_at', 'margin', 'room_details']
         widgets = {
-            'description': forms.Textarea(attrs={'rows': 4, 'placeholder': 'Décrivez simplement le bien et ses particularités…'}),
+            'description': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Quelques précisions utiles sur le bien…'}),
             'province': forms.TextInput(attrs={'placeholder': 'Ex. Haut-Katanga'}),
             'city': forms.TextInput(attrs={'placeholder': 'Ex. Lubumbashi'}),
             'commune': forms.TextInput(attrs={'placeholder': 'Ex. Lubumbashi'}),
             'neighborhood': forms.TextInput(attrs={'placeholder': 'Ex. Golf'}),
             'avenue': forms.TextInput(attrs={'placeholder': 'Ex. Avenue des Écoles'}),
             'number': forms.TextInput(attrs={'placeholder': 'Ex. 12A'}),
-            'geolocation_link': forms.URLInput(attrs={'placeholder': 'Collez le lien Google Maps ici'}),
+            'geolocation_link': forms.URLInput(attrs={'placeholder': 'Collez ici le lien Google Maps'}),
             'availability_date': forms.DateInput(attrs={'type': 'date'}),
-            'water_days_per_week': forms.NumberInput(attrs={'min': 0, 'max': 7}),
-            'electricity_days_per_week': forms.NumberInput(attrs={'min': 0, 'max': 7}),
-            'max_occupants': forms.NumberInput(attrs={'min': 1, 'max': 100}),
-            'bedrooms': forms.NumberInput(attrs={'min': 0}),
-            'salons': forms.NumberInput(attrs={'min': 0}),
-            'kitchens': forms.NumberInput(attrs={'min': 0}),
-            'bathrooms': forms.NumberInput(attrs={'min': 0}),
-            'toilets': forms.NumberInput(attrs={'min': 0}),
-            'shower_count': forms.NumberInput(attrs={'min': 0}),
+            'water_days_per_week': forms.Select(choices=[(i, str(i)) for i in range(8)]),
+            'electricity_days_per_week': forms.Select(choices=[(i, str(i)) for i in range(8)]),
+            'max_occupants': forms.Select(choices=[(i, str(i)) for i in range(1, 21)]),
+            'bedrooms': forms.Select(choices=[(i, str(i)) for i in range(0, 16)]),
+            'salons': forms.Select(choices=[(i, str(i)) for i in range(0, 11)]),
+            'kitchens': forms.Select(choices=[(i, str(i)) for i in range(0, 6)]),
+            'bathrooms': forms.Select(choices=[(i, str(i)) for i in range(0, 11)]),
+            'toilets': forms.Select(choices=[(i, str(i)) for i in range(0, 11)]),
+            'shower_count': forms.Select(choices=[(i, str(i)) for i in range(0, 11)]),
+            'floors': forms.Select(choices=[(i, str(i)) for i in range(1, 11)]),
+            'floor_number': forms.Select(choices=[(i, str(i)) for i in range(0, 11)]),
+            'parking_spaces': forms.Select(choices=[(i, str(i)) for i in range(0, 11)]),
             'rent': forms.NumberInput(attrs={'min': 1, 'step': '1', 'placeholder': 'Ex. 500000'}),
             'deposit': forms.NumberInput(attrs={'min': 0, 'step': '1', 'placeholder': 'Ex. 1500000'}),
         }
         labels = {
             'property_type': 'Type de bien', 'description': 'Description', 'province': 'Province', 'city': 'Ville', 'commune': 'Commune', 'neighborhood': 'Quartier', 'avenue': 'Avenue / rue / boulevard', 'number': 'Numéro', 'geolocation_link': 'Lien de géolocalisation',
-            'bedrooms': 'Chambres', 'salons': 'Salons', 'kitchens': 'Cuisines', 'bathrooms': 'Salles de bain', 'toilets': 'Toilettes', 'rent': 'Loyer mensuel (FC)', 'deposit': 'Garantie / dépôt (FC)', 'max_occupants': 'Nombre maximum d’habitants',
-            'furnished': 'Bien meublé ?', 'parking': 'Parking disponible ?', 'security': 'Sécurité disponible ?', 'water': 'Eau disponible ?', 'electricity': 'Courant disponible ?',
+            'bedrooms': 'Chambres', 'salons': 'Salons', 'kitchens': 'Cuisines', 'bathrooms': 'Salles de bain', 'toilets': 'Toilettes', 'rent': 'Loyer mensuel', 'deposit': 'Garantie / dépôt', 'max_occupants': 'Nombre maximum d’habitants',
+            'furnished': 'Bien meublé ?', 'parking': 'Parking disponible ?', 'security': 'Sécurité disponible ?', 'water': 'Eau disponible ?', 'electricity': 'Courant disponible ?', 'available_now': 'Disponibilité',
+            'floor_type': 'Type de sol', 'ceiling_type': 'Type de plafond', 'condition': 'État général',
         }
 
     def clean_room_details_json(self):
@@ -80,15 +110,15 @@ class PropertyForm(forms.ModelForm):
         try:
             value = json.loads(raw)
         except (TypeError, ValueError, json.JSONDecodeError):
-            raise forms.ValidationError('Les caractéristiques détaillées des pièces sont invalides.')
+            raise forms.ValidationError('Les caractéristiques détaillées sont invalides.')
         if not isinstance(value, list):
-            raise forms.ValidationError('Les caractéristiques détaillées des pièces sont invalides.')
+            raise forms.ValidationError('Les caractéristiques détaillées sont invalides.')
         return value[:100]
 
     def clean_photos(self):
         files = self.files.getlist('photos')
         if len(files) > 40:
-            raise forms.ValidationError('Maximum 40 photos pour un bien, avec un maximum recommandé de 5 photos par zone.')
+            raise forms.ValidationError('Maximum 40 photos pour un bien.')
         for uploaded in files:
             if not uploaded.content_type or not uploaded.content_type.startswith('image/'):
                 raise forms.ValidationError('Seules les images sont acceptées.')
@@ -105,21 +135,19 @@ class PropertyForm(forms.ModelForm):
             self.add_error('rent', 'Le loyer mensuel doit être supérieur à 0 FC.')
         if data.get('deposit', 0) < 0:
             self.add_error('deposit', 'La garantie ne peut pas être négative.')
-        if data.get('bedrooms', 0) > 0 and data.get('furnished') and data.get('furnished_bedrooms', 0) > data.get('bedrooms', 0):
-            self.add_error('furnished_bedrooms', 'Ne peut pas dépasser le nombre de chambres.')
         if data.get('water') and not data.get('water_source'):
             self.add_error('water_source', 'Précisez la provenance de l’eau.')
         if data.get('electricity') and not data.get('electricity_source'):
-            self.add_error('electricity_source', 'Précisez la provenance du courant.')
+            self.add_error('electricity_source', 'Précisez la source du courant.')
         if data.get('furnished') and not data.get('furniture_details'):
-            self.add_error('furniture_details', 'Décrivez les équipements et meubles fournis.')
+            self.add_error('furniture_details', 'Décrivez les meubles et équipements fournis.')
         if data.get('shower_count', 0) > 0:
             if not data.get('shower_location'):
-                self.add_error('shower_location', 'Précisez intérieur ou extérieur.')
+                self.add_error('shower_location', 'Précisez où se trouvent les douches.')
             if not data.get('shower_privacy'):
-                self.add_error('shower_privacy', 'Précisez privé ou public/commun.')
+                self.add_error('shower_privacy', 'Précisez si elles sont privées, communes ou les deux.')
             if not data.get('shower_tank_type'):
-                self.add_error('shower_tank_type', 'Précisez le type de cuve/réservoir.')
+                self.add_error('shower_tank_type', 'Précisez l’alimentation de la douche.')
         if data.get('available_now') is False and not data.get('availability_date'):
             self.add_error('availability_date', 'Indiquez la date de disponibilité.')
         return data
@@ -134,4 +162,4 @@ class PropertyForm(forms.ModelForm):
 
 
 class LoginForm(AuthenticationForm):
-    username = forms.CharField(label='Email ou téléphone')
+    username = forms.CharField(label='Adresse électronique ou téléphone')
