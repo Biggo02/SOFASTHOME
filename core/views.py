@@ -78,7 +78,30 @@ def _links(): return [('⌂', 'Tableau de bord', 'dashboard'), ('⌕', 'Recherch
 
 @login_required
 def dashboard(request):
-    user = request.user; return render(request, 'dashboard.html', {'links': _links(), 'properties': Property.objects.filter(owner=user).order_by('-updated_at'), 'visits': Visit.objects.filter(requester=user).select_related('property').order_by('-created_at')[:5], 'contracts': Contract.objects.filter(user=user).select_related('property'), 'payments': Payment.objects.filter(contract__user=user).select_related('contract__property').order_by('due_date')[:5], 'notifications': Notification.objects.filter(user=user).order_by('-created_at')[:6]})
+    user = request.user
+    owner_properties = Property.objects.filter(owner=user).prefetch_related('images').order_by('-updated_at')
+    draft_properties = owner_properties.filter(status='draft')
+    review_properties = owner_properties.filter(status__in=['review', 'rejected'])
+    available_properties = owner_properties.filter(status='published')
+    rented_properties = owner_properties.filter(status='rented')
+    return render(request, 'dashboard.html', {
+        'links': _links(),
+        'properties': owner_properties,
+        'draft_properties': draft_properties,
+        'review_properties': review_properties,
+        'available_properties': available_properties,
+        'rented_properties': rented_properties,
+        'property_counts': {
+            'draft': draft_properties.count(),
+            'review': review_properties.count(),
+            'available': available_properties.count(),
+            'rented': rented_properties.count(),
+        },
+        'visits': Visit.objects.filter(requester=user).select_related('property').order_by('-created_at')[:5],
+        'contracts': Contract.objects.filter(user=user).select_related('property'),
+        'payments': Payment.objects.filter(contract__user=user).select_related('contract__property').order_by('due_date')[:5],
+        'notifications': Notification.objects.filter(user=user).order_by('-created_at')[:6],
+    })
 
 @login_required
 def publications(request): return render(request, 'list.html', {'title': 'Mes publications', 'items': Property.objects.filter(owner=request.user).order_by('-updated_at'), 'kind': 'property'})
