@@ -110,3 +110,31 @@ class OwnerRemittance(models.Model):
             self.reference = f'FAST-VERS-{self.pk:06d}'
             return super().save(update_fields=['reference'])
         return super().save(*args, **kwargs)
+
+
+class RentalPayment(models.Model):
+    """Historique des sommes payées par le locataire à FASTHOME pour un contrat."""
+    PAYMENT_TYPES = [
+        ('rent', 'Loyer'),
+        ('guarantee', 'Garantie'),
+        ('other', 'Autre paiement'),
+    ]
+    rental_case = models.ForeignKey(RentalCase, on_delete=models.PROTECT, related_name='tenant_payments')
+    contract = models.ForeignKey(RentalContract, on_delete=models.PROTECT, related_name='payments')
+    tenant = models.ForeignKey(User, on_delete=models.PROTECT, related_name='rental_payments')
+    payment_type = models.CharField(max_length=20, choices=PAYMENT_TYPES, default='rent')
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    payment_date = models.DateField()
+    reference = models.CharField(max_length=60, unique=True, blank=True)
+    payment_method = models.CharField(max_length=40, blank=True, default='')
+    proof = models.FileField(upload_to='rental_payments/%Y/%m/', blank=True)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        if not self.reference:
+            super().save(*args, **kwargs)
+            self.reference = f'FAST-PAI-{self.pk:06d}'
+            return super().save(update_fields=['reference'])
+        return super().save(*args, **kwargs)
