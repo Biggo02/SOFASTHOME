@@ -3,7 +3,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('core', '0016_alter_rentalcase_status'),
+        ('core', '0015_merge_rental_documents'),
     ]
 
     operations = [
