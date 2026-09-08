@@ -1,0 +1,10 @@
+:root{--sidebar-width:270px}
+.app-layout{grid-template-columns:var(--sidebar-width) minmax(0,1fr)}
+.app-layout>.sidebar{width:var(--sidebar-width);min-width:var(--sidebar-width);padding:22px 14px;overflow-x:hidden}
+.app-layout>.sidebar .side-group{width:100%;min-width:0}
+.app-layout>.sidebar .side-title{white-space:nowrap;overflow:hidden}
+.app-layout>.sidebar a{width:100%;min-width:0;display:flex;align-items:center;gap:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.app-layout>.sidebar a i{width:22px;min-width:22px;flex:0 0 22px;text-align:center;font-style:normal}
+.app-layout>.sidebar a span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.app-layout>.sidebar .side-brand{width:100%;overflow:hidden}
+@media(max-width:900px){.app-layout{display:block}.app-layout>.sidebar{width:min(280px,88vw);min-width:min(280px,88vw)}}
