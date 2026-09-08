@@ -2,41 +2,36 @@
 
 {% block content %}
 {{ block.super }}
+<style>
+.room-clean-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.room-clean-item{border:1px solid var(--line);border-radius:10px;padding:9px;background:#fff}
+.room-clean-item label{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:650;cursor:pointer;margin:0}
+.room-clean-item input[type=checkbox]{width:17px;height:17px;margin:0}
+.room-clean-item select{width:100%;box-sizing:border-box}
+.room-clean-note{font-size:11px;color:var(--muted);margin:0 0 10px}
+@media(max-width:700px){.room-clean-grid{grid-template-columns:1fr}}
+</style>
 <script>
-(function () {
-  function removeUnwantedRoomFields() {
-    const labelsToRemove = new Set(['sol', 'plafond', 'état']);
-    document.querySelectorAll('#roomDetails .room-box').forEach(function (box) {
-      box.querySelectorAll('label').forEach(function (label) {
-        const text = label.textContent.trim().toLowerCase();
-        if (!labelsToRemove.has(text)) return;
-        const wrapper = label.parentElement;
-        if (wrapper) wrapper.remove();
-      });
-    });
-  }
-
-  function applyCleanComposition() {
-    ['shower_count', 'floors', 'floor_number'].forEach(function (name) {
-      const field = document.getElementById('id_' + name);
-      if (!field) return;
-      const wrapper = field.closest('.field') || field.parentElement;
-      if (wrapper) wrapper.remove();
-    });
-  }
-
-  function clean() {
-    applyCleanComposition();
-    removeUnwantedRoomFields();
-  }
-
-  clean();
-  const observer = new MutationObserver(clean);
-  observer.observe(document.body, { childList: true, subtree: true });
-  setTimeout(function () {
-    observer.disconnect();
-    clean();
-  }, 5000);
+(function(){
+ const form=document.getElementById('propertyForm');if(!form)return;
+ const q=n=>form.querySelector('[name="'+n+'"]');
+ const isFurnished=()=>{const f=q('furnished');return !!f&&(f.value==='oui'||f.value==='True'||f.value==='true'||f.checked);};
+ const cb=(label,key)=>'<div class="room-clean-item"><label><input type="checkbox" data-room-field="'+key+'"> '+label+'</label></div>';
+ const sel=(label,key,opts)=>'<div class="room-clean-item"><label style="display:block;margin-bottom:6px">'+label+'</label><select data-room-field="'+key+'"><option value="">Sélectionnez</option>'+opts.map(x=>'<option value="'+x+'">'+x+'</option>').join('')+'</select></div>';
+ const yes=['Oui','Non'];
+ function save(){const h=q('room_details_json');if(!h)return;const data={rooms:[],sanitaires:[]};document.querySelectorAll('#roomDetails .room-box').forEach(b=>{const o={name:b.querySelector('h3')?.textContent.trim()||''};b.querySelectorAll('[data-room-field]').forEach(x=>o[x.dataset.roomField]=x.type==='checkbox'?x.checked:x.value);data.rooms.push(o);});document.querySelectorAll('#sanitaryDetails .room-box').forEach(b=>{const o={name:b.querySelector('h3')?.textContent.trim()||''};b.querySelectorAll('[data-room-field]').forEach(x=>o[x.dataset.roomField]=x.type==='checkbox'?x.checked:x.value);data.sanitaires.push(o);});h.value=JSON.stringify(data);}
+ function buildRoom(box,type){if(box.dataset.cleanBuilt==='1')return;box.dataset.cleanBuilt='1';const title=box.querySelector('h3')?.textContent||type;let html='';
+  if(type==='Chambre'){html+=cb('Climatisation','climatisation')+cb('Ventilateur','ventilateur')+cb('Garde-robe','garde_robe')+cb('Lit','lit')+cb('Table de chevet','table_de_chevet')+cb('Commode','commode')+cb('Bureau','bureau')+cb('Rideaux','rideaux')+cb('Moustiquaire','moustiquaire')+cb('Prises électriques','prises_electriques');}
+  if(type==='Salon'){html+=cb('Canapé','canape')+cb('Fauteuils','fauteuils')+cb('Table basse','table_basse')+cb('Meuble TV','meuble_tv')+cb('Télévision','television')+cb('Climatisation','climatisation')+cb('Ventilateur','ventilateur')+cb('Rideaux','rideaux')+cb('Prises électriques','prises_electriques');}
+  if(type==='Cuisine'){html+=cb('Évier','evier')+cb('Placards / rangements','rangements')+cb('Plan de travail','plan_travail')+cb('Cuisinière','cuisiniere')+cb('Réfrigérateur','refrigerateur')+cb('Four','four')+cb('Micro-ondes','micro_ondes')+cb('Hotte','hotte')+cb('Table','table')+cb('Chaises','chaises');}
+  box.innerHTML='';const h=document.createElement('h3');h.textContent=title;box.appendChild(h);const note=document.createElement('p');note.className='room-clean-note';note.textContent=isFurnished()?'Cochez uniquement les meubles et équipements présents dans cette pièce.':'Aucun détail de mobilier à renseigner pour un bien non meublé.';box.appendChild(note);const grid=document.createElement('div');grid.className='room-clean-grid';grid.innerHTML=isFurnished()?html:'<div class="room-clean-note">Ces éléments sont demandés uniquement si le bien est meublé.</div>';box.appendChild(grid);
+ }
+ function buildSanitary(box,type){if(box.dataset.cleanBuilt==='sanitary')return;box.dataset.cleanBuilt='sanitary';const title=box.querySelector('h3')?.textContent||type;let html=sel('Emplacement','emplacement',['Intérieure','Extérieure'])+sel('Accès','acces',['Privé','Commun']);if(type==='Douche'){html+=sel('Type de douche','type_douche',['Douche classique','Douche à l’italienne','Douche avec bac','Autre'])+sel('Alimentation','alimentation',['Réseau','Réservoir','Réseau + réservoir','Autre'])+sel('Baignoire','baignoire',['Aucune','Baignoire simple','Baignoire avec douche','Baignoire balnéo']);}else{html+=sel('Type de toilette','type_toilette',['Toilette turque','Toilette à cuve','WC avec chasse','WC suspendue','Autre'])+sel('Équipement de lavage','lavage_toilette',['Aucun','Lave-mains','Douchette','Autre']);}box.innerHTML='';const h=document.createElement('h3');h.textContent=title;box.appendChild(h);const grid=document.createElement('div');grid.className='room-clean-grid';grid.innerHTML=html;box.appendChild(grid);}
+ function clean(){['shower_count','floors','floor_number'].forEach(n=>{const e=document.getElementById('id_'+n);const w=e?.closest('.field');if(w)w.remove();});document.querySelectorAll('#roomDetails .room-box').forEach(b=>{const t=b.querySelector('h3')?.textContent||'';const type=t.startsWith('Chambre')?'Chambre':t.startsWith('Salon')?'Salon':'Cuisine';buildRoom(b,type);});document.querySelectorAll('#sanitaryDetails .room-box').forEach(b=>{const t=b.querySelector('h3')?.textContent||'';buildSanitary(b,t.startsWith('Douche')?'Douche':'Toilette');});save();}
+ function refresh(){document.querySelectorAll('#roomDetails .room-box').forEach(b=>{const grid=b.querySelector('.room-clean-grid'),note=b.querySelector('.room-clean-note');if(!grid||!note)return;note.textContent=isFurnished()?'Cochez uniquement les meubles et équipements présents dans cette pièce.':'Aucun détail de mobilier à renseigner pour un bien non meublé.';if(!isFurnished())grid.innerHTML='<div class="room-clean-note">Ces éléments sont demandés uniquement si le bien est meublé.</div>';else if(!grid.querySelector('[data-room-field]'))clean();});save();}
+ const obs=new MutationObserver(clean);['roomDetails','sanitaryDetails'].forEach(id=>{const e=document.getElementById(id);if(e)obs.observe(e,{childList:true,subtree:true});});
+ document.addEventListener('change',e=>{if(e.target.matches('[data-room-field]'))save();if(e.target.name==='meuble_choice'||e.target.name==='furnished')setTimeout(refresh,20);});
+ setTimeout(clean,50);setTimeout(clean,500);
 })();
 </script>
 {% endblock %}
