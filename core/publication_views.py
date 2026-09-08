@@ -15,13 +15,13 @@ def add_property(request):
         submitting = 'submit' in request.POST
         if submitting:
             if not require_verified(request, 'soumettre une publication'):
-                return render(request, 'property_form.html', {'form': form})
+                return render(request, 'property_form_v2.html', {'form': form})
             if not form.cleaned_data.get('owner_authorized_publication'):
                 form.add_error('owner_authorized_publication', 'Cette autorisation est obligatoire pour soumettre le bien.')
             if not form.cleaned_data.get('owner_authorized_subletting'):
                 form.add_error('owner_authorized_subletting', 'Vous devez autoriser FASTHOME à exploiter le bien en sous-location.')
             if form.errors:
-                return render(request, 'property_form.html', {'form': form})
+                return render(request, 'property_form_v2.html', {'form': form})
 
         obj = form.save(commit=False)
         obj.owner = request.user
@@ -45,4 +45,4 @@ def add_property(request):
             Notification.objects.create(user=request.user, title='Publication en vérification', message=f'{obj.reference} a été transmise à FASTHOME avec les autorisations requises.')
         messages.success(request, 'Publication soumise à vérification.' if obj.status == 'review' else 'Brouillon enregistré.')
         return redirect('publications')
-    return render(request, 'property_form.html', {'form': form})
+    return render(request, 'property_form_v2.html', {'form': form})
