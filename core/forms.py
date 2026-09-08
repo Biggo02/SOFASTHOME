@@ -73,11 +73,9 @@ class PropertyForm(forms.ModelForm):
         if data.get('max_occupants',0)<1:self.add_error('max_occupants','Le nombre maximum d’habitants doit être au moins 1.')
         if data.get('rent') is None or data.get('rent',0)<=0:self.add_error('rent','Le loyer mensuel doit être supérieur à 0 FC.')
         if data.get('deposit',0)<0:self.add_error('deposit','La garantie ne peut pas être négative.')
-        if data.get('water') and not data.get('water_source'):self.add_error('water_source','Sélectionnez la provenance de l’eau.')
-        if data.get('electricity') and not data.get('electricity_source'):self.add_error('electricity_source','Sélectionnez la source du courant.')
-        if data.get('fence') and not data.get('fence_type'):self.add_error('fence_type','Sélectionnez le type de clôture.')
-        if data.get('fence') and not data.get('fence_condition'):self.add_error('fence_condition','Indiquez l’état de la clôture.')
-        if data.get('available_now') is False and not data.get('availability_date'):self.add_error('availability_date','Indiquez la date de disponibilité.')
+        # Les détails conditionnels (source d'eau, source du courant, clôture)
+        # restent facultatifs à la soumission. FASTHOME pourra les compléter
+        # lors de la vérification sur place plutôt que bloquer la publication.
         return data
     def save(self,commit=True):
         obj=super().save(commit=False);obj.room_details=self.cleaned_data.get('room_details_json',[])
