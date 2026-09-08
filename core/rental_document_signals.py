@@ -28,3 +28,7 @@ def refresh_generated_contract_document(sender, instance, created, **kwargs):
         instance.save(update_fields=['file', 'status', 'updated_at'])
     finally:
         instance._contract_pdf_refreshing = False
+
+# AppConfig already imports this module at startup; this import activates the
+# wider notification signal registry without changing the existing bootstrap.
+from . import notification_signals  # noqa: E402,F401
