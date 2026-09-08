@@ -31,11 +31,6 @@ class PropertyForm(forms.ModelForm):
     owner_authorized_subletting=forms.BooleanField(required=False,label='J’autorise FASTHOME à utiliser ce bien pour son activité de sous-location.')
     title=forms.CharField(required=False,widget=forms.HiddenInput())
     YES_NO=[('', 'Sélectionnez'),(True,'Oui'),(False,'Non')]
-    PRIVACY=[('', 'Sélectionnez'),('privees','Privées'),('communes','Communes')]
-    LOCATION=[('', 'Sélectionnez'),('interieure','Intérieure'),('exterieure','Extérieure')]
-    TANK=[('', 'Sélectionnez'),('aucune','Sans réservoir'),('petite','Petit réservoir'),('moyenne','Réservoir moyen'),('grande','Grand réservoir'),('citerne','Citerne')]
-    CONDITION=[('', 'Sélectionnez'),('neuf','Neuf'),('tres_bon','Très bon état'),('bon','Bon état'),('a_rafraichir','À rafraîchir'),('a_rehabiliter','À réhabiliter')]
-    FURNISHED=[('', 'Sélectionnez'),('simple','Meublé simple'),('confort','Meublé confort'),('haut_gamme','Meublé haut de gamme')]
     PROVINCES=[('','Sélectionnez la province'),*[(x,x) for x in ['Bas-Uele','Équateur','Haut-Katanga','Haut-Lomami','Haut-Uele','Ituri','Kasaï','Kasaï-Central','Kasaï-Oriental','Kinshasa','Kongo-Central','Kwango','Kwilu','Lomami','Lualaba','Mai-Ndombe','Maniema','Mongala','Nord-Kivu','Nord-Ubangi','Sankuru','Sud-Kivu','Sud-Ubangi','Tanganyika','Tshopo','Tshuapa']]]
     CITIES=[('', 'Sélectionnez la ville')]+[(x,x) for x in ['Lubumbashi','Likasi','Kolwezi','Kinshasa','Matadi','Boma','Kananga','Mbuji-Mayi','Kisangani','Goma','Bukavu','Kindu','Kalemie','Isiro','Bunia','Butembo','Bandundu','Kikwit','Tshikapa','Boende','Gemena','Lisala','Mbandaka','Inongo','Kabinda','Mwene-Ditu','Autre ville']]
     furnished=forms.TypedChoiceField(label='Bien meublé ?',choices=YES_NO,coerce=lambda v:v=='True',empty_value=None)
@@ -44,17 +39,12 @@ class PropertyForm(forms.ModelForm):
     water=forms.TypedChoiceField(label='Eau disponible ?',choices=YES_NO,coerce=lambda v:v=='True',empty_value=None)
     electricity=forms.TypedChoiceField(label='Courant disponible ?',choices=YES_NO,coerce=lambda v:v=='True',empty_value=None)
     available_now=forms.TypedChoiceField(label='Le bien est-il disponible maintenant ?',choices=YES_NO,coerce=lambda v:v=='True',empty_value=None)
-    shower_privacy=forms.ChoiceField(label='Accès aux douches',choices=PRIVACY,required=False)
-    shower_location=forms.ChoiceField(label='Emplacement des douches',choices=LOCATION,required=False)
-    shower_tank_type=forms.ChoiceField(label='Alimentation des douches',choices=TANK,required=False)
-    condition=forms.ChoiceField(label='État général du bien',choices=CONDITION,required=False)
-    furnished_type=forms.ChoiceField(label='Niveau de mobilier',choices=FURNISHED,required=False)
     water_source=forms.ChoiceField(label='Provenance de l’eau',choices=[('', 'Sélectionnez'),*Property.WATER_SOURCES],required=False)
     electricity_source=forms.ChoiceField(label='Source du courant',choices=[('', 'Sélectionnez'),*Property.ELECTRICITY_SOURCES],required=False)
     floor_type=forms.ChoiceField(label='Type de sol',choices=[('', 'Sélectionnez'),*Property.FLOOR_TYPES],required=False)
     ceiling_type=forms.ChoiceField(label='Type de plafond',choices=[('', 'Sélectionnez'),*Property.CEILING_TYPES],required=False)
-    province=forms.ChoiceField(label='Province',choices=PROVINCES,required=True)
-    city=forms.ChoiceField(label='Ville',choices=CITIES,required=True)
+    condition=forms.ChoiceField(label='État général du bien',choices=[('', 'Sélectionnez'),('neuf','Neuf'),('tres_bon','Très bon état'),('bon','Bon état'),('a_rafraichir','À rafraîchir'),('a_rehabiliter','À réhabiliter')],required=False)
+    furnished_type=forms.ChoiceField(label='Niveau de mobilier',choices=[('', 'Sélectionnez'),('simple','Meublé simple'),('confort','Meublé confort'),('haut_gamme','Meublé haut de gamme')],required=False)
     class Meta:
         model=Property
         exclude=['owner','reference','status','views','created_at','updated_at','margin','room_details','shower_count','floors','floor_number']
@@ -82,7 +72,6 @@ class PropertyForm(forms.ModelForm):
         if data.get('deposit',0)<0:self.add_error('deposit','La garantie ne peut pas être négative.')
         if data.get('water') and not data.get('water_source'):self.add_error('water_source','Sélectionnez la provenance de l’eau.')
         if data.get('electricity') and not data.get('electricity_source'):self.add_error('electricity_source','Sélectionnez la source du courant.')
-        if data.get('furnished') and not data.get('furniture_details'):self.add_error('furniture_details','Décrivez les meubles et équipements fournis.')
         if data.get('available_now') is False and not data.get('availability_date'):self.add_error('availability_date','Indiquez la date de disponibilité.')
         return data
     def save(self,commit=True):
