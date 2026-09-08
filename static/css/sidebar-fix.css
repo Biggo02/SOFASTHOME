@@ -39,6 +39,40 @@ html,body{max-width:100%;overflow-x:hidden}
   .favorite-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
   .visit-card{grid-template-columns:auto minmax(0,1fr)!important}
   .visit-date,.visit-status,.visit-action{grid-column:2}
+
+  /* On a phone the sidebar is a drawer. The profile photo is its only trigger. */
+  .personal-space>.personal-sidebar,
+  .list-personal-space>.personal-sidebar{
+    position:fixed!important;
+    top:76px!important;
+    left:0!important;
+    bottom:0!important;
+    height:calc(100vh - 76px)!important;
+    max-height:calc(100vh - 76px)!important;
+    width:min(280px,88vw)!important;
+    min-width:min(280px,88vw)!important;
+    z-index:1000!important;
+    transform:translateX(-105%);
+    transition:transform .22s ease,box-shadow .22s ease;
+    box-shadow:none!important;
+  }
+  .personal-space.sidebar-open>.personal-sidebar,
+  .list-personal-space.sidebar-open>.personal-sidebar{
+    transform:translateX(0);
+    box-shadow:12px 0 35px rgba(16,36,62,.22)!important;
+  }
+  .personal-space.sidebar-open::before,
+  .list-personal-space.sidebar-open::before{
+    content:'';
+    position:fixed;
+    inset:76px 0 0 0;
+    z-index:999;
+    background:rgba(16,36,62,.35);
+  }
+  .personal-space>.personal-main,
+  .list-personal-space>.personal-main{
+    width:100%!important;
+  }
 }
 @media(max-width:600px){
   .favorite-grid{grid-template-columns:1fr!important}
