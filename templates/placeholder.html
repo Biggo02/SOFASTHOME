@@ -1,1 +1,40 @@
-{% extends 'base.html' %}{% block title %}{{ title }} — FASTHOME{% endblock %}{% block content %}<section class='placeholder'><div class='eyebrow'>FASTHOME</div><h1>{{ title }}</h1><p>{{ text }}</p><a class='btn btn-primary' href='{% url "home" %}'>Retour à l'accueil</a></section>{% endblock %}
+{% extends 'base.html' %}
+{% block title %}{{ title }} — FASTHOME{% endblock %}
+{% block content %}
+<section class="placeholder-page">
+  <div class="placeholder-hero">
+    <div class="placeholder-icon">F</div>
+    <div>
+      <span class="eyebrow">FASTHOME · ESPACE SÉCURISÉ</span>
+      <h1>{{ title }}</h1>
+      <p>{{ text }}</p>
+    </div>
+  </div>
+  <div class="placeholder-content">
+    {% if title == 'Messagerie sécurisée' %}
+      <div class="info-row"><strong>Communication</strong><span>FASTHOME reste votre interlocuteur unique. Les coordonnées personnelles des propriétaires ne sont pas exposées.</span></div>
+      <div class="info-row"><strong>Suivi</strong><span>Pour une demande concernant une visite, une publication ou une location, utilisez les notifications et votre espace personnel.</span></div>
+    {% elif title == 'À propos' %}
+      <div class="info-row"><strong>Notre rôle</strong><span>FASTHOME accompagne la recherche, la visite et la gestion locative en assurant l'intermédiation entre les parties.</span></div>
+      <div class="info-row"><strong>Votre espace</strong><span>Un compte unique permet de retrouver vos recherches, favoris, visites, publications et documents qui vous concernent.</span></div>
+    {% elif title == 'Comment ça marche ?' %}
+      <div class="steps-grid"><div><b>01</b><strong>Rechercher</strong><span>Trouvez les logements correspondant à vos critères.</span></div><div><b>02</b><strong>Demander une visite</strong><span>Envoyez votre demande depuis la fiche du logement.</span></div><div><b>03</b><strong>Visiter</strong><span>FASTHOME organise et suit la demande de visite.</span></div><div><b>04</b><strong>Louer</strong><span>Suivez ensuite vos documents et votre location depuis votre espace.</span></div></div>
+    {% elif title == 'Contact' %}
+      <div class="contact-card"><strong>L'équipe FASTHOME</strong><span>Pour toute demande, utilisez votre espace personnel afin que votre dossier soit correctement rattaché à votre compte.</span><a class="btn btn-primary" href="{% url 'dashboard' %}">Ouvrir mon espace</a></div>
+    {% else %}
+      <div class="info-row"><strong>Votre espace FASTHOME</strong><span>Cette rubrique est accessible depuis votre compte et évoluera avec les informations de votre dossier.</span></div>
+    {% endif %}
+  </div>
+  <div class="placeholder-actions"><a class="btn btn-primary" href="{% url 'home' %}">Retour à l'accueil</a>{% if user.is_authenticated %}<a class="btn btn-light" href="{% url 'dashboard' %}">Mon espace</a>{% endif %}</div>
+</section>
+<style>
+.placeholder-page{max-width:980px;margin:48px auto 70px;padding:0 18px;color:var(--navy,#10243e)}
+.placeholder-hero{display:flex;align-items:center;gap:20px;padding:32px;background:#fff;border:1px solid var(--line,#e3e9ef);border-radius:20px;box-shadow:0 12px 34px rgba(16,36,62,.06)}
+.placeholder-icon{width:58px;height:58px;border-radius:16px;display:grid;place-items:center;background:var(--gold,#f1b90b);color:var(--navy,#10243e);font-size:25px;font-weight:900;flex:0 0 58px}
+.placeholder-hero .eyebrow{display:block;margin-bottom:6px;font-size:9px;font-weight:900;letter-spacing:1.5px;color:var(--gold,#f1b90b)}
+.placeholder-hero h1{margin:0 0 8px;font-size:32px;letter-spacing:-.5px}.placeholder-hero p{margin:0;color:var(--muted,#718096);font-size:13px;line-height:1.65}
+.placeholder-content{margin-top:16px;background:#fff;border:1px solid var(--line,#e3e9ef);border-radius:18px;padding:22px}.info-row{display:flex;gap:20px;padding:17px 4px;border-bottom:1px solid var(--line,#e3e9ef)}.info-row:last-child{border-bottom:0}.info-row strong{width:180px;flex:0 0 180px;font-size:12px}.info-row span{font-size:12px;line-height:1.7;color:var(--muted,#718096)}
+.steps-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.steps-grid>div{padding:18px;border:1px solid var(--line,#e3e9ef);border-radius:13px;background:#f8fafc}.steps-grid b{display:block;color:var(--gold,#f1b90b);font-size:11px}.steps-grid strong{display:block;margin:5px 0;font-size:14px}.steps-grid span{display:block;color:var(--muted,#718096);font-size:11px;line-height:1.6}.contact-card{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:20px;background:#f8fafc;border-radius:13px}.contact-card strong{font-size:15px}.contact-card span{color:var(--muted,#718096);font-size:12px;line-height:1.6;max-width:680px}.contact-card .btn{margin-top:8px}.placeholder-actions{display:flex;gap:10px;margin-top:16px}
+@media(max-width:600px){.placeholder-page{margin:25px auto 45px;padding:0 12px}.placeholder-hero{padding:23px 18px;align-items:flex-start}.placeholder-icon{width:46px;height:46px;flex-basis:46px;border-radius:13px;font-size:20px}.placeholder-hero h1{font-size:27px}.info-row{display:block}.info-row strong{display:block;width:auto;margin-bottom:5px}.steps-grid{grid-template-columns:1fr}.placeholder-actions{flex-direction:column}.placeholder-actions .btn{width:100%;text-align:center;box-sizing:border-box}}
+</style>
+{% endblock %}
