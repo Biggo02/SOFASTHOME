@@ -9,7 +9,7 @@ class UserProfile(models.Model):
     date_of_birth=models.DateField(null=True,blank=True)
 
 class Property(models.Model):
-    TYPES=[('Appartement','Appartement'),('Maison','Maison'),('Studio','Studio'),('Villa','Villa')]
+    TYPES=[('Appartement','Appartement'),('Maison','Maison'),('Studio','Studio'),('Villa','Villa'),('Duplex','Duplex'),('Triplex','Triplex'),('Bungalow','Bungalow'),('Penthouse','Penthouse'),('Chambre','Chambre'),('Local commercial','Local commercial'),('Autre','Autre')]
     STATUSES=[('draft','Brouillon'),('review','En vérification'),('published','Publiée'),('rented','Louée'),('archived','Archivée'),('rejected','Refusée')]
     WATER_SOURCES=[('regideso','REGIDESO'),('forage','Forage'),('puits','Puits'),('citerne','Citerne'),('source','Source naturelle'),('other','Autre')]
     ELECTRICITY_SOURCES=[('snél','SNEL'),('solaire','Solaire'),('generateur','Générateur'),('batterie','Batterie / onduleur'),('other','Autre')]
@@ -18,11 +18,15 @@ class Property(models.Model):
     reference=models.CharField(max_length=40,unique=True,blank=True)
     owner=models.ForeignKey(User,on_delete=models.CASCADE,related_name='properties')
     title=models.CharField(max_length=180); property_type=models.CharField(max_length=30,choices=TYPES); description=models.TextField(blank=True)
-    province=models.CharField(max_length=100,default='Haut-Katanga'); city=models.CharField(max_length=100,default='Lubumbashi'); commune=models.CharField(max_length=100,blank=True); full_address=models.CharField(max_length=255,blank=True)
+    province=models.CharField(max_length=100,default='Haut-Katanga'); city=models.CharField(max_length=100,default='Lubumbashi'); commune=models.CharField(max_length=100,blank=True); neighborhood=models.CharField(max_length=100,blank=True); avenue=models.CharField(max_length=150,blank=True); number=models.CharField(max_length=40,blank=True); full_address=models.CharField(max_length=255,blank=True)
+    geolocation_link=models.URLField(max_length=500,blank=True)
     bedrooms=models.PositiveIntegerField(default=1); salons=models.PositiveIntegerField(default=1); kitchens=models.PositiveIntegerField(default=1); bathrooms=models.PositiveIntegerField(default=1); toilets=models.PositiveIntegerField(default=1); max_occupants=models.PositiveIntegerField(default=1); floors=models.PositiveIntegerField(default=1); floor_number=models.PositiveIntegerField(default=0); parking=models.BooleanField(default=False); parking_spaces=models.PositiveIntegerField(default=0); security=models.BooleanField(default=True)
     furnished=models.BooleanField(default=False); furniture_details=models.TextField(blank=True); furnished_bedrooms=models.PositiveIntegerField(default=0); furnished_salons=models.PositiveIntegerField(default=0); furnished_kitchens=models.PositiveIntegerField(default=0); furnished_bathrooms=models.PositiveIntegerField(default=0); shower_count=models.PositiveIntegerField(default=0); shower_location=models.CharField(max_length=20,blank=True); shower_privacy=models.CharField(max_length=20,blank=True); shower_tank_type=models.CharField(max_length=80,blank=True); bathroom_details=models.TextField(blank=True); toilet_details=models.TextField(blank=True)
     water=models.BooleanField(default=True); water_days_per_week=models.PositiveIntegerField(default=7); water_source=models.CharField(max_length=30,choices=WATER_SOURCES,blank=True); water_details=models.TextField(blank=True); electricity=models.BooleanField(default=True); electricity_days_per_week=models.PositiveIntegerField(default=7); electricity_source=models.CharField(max_length=30,choices=ELECTRICITY_SOURCES,blank=True); electricity_details=models.TextField(blank=True); floor_type=models.CharField(max_length=30,choices=FLOOR_TYPES,blank=True); ceiling_type=models.CharField(max_length=30,choices=CEILING_TYPES,blank=True); condition=models.CharField(max_length=120,blank=True); furnished_type=models.CharField(max_length=100,blank=True)
     rent=models.DecimalField(max_digits=10,decimal_places=2,default=0); deposit=models.DecimalField(max_digits=10,decimal_places=2,default=0); margin=models.DecimalField(max_digits=10,decimal_places=2,default=0); availability_date=models.DateField(null=True,blank=True); available_now=models.BooleanField(default=True); rejection_reason=models.TextField(blank=True); status=models.CharField(max_length=20,choices=STATUSES,default='draft'); views=models.PositiveIntegerField(default=0); created_at=models.DateTimeField(auto_now_add=True); updated_at=models.DateTimeField(auto_now=True)
+    owner_authorized_publication=models.BooleanField(default=False)
+    owner_authorized_subletting=models.BooleanField(default=False)
+    authorization_confirmed_at=models.DateTimeField(null=True,blank=True)
     room_details=models.JSONField(default=list,blank=True)
     def save(self,*args,**kwargs):
         if not self.reference:
