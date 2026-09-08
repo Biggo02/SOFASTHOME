@@ -1,5 +1,5 @@
 from django.contrib.auth.decorators import login_required
-from django.db.models import Q
+from django.db.models import Q, Sum
 from django.shortcuts import render
 
 from .models import Notification, Payment, Property, Visit
@@ -59,8 +59,9 @@ def dashboard(request):
         .order_by('-updated_at')
     )
 
-    # Keep the legacy payment module compatible while limiting the personal
-    # space to payments belonging to tenant contracts.
+    # ARGENT QUE JE PAIE : uniquement les paiements des contrats dont
+    # l'utilisateur est locataire. Cela ne contient jamais les encaissements
+    # de ses propres biens.
     tenant_payments = (
         Payment.objects.filter(contract__user=user, contract__role='tenant')
         .select_related('contract__property')
@@ -68,10 +69,24 @@ def dashboard(request):
         .order_by('due_date')
     )
 
-    # IMPORTANT: the layout is identical for every account.  We therefore do
-    # not hide the owner/tenant sections according to activity.  Empty sections
-    # simply show their empty state, while the underlying queries remain
-    # strictly scoped to the logged-in user.
+    # ARGENT QUE JE REÇOIS : uniquement les paiements de contrats locataires
+    # portant sur les biens dont l'utilisateur est propriétaire.
+    owner_payment_records = (
+        Payment.objects.filter(contract__property__owner=user, contract__role='tenant')
+        .select_related('contract__property', 'contract__user')
+        .prefetch_related('proofs')
+        .order_by('-due_date', '-id')
+    )
+
+    owner_payment_count = owner_payment_records.count()
+    owner_received_total = owner_payment_records.aggregate(total=Sum('amount_paid')).get('total') or 0
+    owner_expected_total = owner_payment_records.aggregate(total=Sum('amount_due')).get('total') or 0
+    tenant_payment_count = tenant_payments.count()
+    tenant_paid_total = tenant_payments.aggregate(total=Sum('amount_paid')).get('total') or 0
+    tenant_due_total = tenant_payments.aggregate(total=Sum('amount_due')).get('total') or 0
+
+    # The layout is identical for every account. Empty sections simply show
+    # their empty state; the financial queries remain strictly user-scoped.
     has_owner_activity = True
     has_tenant_activity = True
     primary_links, owner_links, tenant_links, common_links = _links(user, has_tenant_activity)
@@ -106,7 +121,13 @@ def dashboard(request):
         'active_rentals': active_rentals,
         'payments': tenant_payments[:5],
         'tenant_payments': tenant_payments,
-        'tenant_payment_count': tenant_payments.count(),
+        'tenant_payment_count': tenant_payment_count,
+        'tenant_paid_total': tenant_paid_total,
+        'tenant_due_total': tenant_due_total,
+        'owner_property_payments': owner_payment_records,
+        'owner_payment_count': owner_payment_count,
+        'owner_received_total': owner_received_total,
+        'owner_expected_total': owner_expected_total,
         'next_payment': tenant_payments.filter(status__in=['upcoming', 'partial', 'late']).first(),
         'notifications': Notification.objects.filter(user=user).order_by('-created_at')[:6],
         'has_owner_activity': has_owner_activity,
