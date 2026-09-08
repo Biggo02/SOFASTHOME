@@ -2,13 +2,13 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, render
 
-from .models import Payment, Property
-from .rental_models import RentalCase, RentalContract
+from .models import Property
+from .rental_models import RentalCase, RentalContract, OwnerRemittance
 
 
 @login_required
 def rented_property_detail(request, pk):
-    """Owner-only property dossier with strict owner-side document visibility."""
+    """Dossier du bien loué : le propriétaire voit ses documents et ses versements FASTHOME."""
     property_obj = get_object_or_404(Property, pk=pk)
     if property_obj.owner_id != request.user.id and not request.user.is_staff:
         return HttpResponseForbidden("Ce dossier n'est pas accessible depuis votre espace.")
@@ -20,8 +20,6 @@ def rented_property_detail(request, pk):
     )
     active_case = next((case for case in rental_cases if case.status == 'active'), rental_cases[0] if rental_cases else None)
 
-    # Even though both contracts belong to the same property, an owner must
-    # only see the contract in which the owner is the contracting party.
     contracts = (
         RentalContract.objects.filter(
             rental_case__property=property_obj,
@@ -32,8 +30,6 @@ def rented_property_detail(request, pk):
         .order_by('-updated_at')
     )
 
-    # Same principle for signed documents: tenant documents are never exposed
-    # to the owner merely because they are attached to the same rental case.
     documents = []
     if active_case:
         documents = list(
@@ -42,18 +38,18 @@ def rented_property_detail(request, pk):
             ).order_by('document_type', '-updated_at')
         )
 
-    # The owner can consult the payment ledger for money received on this
-    # property. Payment proofs remain part of the financial record, not the
-    # other party's contractual document area.
-    received_payments = (
-        Payment.objects.filter(contract__property=property_obj, contract__role='tenant')
-        .select_related('contract', 'contract__user')
-        .prefetch_related('proofs')
-        .order_by('-due_date', '-id')
+    # Relevé distinct : ce sont les sommes effectivement versées par FASTHOME
+    # au propriétaire, jamais les dettes ou paiements du locataire.
+    remittances = (
+        OwnerRemittance.objects.filter(
+            property=property_obj,
+            owner=request.user,
+        )
+        .select_related('rental_case')
+        .order_by('payment_date', 'id')
     )
 
-    total_received = sum((payment.amount_paid or 0) for payment in received_payments)
-    total_due = sum((payment.amount_due or 0) for payment in received_payments)
+    total_remitted = sum((item.amount or 0) for item in remittances)
 
     return render(request, 'rented_property_detail.html', {
         'property': property_obj,
@@ -61,8 +57,6 @@ def rented_property_detail(request, pk):
         'rental_cases': rental_cases,
         'contracts': contracts,
         'documents': documents,
-        'received_payments': received_payments,
-        'total_received': total_received,
-        'total_due': total_due,
-        'balance_due': max(total_due - total_received, 0),
+        'remittances': remittances,
+        'total_remitted': total_remitted,
     })
