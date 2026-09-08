@@ -62,7 +62,13 @@ def property_detail(request, pk):
 def register(request):
     if request.user.is_authenticated: return redirect('dashboard')
     form = RegisterForm(request.POST or None)
-    if request.method == 'POST' and form.is_valid(): user = form.save(commit=False); user.set_password(form.cleaned_data['password']); user.save(); login(request, user); audit(request, 'account.created', user); messages.success(request, 'Bienvenue sur FASTHOME. Votre compte unique est prêt.'); return redirect('dashboard')
+    if request.method == 'POST' and form.is_valid():
+        user = form.save(commit=False); user.set_password(form.cleaned_data['password']); user.save()
+        profile_data = getattr(user, '_registration_profile_data', None)
+        if profile_data is not None:
+            from .models import UserProfile
+            UserProfile.objects.update_or_create(user=user, defaults=profile_data)
+        login(request, user); audit(request, 'account.created', user); messages.success(request, 'Bienvenue sur FASTHOME. Votre compte unique est prêt.'); return redirect('dashboard')
     return render(request, 'auth.html', {'form': form, 'mode': 'register'})
 
 def login_view(request):
@@ -81,7 +87,7 @@ def dashboard(request):
     user = request.user
     owner_properties = Property.objects.filter(owner=user).prefetch_related('images').order_by('-updated_at')
     draft_properties = owner_properties.filter(status='draft')
-    review_properties = owner_properties.filter(status__in=['review', 'rejected'])
+    review_properties = owner_properties.filter(status='review')
     available_properties = owner_properties.filter(status='published')
     rented_properties = owner_properties.filter(status='rented')
     return render(request, 'dashboard.html', {
@@ -98,136 +104,3 @@ def dashboard(request):
             'rented': rented_properties.count(),
         },
         'visits': Visit.objects.filter(requester=user).select_related('property').order_by('-created_at')[:5],
-        'contracts': Contract.objects.filter(user=user).select_related('property'),
-        'payments': Payment.objects.filter(contract__user=user).select_related('contract__property').order_by('due_date')[:5],
-        'notifications': Notification.objects.filter(user=user).order_by('-created_at')[:6],
-    })
-
-@login_required
-def publications(request): return render(request, 'list.html', {'title': 'Mes publications', 'items': Property.objects.filter(owner=request.user).order_by('-updated_at'), 'kind': 'property'})
-@login_required
-def add_property(request):
-    form = PropertyForm(request.POST or None)
-    if request.method == 'POST' and form.is_valid():
-        submitting = 'submit' in request.POST
-        if submitting and not require_verified(request, 'soumettre une publication'): return render(request, 'property_form.html', {'form': form})
-        obj = form.save(commit=False); obj.owner = request.user; obj.status = 'review' if submitting else 'draft'; obj.save(); audit(request, 'property.created', obj, {'status': obj.status})
-        if obj.status == 'review': Notification.objects.create(user=request.user, title='Publication en vérification', message=f'{obj.reference} a été transmise à FASTHOME.')
-        messages.success(request, 'Publication soumise à vérification.' if obj.status == 'review' else 'Brouillon enregistré.'); return redirect('publications')
-    return render(request, 'property_form.html', {'form': form})
-
-@login_required
-def upload_property_images(request, pk):
-    prop = get_object_or_404(Property, pk=pk, owner=request.user)
-    if request.method != 'POST': return redirect('publications')
-    files = request.FILES.getlist('images'); existing = prop.images.count()
-    if existing + len(files) > 10: messages.error(request, 'Un bien peut contenir au maximum 10 photos.'); return redirect('publications')
-    for i, uploaded in enumerate(files): PropertyImage.objects.create(property=prop, image=uploaded, order=existing + i, is_cover=(existing == 0 and i == 0))
-    audit(request, 'property.images_uploaded', prop, {'count': len(files)}); messages.success(request, f'{len(files)} photo(s) ajoutée(s).'); return redirect('publications')
-
-@login_required
-def request_visit(request, pk):
-    prop = get_object_or_404(Property, pk=pk, status='published')
-    if request.method == 'POST':
-        if not require_verified(request, 'demander une visite'): return redirect('property_detail', pk=prop.pk)
-        visit = Visit.objects.create(property=prop, requester=request.user, preferred_date=request.POST.get('preferred_date') or None, preferred_time=request.POST.get('preferred_time') or None, comment=request.POST.get('comment', ''))
-        Notification.objects.create(user=request.user, title='Demande de visite envoyée', message=f'Votre demande pour {prop.title} est en attente de validation.')
-        Notification.objects.create(user=prop.owner, title='Nouvelle demande de visite', message=f'La demande #{visit.pk} concerne votre bien {prop.reference}.')
-        audit(request, 'visit.requested', visit); messages.success(request, 'Votre demande de visite a été envoyée.'); return redirect('visits')
-    return render(request, 'visit_form.html', {'property': prop})
-
-@login_required
-def visits(request): return render(request, 'list.html', {'title': 'Mes demandes de visite', 'items': Visit.objects.filter(requester=request.user).select_related('property').order_by('-created_at'), 'kind': 'visit'})
-@login_required
-def contracts(request): return render(request, 'list.html', {'title': 'Mes contrats', 'items': Contract.objects.filter(user=request.user).select_related('property').order_by('-created_at'), 'kind': 'contract'})
-@login_required
-def payments(request): return render(request, 'list.html', {'title': 'Mes paiements', 'items': Payment.objects.filter(contract__user=request.user).select_related('contract__property').order_by('due_date'), 'kind': 'payment'})
-@login_required
-def due_dates(request): return render(request, 'list.html', {'title': 'Mes échéances', 'items': Payment.objects.filter(contract__user=request.user).select_related('contract__property').order_by('due_date'), 'kind': 'due'})
-@login_required
-def payment_proof(request, pk):
-    payment = get_object_or_404(Payment, pk=pk, contract__user=request.user)
-    if request.method == 'POST' and request.FILES.get('file'):
-        proof = PaymentProof.objects.create(payment=payment, file=request.FILES['file'], note=request.POST.get('note', ''), uploaded_by=request.user); audit(request, 'payment.proof_uploaded', payment, {'proof_id': proof.pk}); messages.success(request, 'Preuve de paiement envoyée à FASTHOME.'); return redirect('payments')
-    return render(request, 'payment_proof.html', {'payment': payment})
-@login_required
-def notifications(request):
-    qs = Notification.objects.filter(user=request.user).order_by('-created_at'); qs.filter(read=False).update(read=True); return render(request, 'list.html', {'title': 'Notifications', 'items': qs, 'kind': 'notification'})
-@login_required
-def favorites(request): return render(request, 'list.html', {'title': 'Mes favoris', 'items': Property.objects.filter(pk__in=request.session.get('favorites', []), status='published'), 'kind': 'favorite'})
-@login_required
-def toggle_favorite(request, pk):
-    get_object_or_404(Property, pk=pk, status='published'); ids = request.session.get('favorites', [])
-    if pk in ids: ids.remove(pk); messages.info(request, 'Bien retiré des favoris.')
-    else: ids.append(pk); messages.success(request, 'Bien ajouté aux favoris.')
-    request.session['favorites'] = ids; return HttpResponseRedirect(request.META.get('HTTP_REFERER') or redirect('property_detail', pk=pk).url)
-@login_required
-def messages_page(request): return render(request, 'placeholder.html', {'title': 'Messagerie sécurisée', 'text': 'Contactez uniquement FASTHOME. Les coordonnées privées des propriétaires restent masquées.'})
-@login_required
-def profile(request): return render(request, 'profile.html', {'documents': VerificationDocument.objects.filter(user=request.user).order_by('-created_at')})
-def about(request): return render(request, 'placeholder.html', {'title': 'À propos', 'text': 'FASTHOME simplifie la recherche, la visite et la gestion locative en RDC.'})
-def how_it_works(request): return render(request, 'placeholder.html', {'title': 'Comment ça marche ?', 'text': 'Recherchez, comparez, demandez une visite, recevez la confirmation, visitez, puis suivez votre location depuis un seul compte.'})
-def contact(request): return render(request, 'placeholder.html', {'title': 'Contact', 'text': 'L’équipe FASTHOME vous accompagne à chaque étape.'})
-def contract_verify(request, reference): return render(request, 'verify.html', {'contract': get_object_or_404(Contract, reference=reference)})
-
-@login_required
-def verification_upload(request):
-    if request.method == 'POST':
-        for kind in ('id_front', 'id_back', 'selfie'):
-            uploaded = request.FILES.get(kind)
-            if uploaded: VerificationDocument.objects.create(user=request.user, kind=kind, file=uploaded); audit(request, 'verification.document_uploaded', details={'kind': kind})
-        messages.success(request, 'Vos documents de vérification ont été envoyés à FASTHOME.'); return redirect('profile')
-    return render(request, 'verification_upload.html')
-
-def staff_required(user): return user.is_staff
-
-@login_required
-@user_passes_test(staff_required)
-def admin_dashboard(request):
-    today = timezone.localdate(); pending_visits = Visit.objects.filter(status='pending').select_related('property', 'requester', 'agent').order_by('preferred_date', 'preferred_time')[:10]; confirmed_visits = Visit.objects.filter(status='confirmed').select_related('property', 'requester', 'agent').order_by('scheduled_date', 'scheduled_time', '-created_at')[:15]; today_confirmed = Visit.objects.filter(status='confirmed', scheduled_date=today).select_related('property', 'requester').order_by('scheduled_time')
-    return render(request, 'admin_dashboard.html', {'users': User.objects.count(), 'properties': Property.objects.count(), 'review': Property.objects.filter(status='review').count(), 'published': Property.objects.filter(status='published').count(), 'visits': Visit.objects.count(), 'today_visits': Visit.objects.filter(preferred_date=today).count(), 'today_confirmed_count': today_confirmed.count(), 'contracts': Contract.objects.count(), 'late': Payment.objects.filter(status='late').count(), 'payments': Payment.objects.count(), 'properties_review': Property.objects.filter(status='review').order_by('-created_at')[:10], 'visits_pending': pending_visits, 'visits_confirmed': confirmed_visits, 'visits_today_confirmed': today_confirmed[:10], 'audit_logs': AuditLog.objects.select_related('actor')[:12]})
-
-@login_required
-@user_passes_test(staff_required)
-def review_publication(request, pk):
-    prop = get_object_or_404(Property, pk=pk)
-    if request.method == 'POST':
-        action = request.POST.get('action'); allowed = {'review': {'publish', 'reject'}, 'published': set(), 'rented': {'archive'}, 'archived': set(), 'rejected': set()}; current = prop.status
-        if action not in allowed.get(current, set()): messages.error(request, f'Action impossible pour le statut « {prop.get_status_display()} ».'); return redirect('review_publication', pk=prop.pk)
-        if action == 'publish': prop.status = 'published'; prop.rejection_reason = ''; notice = 'Publication mise en ligne. Le bien peut maintenant recevoir des demandes de visite.'
-        elif action == 'reject':
-            reason = request.POST.get('rejection_reason', '').strip()
-            if not reason: messages.error(request, 'Le motif de refus est obligatoire.'); return render(request, 'review_publication.html', {'property': prop})
-            prop.status = 'rejected'; prop.rejection_reason = reason; notice = 'Publication refusée. Le propriétaire doit la corriger puis la soumettre à nouveau.'
-        else: prop.status = 'archived'; notice = 'Bien archivé. Il n’est plus proposé publiquement.'
-        prop.save(update_fields=['status', 'rejection_reason', 'updated_at']); audit(request, 'property.workflow_transition', prop, {'from': current, 'to': prop.status}); Notification.objects.create(user=prop.owner, title='Statut de publication mis à jour', message=f'{prop.reference} : {prop.get_status_display()}.'); messages.success(request, notice); return redirect('admin_dashboard')
-    return render(request, 'review_publication.html', {'property': prop})
-
-@login_required
-@user_passes_test(staff_required)
-def manage_visit(request, pk):
-    visit = get_object_or_404(Visit, pk=pk)
-    return render(request, 'manage_visit.html', {'visit': visit})
-
-@login_required
-@user_passes_test(staff_required)
-def verification_review(request, pk):
-    doc = get_object_or_404(VerificationDocument, pk=pk)
-    if request.method == 'POST':
-        doc.status = request.POST.get('status', 'pending'); doc.note = request.POST.get('note', ''); doc.save(update_fields=['status', 'note']); audit(request, 'verification.reviewed', doc, {'status': doc.status}); Notification.objects.create(user=doc.user, title='Vérification mise à jour', message=f'Votre document {doc.get_kind_display()} est : {doc.status}.'); messages.success(request, 'Document mis à jour.'); return redirect('admin_dashboard')
-    return render(request, 'verification_upload.html', {'document': doc})
-
-@login_required
-@user_passes_test(staff_required)
-def inspection(request, pk):
-    visit = get_object_or_404(Visit.objects.select_related('property', 'requester'), pk=pk); inspection_obj, _ = VisitInspection.objects.get_or_create(visit=visit)
-    if request.method == 'POST':
-        inspection_obj.condition = request.POST.get('condition', '').strip(); inspection_obj.meter_readings = request.POST.get('meter_readings', '').strip()
-        try: inspection_obj.keys_received = max(0, int(request.POST.get('keys_received') or 0))
-        except (TypeError, ValueError): inspection_obj.keys_received = 0
-        inspection_obj.notes = request.POST.get('notes', '').strip(); inspection_obj.signed_by_tenant = request.POST.get('signed_by_tenant') == 'on'; inspection_obj.signed_by_agent = request.POST.get('signed_by_agent') == 'on'; inspection_obj.save(); audit(request, 'visit.inspection_updated', inspection_obj, {'visit_id': visit.pk}); messages.success(request, 'État des lieux enregistré.'); return redirect('manage_visit', pk=visit.pk)
-    return render(request, 'inspection.html', {'visit': visit, 'inspection': inspection_obj})
-
-def error_403(request, exception=None): return render(request, '403.html', status=403)
-def error_404(request, exception=None): return render(request, '404.html', status=404)
-def error_500(request): return render(request, '500.html', status=500)
