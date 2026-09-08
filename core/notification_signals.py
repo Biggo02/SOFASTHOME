@@ -1,7 +1,8 @@
 from django.db.models.signals import pre_save, post_save
 from django.dispatch import receiver
+from django.contrib.auth.models import User
 
-from .models import Property, Visit, Payment, PaymentProof, VerificationDossier, Notification
+from .models import Property, Visit, Payment, PaymentProof, VerificationDossier
 from .rental_models import RentalCase, RentalContract, RentalDocument, OwnerRemittance, RentalPayment, RentalContractRequest
 from .notification_service import notify_once, notify_staff_once
 
@@ -17,17 +18,22 @@ def _notify_party_and_staff(title, message, party=None):
     notify_staff_once(title, message)
 
 
+@receiver(post_save, sender=User)
+def account_notifications(sender, instance, created, **kwargs):
+    if created and not instance.is_staff:
+        notify_staff_once('Nouveau compte', f'Un nouveau compte utilisateur a été créé : {instance.get_full_name() or instance.username}.')
+
+
 @receiver(pre_save, sender=Property)
 def property_before_save(sender, instance, **kwargs):
-    if not instance.pk:
-        instance._old_status = None
-    else:
-        instance._old_status = sender.objects.filter(pk=instance.pk).values_list('status', flat=True).first()
+    instance._old_status = sender.objects.filter(pk=instance.pk).values_list('status', flat=True).first() if instance.pk else None
 
 
 @receiver(post_save, sender=Property)
 def property_notifications(sender, instance, created, **kwargs):
     if created:
+        if instance.status == 'review':
+            _notify_party_and_staff('Publication à vérifier', f'{instance.reference} — {instance.title} a été soumise à vérification.', instance.owner)
         return
     old = getattr(instance, '_old_status', None)
     if old == instance.status:
@@ -56,10 +62,12 @@ def visit_before_save(sender, instance, **kwargs):
     if not instance.pk:
         instance._old_status = None
         instance._old_scheduled = None
+        instance._old_agent_id = None
         return
-    old = sender.objects.filter(pk=instance.pk).values('status', 'scheduled_date', 'scheduled_time').first()
+    old = sender.objects.filter(pk=instance.pk).values('status', 'scheduled_date', 'scheduled_time', 'agent_id').first()
     instance._old_status = old['status'] if old else None
     instance._old_scheduled = (old['scheduled_date'], old['scheduled_time']) if old else None
+    instance._old_agent_id = old['agent_id'] if old else None
 
 
 @receiver(post_save, sender=Visit)
@@ -68,21 +76,51 @@ def visit_changed_notifications(sender, instance, created, **kwargs):
         return
     old_status = getattr(instance, '_old_status', None)
     old_scheduled = getattr(instance, '_old_scheduled', None)
+    old_agent_id = getattr(instance, '_old_agent_id', None)
     if old_status != instance.status:
         if instance.status == 'confirmed':
-            notify_once(instance.requester, 'Visite confirmée', f'Votre visite pour {instance.property.reference} est confirmée par FASTHOME.')
+            notify_once(instance.requester, 'Demande de visite validée', 'Votre demande de visite est validée.')
         elif instance.status == 'rejected':
-            notify_once(instance.requester, 'Visite refusée', f'Votre demande de visite pour {instance.property.reference} a été refusée. FASTHOME reste votre interlocuteur.')
+            notify_once(instance.requester, 'Demande de visite refusée', 'Votre demande de visite n’a pas été acceptée.')
         elif instance.status == 'done':
-            notify_once(instance.requester, 'Visite effectuée', f'La visite pour {instance.property.reference} a été enregistrée comme effectuée.')
+            notify_once(instance.requester, 'Visite effectuée', 'Votre visite a été effectuée.')
         elif instance.status == 'cancelled':
-            notify_once(instance.requester, 'Visite annulée', f'La visite pour {instance.property.reference} a été annulée.')
+            notify_once(instance.requester, 'Visite annulée', f'Votre visite pour {instance.property.reference} a été annulée.')
     scheduled = (instance.scheduled_date, instance.scheduled_time)
     if old_scheduled != scheduled and instance.scheduled_date and instance.requester:
         when = f'{instance.scheduled_date:%d/%m/%Y}'
         if instance.scheduled_time:
             when += f' à {instance.scheduled_time:%H:%M}'
         notify_once(instance.requester, 'Horaire de visite mis à jour', f'Votre visite pour {instance.property.reference} est prévue le {when}.')
+    if instance.agent_id and instance.agent_id != old_agent_id:
+        notify_once(instance.agent, 'Visite assignée', f'La visite #{instance.pk} pour {instance.property.reference} vous a été assignée.')
+        notify_staff_once('Agent affecté à une visite', f'La visite #{instance.pk} pour {instance.property.reference} a été affectée à un agent.')
+
+
+@receiver(pre_save, sender=Payment)
+def payment_before_save(sender, instance, **kwargs):
+    if not instance.pk:
+        instance._old_status = None
+        instance._old_amount_paid = None
+        return
+    old = sender.objects.filter(pk=instance.pk).values('status', 'amount_paid').first()
+    instance._old_status = old['status'] if old else None
+    instance._old_amount_paid = old['amount_paid'] if old else None
+
+
+@receiver(post_save, sender=Payment)
+def payment_notifications(sender, instance, created, **kwargs):
+    if created:
+        return
+    old_status = getattr(instance, '_old_status', None)
+    old_paid = getattr(instance, '_old_amount_paid', None)
+    user = getattr(instance.contract, 'user', None)
+    if old_status != instance.status:
+        label = _status_label(instance, instance.status)
+        notify_once(user, 'Statut de paiement mis à jour', f'Votre paiement {instance.reference or ""} est maintenant « {label} ».')
+        notify_staff_once('Statut de paiement mis à jour', f'Paiement #{instance.pk} — contrat {instance.contract.pk} : « {label} ».')
+    if old_paid != instance.amount_paid and instance.amount_paid:
+        notify_once(user, 'Paiement mis à jour', f'Le montant payé pour l’échéance #{instance.pk} est maintenant de {instance.amount_paid:,.2f} CDF.')
 
 
 @receiver(post_save, sender=PaymentProof)
@@ -107,7 +145,6 @@ def verification_notifications(sender, instance, created, **kwargs):
     old = getattr(instance, '_old_status', None)
     if old == instance.status:
         return
-    labels = dict(VerificationDossier.STATUS)
     if instance.status == 'pending':
         notify_staff_once('Dossier d’identité à vérifier', f'Le dossier de vérification de {instance.user.get_full_name() or instance.user.username} est à traiter.')
     elif instance.status == 'approved':
@@ -169,9 +206,8 @@ def rental_document_notifications(sender, instance, created, **kwargs):
         return
     case = instance.rental_case
     party = case.owner if instance.document_type.startswith('owner_') else case.tenant if instance.document_type.startswith('tenant_') else None
-    if instance.status == 'prepared':
-        if party:
-            notify_once(party, 'Document préparé', f'{instance.label} a été préparé par FASTHOME pour le dossier {case.reference}.')
+    if instance.status == 'prepared' and party:
+        notify_once(party, 'Document préparé', f'{instance.label} a été préparé par FASTHOME pour le dossier {case.reference}.')
     elif instance.status == 'pending_review':
         notify_staff_once('Document signé à vérifier', f'{instance.label} — dossier {case.reference} nécessite une vérification FASTHOME.')
     elif instance.status == 'validated':
@@ -184,38 +220,73 @@ def rental_document_notifications(sender, instance, created, **kwargs):
         notify_staff_once('Document à corriger', f'{instance.label} — dossier {case.reference}.')
 
 
+@receiver(pre_save, sender=OwnerRemittance)
+def owner_remittance_before_save(sender, instance, **kwargs):
+    if not instance.pk:
+        instance._old_amount = None
+        instance._old_date = None
+        return
+    old = sender.objects.filter(pk=instance.pk).values('amount', 'payment_date').first()
+    instance._old_amount = old['amount'] if old else None
+    instance._old_date = old['payment_date'] if old else None
+
+
 @receiver(post_save, sender=OwnerRemittance)
 def owner_remittance_notifications(sender, instance, created, **kwargs):
-    if not created:
+    if created:
+        notify_once(instance.owner, 'Versement FASTHOME enregistré', f'{instance.amount:,.2f} CDF ont été enregistrés comme versement FASTHOME pour {instance.property.reference}. Référence {instance.reference}.')
+        notify_staff_once('Versement propriétaire enregistré', f'{instance.reference} — {instance.amount:,.2f} CDF versés pour {instance.property.reference}.')
         return
-    notify_once(instance.owner, 'Versement FASTHOME enregistré', f'{instance.amount:,.2f} CDF ont été enregistrés comme versement FASTHOME pour {instance.property.reference}. Référence {instance.reference}.')
-    notify_staff_once('Versement propriétaire enregistré', f'{instance.reference} — {instance.amount:,.2f} CDF versés pour {instance.property.reference}.')
+    if getattr(instance, '_old_amount', None) != instance.amount or getattr(instance, '_old_date', None) != instance.payment_date:
+        notify_once(instance.owner, 'Versement FASTHOME modifié', f'Le versement {instance.reference} a été mis à jour dans votre relevé.')
+        notify_staff_once('Versement propriétaire modifié', f'{instance.reference} — dossier {instance.rental_case.reference}.')
+
+
+@receiver(pre_save, sender=RentalPayment)
+def rental_payment_before_save(sender, instance, **kwargs):
+    if not instance.pk:
+        instance._old_amount = None
+        instance._old_date = None
+        return
+    old = sender.objects.filter(pk=instance.pk).values('amount', 'payment_date').first()
+    instance._old_amount = old['amount'] if old else None
+    instance._old_date = old['payment_date'] if old else None
 
 
 @receiver(post_save, sender=RentalPayment)
 def rental_payment_notifications(sender, instance, created, **kwargs):
-    if not created:
+    if created:
+        notify_once(instance.tenant, 'Paiement enregistré', f'{instance.get_payment_type_display()} de {instance.amount:,.2f} CDF enregistré pour le contrat {instance.contract.reference}. Référence {instance.reference}.')
+        notify_staff_once('Paiement locataire enregistré', f'{instance.reference} — {instance.amount:,.2f} CDF — contrat {instance.contract.reference}.')
         return
-    notify_once(instance.tenant, 'Paiement enregistré', f'{instance.get_payment_type_display()} de {instance.amount:,.2f} CDF enregistré pour le contrat {instance.contract.reference}. Référence {instance.reference}.')
-    notify_staff_once('Paiement locataire enregistré', f'{instance.reference} — {instance.amount:,.2f} CDF — contrat {instance.contract.reference}.')
+    if getattr(instance, '_old_amount', None) != instance.amount or getattr(instance, '_old_date', None) != instance.payment_date:
+        notify_once(instance.tenant, 'Paiement modifié', f'Le paiement {instance.reference} de votre contrat {instance.contract.reference} a été mis à jour.')
+        notify_staff_once('Paiement locataire modifié', f'{instance.reference} — contrat {instance.contract.reference}.')
 
 
 @receiver(pre_save, sender=RentalContractRequest)
 def rental_request_before_save(sender, instance, **kwargs):
-    instance._old_status = sender.objects.filter(pk=instance.pk).values_list('status', flat=True).first() if instance.pk else None
+    if not instance.pk:
+        instance._old_status = None
+        instance._old_response = ''
+        return
+    old = sender.objects.filter(pk=instance.pk).values('status', 'response').first()
+    instance._old_status = old['status'] if old else None
+    instance._old_response = old['response'] if old else ''
 
 
 @receiver(post_save, sender=RentalContractRequest)
 def rental_request_notifications(sender, instance, created, **kwargs):
     if created:
         kind = 'Signalement de problème' if instance.request_type == 'problem' else 'Demande de fin de contrat'
-        target = f' pour le contrat {instance.contract.reference}'
-        notify_once(instance.requester, f'{kind} envoyée', f'Votre demande a été enregistrée{target} et transmise à FASTHOME.')
+        notify_once(instance.requester, f'{kind} envoyée', f'Votre demande a été enregistrée pour le contrat {instance.contract.reference} et transmise à FASTHOME.')
         notify_staff_once(f'{kind} à traiter', f'{instance.contract.reference} — dossier {instance.rental_case.reference}. Une action FASTHOME est requise.')
         return
-    old = getattr(instance, '_old_status', None)
-    if old == instance.status:
-        return
-    label = _status_label(instance, instance.status)
-    notify_once(instance.requester, 'Demande de contrat mise à jour', f'Votre demande pour le contrat {instance.contract.reference} est maintenant « {label} ».')
-    notify_staff_once('Demande de contrat mise à jour', f'{instance.contract.reference} — demande #{instance.pk} : « {label} ».')
+    old_status = getattr(instance, '_old_status', None)
+    old_response = getattr(instance, '_old_response', '')
+    if old_status != instance.status:
+        label = _status_label(instance, instance.status)
+        notify_once(instance.requester, 'Demande de contrat mise à jour', f'Votre demande pour le contrat {instance.contract.reference} est maintenant « {label} ».')
+        notify_staff_once('Demande de contrat mise à jour', f'{instance.contract.reference} — demande #{instance.pk} : « {label} ».')
+    if old_response != instance.response and instance.response:
+        notify_once(instance.requester, 'Réponse FASTHOME disponible', f'FASTHOME a répondu à votre demande concernant le contrat {instance.contract.reference}. Consultez votre espace personnel.')
